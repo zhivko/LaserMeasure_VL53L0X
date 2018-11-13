@@ -1,0 +1,1 @@
+python c:/msys32/home/klemen/esp/esp-idf/components/esptool_py/esptool/esptool.py --chip esp32 --port COM3 --baud 921600 --before "default_reset" --after "hard_reset" erase_flash

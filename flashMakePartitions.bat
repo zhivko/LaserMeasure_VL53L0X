@@ -1,0 +1,1 @@
+python c:/msys32/home/klemen/esp/esp-idf/components/esptool_py/esptool/esptool.py --chip esp32 --port COM24 --baud 115200 --before default_reset --after hard_reset write_flash 0x8000 c:/msys32/home/klemen/esp/hello_world/build/partitions.bin
