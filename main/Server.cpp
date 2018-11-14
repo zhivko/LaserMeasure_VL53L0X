@@ -1151,7 +1151,7 @@ void setup()
   password = preferences.getString("wifi_password","null");
   if(ssid.equals("null"))
   {
-	  ssid = "AndroidAP";
+	  ssid ="AndroidAP";
 	  password = "Doitman1";
   }
 
