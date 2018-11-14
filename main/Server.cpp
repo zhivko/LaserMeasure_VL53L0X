@@ -1151,7 +1151,7 @@ void setup()
   password = preferences.getString("wifi_password","null");
   if(ssid.equals("null"))
   {
-	  ssid = "AsusKZ";
+	  ssid = "AndroidAP";
 	  password = "Doitman1";
   }
 
@@ -1261,6 +1261,11 @@ void setup()
     Serial.println("redirecting to /index.html");
     request->redirect("/index.html");
   });
+
+  server.onNotFound([](AsyncWebServerRequest *request){
+    request->send(404);
+  });
+
 
   if(!SPIFFS.begin()){
       Serial.println("SPIFFS Mount Failed");
