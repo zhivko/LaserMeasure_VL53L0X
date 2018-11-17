@@ -3,6 +3,11 @@
 // C:\Users\klemen\Dropbox\Voga\BleVogaLifter-esp32-DRV8703Q>c:\Python27\python.exe c:\Users\klemen\.platformio\packages\framework-arduinoespressif32\tools\esptool.py --chip esp32 --port COM3 --baud 115200 --before default_reset --after hard_reset erase_flash
 // https://github.com/thehookup/ESP32_Ceiling_Light/blob/master/GPIO_Limitations_ESP32_NodeMCU.jpg
 // Need to test: VL53L0X
+// https://esp32.com/viewtopic.php?f=13&t=2525#p12056
+
+// cd ~/esp/openocd-esp32
+// bin/openocd -s share/openocd/scripts -f interface/ftdi/olimex-arm-usb-ocd-h.cfg -f board/esp-wroom-32.cfg -d3
+
 #include <WiFi.h>
 #include <FS.h>
 #include "SPIFFS.h"
@@ -154,7 +159,8 @@ IRAM_ATTR void reportJson(void *pvParameters)
     //Serial.println("reportjson1");
     if(ws.count()>0)
     {
-      //reportingJson = true;
+    	Serial.println("reportjson");
+      //reportingJson = true;reportJson
       txtToSend = "";
       txtToSend.concat("{");
 
@@ -297,6 +303,7 @@ IRAM_ATTR void reportJson(void *pvParameters)
        *
        */
       ws.textAll(txtToSend.c_str());
+      yield();
       //reportingJson = false;
     }
     //Serial.println("reportjson2");
@@ -320,7 +327,7 @@ IRAM_ATTR void reportJson(void *pvParameters)
       if(delta>1000)
         Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
       
-      
+      yield();
     }
     if(rotaryEncoder2.encoderChanged()!=0 && ((int)target2) == encoder2_value)
     {
@@ -336,6 +343,7 @@ IRAM_ATTR void reportJson(void *pvParameters)
       if(delta>1000)
         Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
       
+      yield();
     }
     esp_task_wdt_reset();
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -1032,8 +1040,9 @@ void IRAM_ATTR handleIntCapSense() {
 void waitForIp()
 {
   NO_AP_FOUND_count = 0;
-
   while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count<4) {
+	Serial.print("MAC: ");
+	Serial.println(WiFi.macAddress());
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     Serial.print("SSID: ");
@@ -1088,7 +1097,7 @@ void blink(int i){
 
 void setup()
 {
-	Serial.print("Baud rate: 921600");
+  Serial.print("Baud rate: 115200");
   Serial.begin(115200);
   Serial.print("ESP ChipSize:");
   Serial.println(ESP.getFlashChipSize());
@@ -1151,7 +1160,8 @@ void setup()
   password = preferences.getString("wifi_password","null");
   if(ssid.equals("null"))
   {
-	  ssid ="AndroidAP";
+	  //ssid ="AndroidAP";
+	  ssid ="AsusKZ";
 	  password = "Doitman1";
   }
 
@@ -1305,7 +1315,7 @@ void setup()
     ws.closeAll();
   });
 
-  /*
+/*
   xTaskCreatePinnedToCore(
                     reportJson,                  // Task function. 
                     "reportJsonTask",            // String with name of task. 
@@ -1313,10 +1323,10 @@ void setup()
                     NULL,                        // Parameter passed as input of the task 
                     tskIDLE_PRIORITY,            // Priority of the task.
                     &reportJsonTask,             // Task handle.
-                    0);                          // core number
+                    1);                          // core number
     esp_task_wdt_add(reportJsonTask);
-  */
-  
+*/
+
   /*
   xTaskCreatePinnedToCore(
                     i2cTask_func,                // Task function. 
@@ -1369,6 +1379,7 @@ void setup()
 
   preferences.end();
 
+  /*
   xTaskCreatePinnedToCore(
     Task1,                  // pvTaskCode
     "Workload1",            // pcName
@@ -1378,6 +1389,7 @@ void setup()
     &TaskA,                 // pxCreatedTask
     0);                     // xCoreID 
   esp_task_wdt_add(TaskA);
+	*/
 
   Serial.println("Gate driver ON");
   digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers
@@ -1473,8 +1485,15 @@ void loop(){
   */
 
   esp_task_wdt_reset();
-  vTaskDelay(5 / portTICK_PERIOD_MS);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
+  yield();
+  //Serial.println("Looping.");
 
+	if(i % 1000 == 0)
+	{
+		Serial.print("_async_service_task i=");
+		Serial.println(i);
+	}
 }
 
 void move(){

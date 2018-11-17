@@ -65,53 +65,9 @@ Discarded input sections
  .bss           0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
  .xt.lit        0x00000000       0x58 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
  .xt.prop       0x00000000      0x600 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- .literal.write_status_8b_wrsr2
-                0x00000000        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.read_status_8b_rdsr2
-                0x00000000        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.write_status_16b_wrsr
-                0x00000000        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.read_status_16b_rdsr_rdsr2
-                0x00000000        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.write_status_8b_wrsr
-                0x00000000        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.read_status_8b_rdsr
-                0x00000000        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.write_status_8b_xmc25qu64a
-                0x00000000       0x18 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.read_status_8b_xmc25qu64a
-                0x00000000       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.enable_qio_mode
-                0x00000000       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .literal.bootloader_enable_qio_mode
-                0x00000000       0x2c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .text          0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .data          0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .bss           0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.write_status_8b_wrsr2
-                0x00000000       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.read_status_8b_rdsr2
-                0x00000000       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.write_status_16b_wrsr
-                0x00000000       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.read_status_16b_rdsr_rdsr2
-                0x00000000       0x29 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.write_status_8b_wrsr
-                0x00000000       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.read_status_8b_rdsr
-                0x00000000       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.write_status_8b_xmc25qu64a
-                0x00000000       0x42 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.read_status_8b_xmc25qu64a
-                0x00000000       0x3a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .rodata.str1.4
-                0x00000000       0xc6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.enable_qio_mode
-                0x00000000       0x84 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .text.bootloader_enable_qio_mode
-                0x00000000       0xf4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .rodata.chip_data
-                0x00000000       0x6c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .xt.lit        0x00000000       0x60 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .xt.prop       0x00000000      0x300 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .literal.bootloader_flash_write
@@ -199,8 +155,6 @@ Discarded input sections
                 0x00000000      0x1da C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
  .xt.lit        0x00000000       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
  .xt.prop       0x00000000      0x354 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
- .literal.spi_cache_mode_switch
-                0x00000000       0x38 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .literal.esp_rom_spiflash_erase_chip_internal
                 0x00000000       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .literal.esp_rom_spiflash_erase_block_internal
@@ -213,8 +167,6 @@ Discarded input sections
                 0x00000000       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .literal.esp_rom_spiflash_lock
                 0x00000000       0x18 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .literal.esp_rom_spiflash_config_readmode
-                0x00000000       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .literal.esp_rom_spiflash_erase_chip
                 0x00000000        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .literal.esp_rom_spiflash_erase_block
@@ -230,8 +182,6 @@ Discarded input sections
  .text          0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .data          0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .bss           0x00000000        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .text.spi_cache_mode_switch
-                0x00000000      0x266 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .text.esp_rom_spiflash_erase_chip_internal
                 0x00000000       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .text.esp_rom_spiflash_erase_block_internal
@@ -244,10 +194,6 @@ Discarded input sections
                 0x00000000       0xee C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .text.esp_rom_spiflash_lock
                 0x00000000       0x4e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .text.esp_rom_spiflash_config_readmode
-                0x00000000       0xa0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .rodata.esp_rom_spiflash_config_readmode
-                0x00000000       0x18 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .text.esp_rom_spiflash_erase_chip
                 0x00000000       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .text.esp_rom_spiflash_erase_block
@@ -371,7 +317,7 @@ LOAD c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgco
 END GROUP
 
 .iram_loader.text
-                0x40078000     0x23d8
+                0x40078000     0x2700
                 0x40078000                . = ALIGN (0x10)
                 0x40078000                _loader_text_start = ABSOLUTE (.)
  *(.stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
@@ -476,249 +422,262 @@ END GROUP
  .literal.esp_partition_table_verify
                 0x400782dc       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
                                  0x5c (size before relaxing)
+ .literal.spi_cache_mode_switch
+                0x4007830c       0x1c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                                 0x38 (size before relaxing)
  .literal.esp_rom_spiflash_read_status
-                0x4007830c        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x40078328        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x14 (size before relaxing)
  .literal.esp_rom_spiflash_wait_idle
-                0x40078318        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x40078334        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                   0xc (size before relaxing)
  .literal.esp_rom_spiflash_read_data
-                0x40078320       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007833c       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x18 (size before relaxing)
  .literal.esp_rom_spiflash_read_statushigh
-                0x40078330        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007834c        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                   0xc (size before relaxing)
  .literal.esp_rom_spiflash_write_status
-                0x40078334        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x40078350        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x14 (size before relaxing)
  .literal.esp_rom_spiflash_unlock
-                0x40078334        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x40078350        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x28 (size before relaxing)
+ .literal.esp_rom_spiflash_config_readmode
+                0x4007835c       0x18 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                                 0x30 (size before relaxing)
  .literal.esp_rom_spiflash_read
-                0x40078340       0x38 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x40078374       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x5c (size before relaxing)
- .iram1         0x40078378      0x22b C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- *fill*         0x400785a3        0x1 
- .iram1         0x400785a4      0x11a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
-                0x400785a4                esp_cpu_stall
-                0x40078638                esp_cpu_unstall
-                0x4007868c                esp_cpu_reset
-                0x400786b0                esp_cpu_in_ocd_debug_mode
- *fill*         0x400786be        0x0 
+ .iram1         0x40078398      0x22b C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ *fill*         0x400785c3        0x1 
+ .iram1         0x400785c4      0x11a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
+                0x400785c4                esp_cpu_stall
+                0x40078658                esp_cpu_unstall
+                0x400786ac                esp_cpu_reset
+                0x400786d0                esp_cpu_in_ocd_debug_mode
+ *fill*         0x400786de        0x0 
  *liblog.a:(.literal .text .literal.* .text.*)
- *fill*         0x400786be        0x2 
+ *fill*         0x400786de        0x2 
  .text.esp_log_early_timestamp
-                0x400786c0       0x1f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
-                0x400786c0                esp_log_early_timestamp
-                0x400786c0                esp_log_timestamp
- *fill*         0x400786df        0x0 
+                0x400786e0       0x1f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
+                0x400786e0                esp_log_early_timestamp
+                0x400786e0                esp_log_timestamp
+ *fill*         0x400786ff        0x0 
  *libgcc.a:(.literal .text .literal.* .text.*)
- *fill*         0x400786df        0x1 
- .text          0x400786e0       0x26 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
-                0x400786e0                __bswapsi2
- *fill*         0x40078706        0x0 
- *fill*         0x40078706        0x2 
- .text          0x40078708      0x281 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
-                0x40078708                __udivdi3
+ *fill*         0x400786ff        0x1 
+ .text          0x40078700       0x26 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
+                0x40078700                __bswapsi2
+ *fill*         0x40078726        0x0 
+ *fill*         0x40078726        0x2 
+ .text          0x40078728      0x281 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
+                0x40078728                __udivdi3
  *libbootloader_support.a:bootloader_common.o(.literal .text .literal.* .text.*)
- *fill*         0x40078989        0x3 
+ *fill*         0x400789a9        0x3 
  .text.bootloader_common_ota_select_crc
-                0x4007898c       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
-                0x4007898c                bootloader_common_ota_select_crc
+                0x400789ac       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
+                0x400789ac                bootloader_common_ota_select_crc
  .text.bootloader_common_ota_select_valid
-                0x400789a0       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
+                0x400789c0       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
                                  0x24 (size before relaxing)
-                0x400789a0                bootloader_common_ota_select_valid
- *fill*         0x400789c0        0x0 
+                0x400789c0                bootloader_common_ota_select_valid
+ *fill*         0x400789e0        0x0 
  *libbootloader_support.a:bootloader_flash.*(.literal .text .literal.* .text.*)
  .text.spi_to_esp_err
-                0x400789c0       0x22 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
- *fill*         0x400789e2        0x2 
+                0x400789e0       0x22 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+ *fill*         0x40078a02        0x2 
  .text.bootloader_flash_read_allow_decrypt
-                0x400789e4       0x97 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+                0x40078a04       0x97 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
                                  0x9b (size before relaxing)
- *fill*         0x40078a7b        0x1 
+ *fill*         0x40078a9b        0x1 
  .text.bootloader_flash_read_no_decrypt
-                0x40078a7c       0x32 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+                0x40078a9c       0x32 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
                                  0x36 (size before relaxing)
- *fill*         0x40078aae        0x2 
+ *fill*         0x40078ace        0x2 
  .text.bootloader_mmap
-                0x40078ab0       0xb1 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+                0x40078ad0       0xb1 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
                                  0xb9 (size before relaxing)
-                0x40078ab0                bootloader_mmap
- *fill*         0x40078b61        0x3 
+                0x40078ad0                bootloader_mmap
+ *fill*         0x40078b81        0x3 
  .text.bootloader_munmap
-                0x40078b64       0x36 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
-                0x40078b64                bootloader_munmap
- *fill*         0x40078b9a        0x2 
+                0x40078b84       0x36 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+                0x40078b84                bootloader_munmap
+ *fill*         0x40078bba        0x2 
  .text.bootloader_flash_read
-                0x40078b9c       0x86 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
-                0x40078b9c                bootloader_flash_read
- *fill*         0x40078c22        0x0 
- *fill*         0x40078c22        0x0 
- *fill*         0x40078c22        0x0 
- *fill*         0x40078c22        0x0 
- *fill*         0x40078c22        0x0 
+                0x40078bbc       0x86 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+                0x40078bbc                bootloader_flash_read
+ *fill*         0x40078c42        0x0 
+ *fill*         0x40078c42        0x0 
+ *fill*         0x40078c42        0x0 
+ *fill*         0x40078c42        0x0 
+ *fill*         0x40078c42        0x0 
  *libbootloader_support.a:bootloader_random.*(.literal .text .literal.* .text.*)
- *fill*         0x40078c22        0x2 
+ *fill*         0x40078c42        0x2 
  .text.bootloader_fill_random
-                0x40078c24       0x59 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
-                0x40078c24                bootloader_fill_random
- *fill*         0x40078c7d        0x3 
+                0x40078c44       0x59 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
+                0x40078c44                bootloader_fill_random
+ *fill*         0x40078c9d        0x3 
  .text.bootloader_random_enable
-                0x40078c80      0x1d5 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
-                0x40078c80                bootloader_random_enable
- *fill*         0x40078e55        0x3 
+                0x40078ca0      0x1d5 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
+                0x40078ca0                bootloader_random_enable
+ *fill*         0x40078e75        0x3 
  .text.bootloader_random_disable
-                0x40078e58      0x11c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
-                0x40078e58                bootloader_random_disable
- *fill*         0x40078f74        0x0 
- *fill*         0x40078f74        0x0 
- *fill*         0x40078f74        0x0 
+                0x40078e78      0x11c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
+                0x40078e78                bootloader_random_disable
+ *fill*         0x40078f94        0x0 
+ *fill*         0x40078f94        0x0 
+ *fill*         0x40078f94        0x0 
  *libbootloader_support.a:bootloader_utility.*(.literal .text .literal.* .text.*)
  .text.log_invalid_app_partition
-                0x40078f74       0x57 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x40078f94       0x57 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                  0x5b (size before relaxing)
- *fill*         0x40078fcb        0x1 
+ *fill*         0x40078feb        0x1 
  .text.try_load_partition
-                0x40078fcc       0x34 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x40078fec       0x34 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                  0x38 (size before relaxing)
  .text.set_cache_and_start_app
-                0x40079000       0xce C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
- *fill*         0x400790ce        0x2 
+                0x40079020       0xce C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+ *fill*         0x400790ee        0x2 
  .text.unpack_load_app
-                0x400790d0       0xb0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x400790f0       0xb0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                  0xb4 (size before relaxing)
  .text.load_image
-                0x40079180       0x1e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x400791a0       0x1e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                  0x26 (size before relaxing)
- *fill*         0x4007919e        0x2 
+ *fill*         0x400791be        0x2 
  .text.bootloader_utility_load_partition_table
-                0x400791a0      0x168 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x400791c0      0x168 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                 0x184 (size before relaxing)
-                0x400791a0                bootloader_utility_load_partition_table
+                0x400791c0                bootloader_utility_load_partition_table
  .text.bootloader_utility_get_selected_boot_partition
-                0x40079308      0x148 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x40079328      0x148 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                 0x154 (size before relaxing)
-                0x40079308                bootloader_utility_get_selected_boot_partition
+                0x40079328                bootloader_utility_get_selected_boot_partition
  .text.bootloader_utility_load_boot_image
-                0x40079450       0xd7 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+                0x40079470       0xd7 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                  0xf7 (size before relaxing)
-                0x40079450                bootloader_utility_load_boot_image
- *fill*         0x40079527        0x1 
+                0x40079470                bootloader_utility_load_boot_image
+ *fill*         0x40079547        0x1 
  .text.index_to_partition
-                0x40079528       0x48 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
- *fill*         0x40079570        0x0 
- *fill*         0x40079570        0x0 
- *fill*         0x40079570        0x0 
+                0x40079548       0x48 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
+ *fill*         0x40079590        0x0 
+ *fill*         0x40079590        0x0 
+ *fill*         0x40079590        0x0 
  *libbootloader_support.a:bootloader_sha.*(.literal .text .literal.* .text.*)
  .text.bootloader_sha256_start
-                0x40079570       0x12 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
-                0x40079570                bootloader_sha256_start
- *fill*         0x40079582        0x2 
+                0x40079590       0x12 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+                0x40079590                bootloader_sha256_start
+ *fill*         0x400795a2        0x2 
  .text.bootloader_sha256_data
-                0x40079584       0xa1 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+                0x400795a4       0xa1 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
                                  0xa9 (size before relaxing)
-                0x40079584                bootloader_sha256_data
- *fill*         0x40079625        0x3 
+                0x400795a4                bootloader_sha256_data
+ *fill*         0x40079645        0x3 
  .text.bootloader_sha256_finish
-                0x40079628       0xdc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+                0x40079648       0xdc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
                                  0xf0 (size before relaxing)
-                0x40079628                bootloader_sha256_finish
- *fill*         0x40079704        0x0 
- *fill*         0x40079704        0x0 
- *fill*         0x40079704        0x0 
+                0x40079648                bootloader_sha256_finish
+ *fill*         0x40079724        0x0 
+ *fill*         0x40079724        0x0 
+ *fill*         0x40079724        0x0 
  *libbootloader_support.a:efuse.*(.literal .text .literal.* .text.*)
  *libbootloader_support.a:esp_image_format.*(.literal .text .literal.* .text.*)
  .text.should_map
-                0x40079704       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x40079724       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
  .text.verify_image_header
-                0x40079734       0x7e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
- *fill*         0x400797b2        0x2 
+                0x40079754       0x7e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+ *fill*         0x400797d2        0x2 
  .text.verify_segment_header
-                0x400797b4       0x71 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x400797d4       0x71 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                  0x79 (size before relaxing)
- *fill*         0x40079825        0x3 
+ *fill*         0x40079845        0x3 
  .text.verify_checksum
-                0x40079828       0x87 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x40079848       0x87 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                  0x8f (size before relaxing)
- *fill*         0x400798af        0x1 
+ *fill*         0x400798cf        0x1 
  .text.process_segment_data
-                0x400798b0       0xa4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x400798d0       0xa4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                  0xb0 (size before relaxing)
  .text.verify_simple_hash
-                0x40079954       0x5b C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x40079974       0x5b C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                  0x6a (size before relaxing)
- *fill*         0x400799af        0x1 
+ *fill*         0x400799cf        0x1 
  .text.should_load
-                0x400799b0       0x44 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x400799d0       0x44 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                  0x48 (size before relaxing)
  .text.process_segment
-                0x400799f4      0x182 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x40079a14      0x182 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                 0x192 (size before relaxing)
- *fill*         0x40079b76        0x2 
+ *fill*         0x40079b96        0x2 
  .text.esp_image_load
-                0x40079b78      0x256 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x40079b98      0x256 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                 0x272 (size before relaxing)
-                0x40079b78                esp_image_load
- *fill*         0x40079dce        0x0 
- *fill*         0x40079dce        0x0 
- *fill*         0x40079dce        0x0 
- *fill*         0x40079dce        0x0 
- *fill*         0x40079dce        0x0 
+                0x40079b98                esp_image_load
+ *fill*         0x40079dee        0x0 
+ *fill*         0x40079dee        0x0 
+ *fill*         0x40079dee        0x0 
+ *fill*         0x40079dee        0x0 
+ *fill*         0x40079dee        0x0 
  *libbootloader_support.a:flash_encrypt.*(.literal .text .literal.* .text.*)
  *libbootloader_support.a:flash_partitions.*(.literal .text .literal.* .text.*)
- *fill*         0x40079dce        0x2 
+ *fill*         0x40079dee        0x2 
  .text.esp_partition_table_verify
-                0x40079dd0      0x143 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
+                0x40079df0      0x143 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
                                 0x14f (size before relaxing)
-                0x40079dd0                esp_partition_table_verify
- *fill*         0x40079f13        0x0 
+                0x40079df0                esp_partition_table_verify
+ *fill*         0x40079f33        0x0 
  *libbootloader_support.a:secure_boot.*(.literal .text .literal.* .text.*)
  *libbootloader_support.a:secure_boot_signatures.*(.literal .text .literal.* .text.*)
  *libmicro-ecc.a:*.*(.literal .text .literal.* .text.*)
  *libspi_flash.a:*.*(.literal .text .literal.* .text.*)
- *fill*         0x40079f13        0x1 
+ *fill*         0x40079f33        0x1 
+ .text.spi_cache_mode_switch
+                0x40079f34      0x266 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+ *fill*         0x4007a19a        0x2 
  .text.esp_rom_spiflash_read_status
-                0x40079f14       0x61 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
-                0x40079f14                esp_rom_spiflash_read_status
- *fill*         0x40079f75        0x3 
+                0x4007a19c       0x61 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a19c                esp_rom_spiflash_read_status
+ *fill*         0x4007a1fd        0x3 
  .text.esp_rom_spiflash_wait_idle
-                0x40079f78       0x32 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
-                0x40079f78                esp_rom_spiflash_wait_idle
- *fill*         0x40079faa        0x2 
+                0x4007a200       0x32 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a200                esp_rom_spiflash_wait_idle
+ *fill*         0x4007a232        0x2 
  .text.esp_rom_spiflash_read_data
-                0x40079fac       0xe2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- *fill*         0x4007a08e        0x2 
+                0x4007a234       0xe2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+ *fill*         0x4007a316        0x2 
  .text.esp_rom_spiflash_read_statushigh
-                0x4007a090       0x21 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
-                0x4007a090                esp_rom_spiflash_read_statushigh
- *fill*         0x4007a0b1        0x3 
+                0x4007a318       0x21 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a318                esp_rom_spiflash_read_statushigh
+ *fill*         0x4007a339        0x3 
  .text.esp_rom_spiflash_write_status
-                0x4007a0b4       0x34 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a33c       0x34 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x38 (size before relaxing)
-                0x4007a0b4                esp_rom_spiflash_write_status
+                0x4007a33c                esp_rom_spiflash_write_status
  .text.esp_rom_spiflash_unlock
-                0x4007a0e8       0x6a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a370       0x6a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
                                  0x7e (size before relaxing)
-                0x4007a0e8                esp_rom_spiflash_unlock
- *fill*         0x4007a152        0x2 
+                0x4007a370                esp_rom_spiflash_unlock
+ *fill*         0x4007a3da        0x2 
+ .text.esp_rom_spiflash_config_readmode
+                0x4007a3dc       0xa0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a3dc                esp_rom_spiflash_config_readmode
  .text.esp_rom_spiflash_read
-                0x4007a154      0x284 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
-                0x4007a154                esp_rom_spiflash_read
- *fill*         0x4007a3d8        0x0 
- *fill*         0x4007a3d8        0x0 
- *fill*         0x4007a3d8        0x0 
- *fill*         0x4007a3d8        0x0 
- *fill*         0x4007a3d8        0x0 
- *fill*         0x4007a3d8        0x0 
+                0x4007a47c      0x284 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+                0x4007a47c                esp_rom_spiflash_read
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
+ *fill*         0x4007a700        0x0 
  *libsoc.a:rtc_wdt.*(.literal .text .literal.* .text.*)
  *(.fini.literal)
  *(.fini)
  *(.gnu.version)
-                0x4007a3d8                _loader_text_end = ABSOLUTE (.)
+                0x4007a700                _loader_text_end = ABSOLUTE (.)
 
-.iram.text      0x40080000     0x17ae
+.iram.text      0x40080000     0x1a32
                 0x40080000                . = ALIGN (0x10)
  *(.entry.text)
  *(.init.literal)
@@ -756,7 +715,7 @@ END GROUP
                 0x400800e0       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
  .literal.bootloader_main
                 0x40080100       0x2c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
-                                 0x8c (size before relaxing)
+                                 0x90 (size before relaxing)
  .literal.__assert_func
                 0x4008012c        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                  0x10 (size before relaxing)
@@ -766,270 +725,344 @@ END GROUP
  .literal.execute_flash_command
                 0x40080178       0x38 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
                                  0x3c (size before relaxing)
- .literal.bootloader_read_flash_id
-                0x400801b0        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ .literal.write_status_8b_wrsr2
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x4 (size before relaxing)
+ .literal.read_status_8b_rdsr2
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x4 (size before relaxing)
+ .literal.write_status_16b_wrsr
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x4 (size before relaxing)
+ .literal.read_status_16b_rdsr_rdsr2
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
                                   0x8 (size before relaxing)
+ .literal.write_status_8b_wrsr
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x4 (size before relaxing)
+ .literal.read_status_8b_rdsr
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x4 (size before relaxing)
+ .literal.write_status_8b_xmc25qu64a
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x18 (size before relaxing)
+ .literal.read_status_8b_xmc25qu64a
+                0x400801b0        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x14 (size before relaxing)
+ .literal.enable_qio_mode
+                0x400801b0       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x30 (size before relaxing)
+ .literal.bootloader_read_flash_id
+                0x400801c0        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                  0x8 (size before relaxing)
+ .literal.bootloader_enable_qio_mode
+                0x400801c4        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x2c (size before relaxing)
  .literal.bootloader_clock_configure
-                0x400801b4        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
+                0x400801d0        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
                                  0x20 (size before relaxing)
  .literal.rtc_clk_32k_enable_internal
-                0x400801c0       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400801dc       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  .literal.rtc_clk_32k_enable
-                0x400801d4        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400801f0        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0xc (size before relaxing)
  .literal.rtc_clk_8m_enable
-                0x400801d8        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400801f4        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x10 (size before relaxing)
  .literal.rtc_clk_8m_enabled
-                0x400801e4        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080200        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x4 (size before relaxing)
  .literal.rtc_clk_8md256_enabled
-                0x400801e4        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080200        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x4 (size before relaxing)
  .literal.rtc_clk_xtal_freq_estimate
-                0x400801e4       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080200       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x4c (size before relaxing)
  .literal.rtc_clk_slow_freq_set
-                0x40080204        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080220        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0xc (size before relaxing)
  .literal.rtc_clk_slow_freq_get
-                0x40080208        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080224        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x4 (size before relaxing)
  .literal.rtc_clk_fast_freq_set
-                0x40080208        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080224        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0xc (size before relaxing)
  .literal.rtc_clk_fast_freq_get
-                0x40080208        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080224        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x4 (size before relaxing)
  .literal.rtc_clk_bbpll_set
-                0x40080208       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080224       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x38 (size before relaxing)
  .literal.rtc_clk_xtal_freq_get
-                0x40080218        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080234        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x1c (size before relaxing)
  .literal.rtc_clk_cpu_freq_get
-                0x40080220       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x4008023c       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x28 (size before relaxing)
  .literal.rtc_clk_cpu_freq_value
-                0x40080234       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080250       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x2c (size before relaxing)
  .literal.rtc_clk_xtal_freq_update
-                0x40080254        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080270        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x8 (size before relaxing)
  .literal.rtc_clk_apb_freq_update
-                0x40080254        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080270        0x4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                   0x8 (size before relaxing)
  .literal.rtc_clk_cpu_freq_set
-                0x40080258       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080274       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x78 (size before relaxing)
  .literal.rtc_clk_apb_freq_get
-                0x40080278        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080294        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x14 (size before relaxing)
  .literal.rtc_clk_init
-                0x40080280       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x4008029c       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x94 (size before relaxing)
  .literal.rtc_clk_cal_internal
-                0x400802a4       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x400802c0       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
                                  0x3c (size before relaxing)
  .literal.rtc_clk_cal_ratio
-                0x400802c8        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x400802e4        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
                                   0x8 (size before relaxing)
  .literal.rtc_clk_wait_for_slow_cycle
-                0x400802c8        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x400802e4        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
                                  0x20 (size before relaxing)
  .literal.rtc_vddsdio_get_config
-                0x400802d0       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+                0x400802ec       0x24 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
                                  0x30 (size before relaxing)
  .literal.rtc_vddsdio_set_config
-                0x400802f4        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+                0x40080310        0x0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
                                   0x8 (size before relaxing)
  .text.selected_boot_partition
-                0x400802f4        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
+                0x40080310        0xc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
                                  0x10 (size before relaxing)
  .text.select_partition_number
-                0x40080300       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
+                0x4008031c       0x30 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
                                  0x34 (size before relaxing)
  .text.call_start_cpu0
-                0x40080330       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
+                0x4008034c       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
                                  0x32 (size before relaxing)
-                0x40080330                call_start_cpu0
- *fill*         0x4008035a        0x2 
+                0x4008034c                call_start_cpu0
+ *fill*         0x40080376        0x2 
  .text.wdt_reset_cpu0_info_enable
-                0x4008035c       0x27 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- *fill*         0x40080383        0x1 
+                0x40080378       0x27 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ *fill*         0x4008039f        0x1 
  .text.wdt_reset_info_dump
-                0x40080384       0xe6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- *fill*         0x4008046a        0x2 
+                0x400803a0       0xe6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ *fill*         0x40080486        0x2 
  .text.print_flash_info
-                0x4008046c       0xf6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- *fill*         0x40080562        0x2 
+                0x40080488       0xf6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ *fill*         0x4008057e        0x2 
  .text.vddsdio_configure
-                0x40080564       0x33 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x40080580       0x33 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                  0x37 (size before relaxing)
- *fill*         0x40080597        0x1 
+ *fill*         0x400805b3        0x1 
  .text.uart_console_configure
-                0x40080598       0x36 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x400805b4       0x36 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                  0x3a (size before relaxing)
- *fill*         0x400805ce        0x2 
+ *fill*         0x400805ea        0x2 
  .text.wdt_reset_check
-                0x400805d0       0xa2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x400805ec       0xa2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                  0xae (size before relaxing)
- *fill*         0x40080672        0x2 
+ *fill*         0x4008068e        0x2 
  .text.update_flash_config
-                0x40080674       0x68 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x40080690       0x68 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
  .text.bootloader_main
-                0x400806dc       0xe8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
-                                0x11c (size before relaxing)
+                0x400806f8       0xee C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                                0x122 (size before relaxing)
+ *fill*         0x400807e6        0x2 
  .text.__assert_func
-                0x400807c4       0x1f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x400807e8       0x1f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                  0x23 (size before relaxing)
-                0x400807c4                __assert_func
- *fill*         0x400807e3        0x1 
+                0x400807e8                __assert_func
+ *fill*         0x40080807        0x1 
  .text.bootloader_init
-                0x400807e4      0x12a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                0x40080808      0x12a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
                                 0x136 (size before relaxing)
-                0x400807e4                bootloader_init
- *fill*         0x4008090e        0x2 
+                0x40080808                bootloader_init
+ *fill*         0x40080932        0x2 
  .text.execute_flash_command
-                0x40080910      0x190 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                0x40080934      0x190 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ .text.write_status_8b_wrsr2
+                0x40080ac4       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x40080ad7        0x1 
+ .text.read_status_8b_rdsr2
+                0x40080ad8       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x40080aed        0x3 
+ .text.write_status_16b_wrsr
+                0x40080af0       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x40080b03        0x1 
+ .text.read_status_16b_rdsr_rdsr2
+                0x40080b04       0x25 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x29 (size before relaxing)
+ *fill*         0x40080b29        0x3 
+ .text.write_status_8b_wrsr
+                0x40080b2c       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x40080b3f        0x1 
+ .text.read_status_8b_rdsr
+                0x40080b40       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x40080b55        0x3 
+ .text.write_status_8b_xmc25qu64a
+                0x40080b58       0x36 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x42 (size before relaxing)
+ *fill*         0x40080b8e        0x2 
+ .text.read_status_8b_xmc25qu64a
+                0x40080b90       0x2e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x3a (size before relaxing)
+ *fill*         0x40080bbe        0x2 
+ .text.enable_qio_mode
+                0x40080bc0       0x74 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0x84 (size before relaxing)
  .text.bootloader_read_flash_id
-                0x40080aa0       0x27 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                0x40080c34       0x27 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
                                  0x2b (size before relaxing)
-                0x40080aa0                bootloader_read_flash_id
- *fill*         0x40080ac7        0x1 
+                0x40080c34                bootloader_read_flash_id
+ *fill*         0x40080c5b        0x1 
+ .text.bootloader_enable_qio_mode
+                0x40080c5c       0xf0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+                                 0xf4 (size before relaxing)
+                0x40080c5c                bootloader_enable_qio_mode
  .text.bootloader_clock_configure
-                0x40080ac8       0x76 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
+                0x40080d4c       0x76 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
                                  0x82 (size before relaxing)
-                0x40080ac8                bootloader_clock_configure
- *fill*         0x40080b3e        0x2 
+                0x40080d4c                bootloader_clock_configure
+ *fill*         0x40080dc2        0x2 
  .text.rtc_clk_32k_enable_internal
-                0x40080b40       0x81 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
- *fill*         0x40080bc1        0x3 
+                0x40080dc4       0x81 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+ *fill*         0x40080e45        0x3 
  .text.rtc_clk_32k_enable
-                0x40080bc4       0x2d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080bc4                rtc_clk_32k_enable
- *fill*         0x40080bf1        0x3 
+                0x40080e48       0x2d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080e48                rtc_clk_32k_enable
+ *fill*         0x40080e75        0x3 
  .text.rtc_clk_8m_enable
-                0x40080bf4       0x9d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080bf4                rtc_clk_8m_enable
- *fill*         0x40080c91        0x3 
+                0x40080e78       0x9d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080e78                rtc_clk_8m_enable
+ *fill*         0x40080f15        0x3 
  .text.rtc_clk_8m_enabled
-                0x40080c94       0x19 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080c94                rtc_clk_8m_enabled
- *fill*         0x40080cad        0x3 
+                0x40080f18       0x19 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080f18                rtc_clk_8m_enabled
+ *fill*         0x40080f31        0x3 
  .text.rtc_clk_8md256_enabled
-                0x40080cb0       0x1a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080cb0                rtc_clk_8md256_enabled
- *fill*         0x40080cca        0x2 
+                0x40080f34       0x1a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080f34                rtc_clk_8md256_enabled
+ *fill*         0x40080f4e        0x2 
  .text.rtc_clk_xtal_freq_estimate
-                0x40080ccc       0xa6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080f50       0xa6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0xb2 (size before relaxing)
- *fill*         0x40080d72        0x2 
+ *fill*         0x40080ff6        0x2 
  .text.rtc_clk_slow_freq_set
-                0x40080d74       0x48 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080d74                rtc_clk_slow_freq_set
+                0x40080ff8       0x48 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40080ff8                rtc_clk_slow_freq_set
  .text.rtc_clk_slow_freq_get
-                0x40080dbc       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080dbc                rtc_clk_slow_freq_get
+                0x40081040       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081040                rtc_clk_slow_freq_get
  .text.rtc_clk_fast_freq_set
-                0x40080dcc       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080dcc                rtc_clk_fast_freq_set
- *fill*         0x40080df6        0x2 
+                0x40081050       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081050                rtc_clk_fast_freq_set
+ *fill*         0x4008107a        0x2 
  .text.rtc_clk_fast_freq_get
-                0x40080df8       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40080df8                rtc_clk_fast_freq_get
+                0x4008107c       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x4008107c                rtc_clk_fast_freq_get
  .text.rtc_clk_bbpll_set
-                0x40080e08      0x170 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x4008108c      0x170 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                 0x178 (size before relaxing)
-                0x40080e08                rtc_clk_bbpll_set
+                0x4008108c                rtc_clk_bbpll_set
  .text.rtc_clk_xtal_freq_get
-                0x40080f78       0x38 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400811fc       0x38 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x3c (size before relaxing)
-                0x40080f78                rtc_clk_xtal_freq_get
-                0x40080f78                rtc_get_xtal
+                0x400811fc                rtc_clk_xtal_freq_get
+                0x400811fc                rtc_get_xtal
  .text.rtc_clk_cpu_freq_get
-                0x40080fb0       0x88 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081234       0x88 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x94 (size before relaxing)
-                0x40080fb0                rtc_clk_cpu_freq_get
+                0x40081234                rtc_clk_cpu_freq_get
  .text.rtc_clk_cpu_freq_value
-                0x40081038       0x44 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400812bc       0x44 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x48 (size before relaxing)
-                0x40081038                rtc_clk_cpu_freq_value
+                0x400812bc                rtc_clk_cpu_freq_value
  .text.rtc_clk_xtal_freq_update
-                0x4008107c       0x12 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081300       0x12 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x16 (size before relaxing)
-                0x4008107c                rtc_clk_xtal_freq_update
- *fill*         0x4008108e        0x2 
+                0x40081300                rtc_clk_xtal_freq_update
+ *fill*         0x40081312        0x2 
  .text.rtc_clk_apb_freq_update
-                0x40081090       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081314       0x13 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                  0x16 (size before relaxing)
-                0x40081090                rtc_clk_apb_freq_update
- *fill*         0x400810a3        0x1 
+                0x40081314                rtc_clk_apb_freq_update
+ *fill*         0x40081327        0x1 
  .text.rtc_clk_cpu_freq_set
-                0x400810a4      0x1bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081328      0x1bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                 0x1d0 (size before relaxing)
-                0x400810a4                rtc_clk_cpu_freq_set
+                0x40081328                rtc_clk_cpu_freq_set
  .text.rtc_clk_apb_freq_get
-                0x40081260       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
-                0x40081260                rtc_clk_apb_freq_get
- *fill*         0x4008128a        0x2 
+                0x400814e4       0x2a C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400814e4                rtc_clk_apb_freq_get
+ *fill*         0x4008150e        0x2 
  .text.rtc_clk_init
-                0x4008128c      0x182 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081510      0x182 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                 0x1ba (size before relaxing)
-                0x4008128c                rtc_clk_init
- *fill*         0x4008140e        0x2 
+                0x40081510                rtc_clk_init
+ *fill*         0x40081692        0x2 
  .text.rtc_clk_cal_internal
-                0x40081410      0x180 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x40081694      0x180 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
  .text.rtc_clk_cal_ratio
-                0x40081590       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x40081814       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
                                  0x24 (size before relaxing)
-                0x40081590                rtc_clk_cal_ratio
+                0x40081814                rtc_clk_cal_ratio
  .text.rtc_clk_wait_for_slow_cycle
-                0x400815b0       0x79 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
-                0x400815b0                rtc_clk_wait_for_slow_cycle
- *fill*         0x40081629        0x3 
+                0x40081834       0x79 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+                0x40081834                rtc_clk_wait_for_slow_cycle
+ *fill*         0x400818ad        0x3 
  .text.rtc_vddsdio_get_config
-                0x4008162c      0x104 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
-                0x4008162c                rtc_vddsdio_get_config
+                0x400818b0      0x104 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+                0x400818b0                rtc_vddsdio_get_config
  .text.rtc_vddsdio_set_config
-                0x40081730       0x46 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
-                0x40081730                rtc_vddsdio_set_config
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x0 
- *fill*         0x40081776        0x2 
+                0x400819b4       0x46 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+                0x400819b4                rtc_vddsdio_set_config
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x0 
+ *fill*         0x400819fa        0x2 
  .text.clk_val_is_valid
-                0x40081778       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x400819fc       0x20 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  .text.reg_val_to_clk_val
-                0x40081798        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x40081a1c        0x8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  .text.clk_val_to_reg_val
-                0x400817a0        0xe C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
- *fill*         0x400817ae        0x0 
+                0x40081a24        0xe C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
+ *fill*         0x40081a32        0x0 
  *(.iram .iram.*)
  *(.fini.literal)
  *(.fini)
  *(.gnu.version)
-                0x400817ae                _text_end = ABSOLUTE (.)
-                0x400817ae                _etext = .
+                0x40081a32                _text_end = ABSOLUTE (.)
+                0x40081a32                _etext = .
 
 .dram0.bss      0x3fff0000       0x18
                 0x3fff0000                . = ALIGN (0x8)
@@ -1077,7 +1110,7 @@ END GROUP
  *(.jcr)
                 0x3fff001c                _data_end = ABSOLUTE (.)
 
-.dram0.rodata   0x3fff001c     0x1418
+.dram0.rodata   0x3fff001c     0x1564
                 0x3fff001c                _rodata_start = ABSOLUTE (.)
  *(.rodata)
  .rodata        0x3fff001c       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
@@ -1096,71 +1129,78 @@ END GROUP
  .rodata.__func__$4364
                 0x3fff08c4       0x10 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
  .rodata.str1.4
-                0x3fff08d4      0x227 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
- *fill*         0x3fff0afb        0x1 
+                0x3fff08d4       0xc6 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ *fill*         0x3fff099a        0x2 
+ .rodata.chip_data
+                0x3fff099c       0x6c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
  .rodata.str1.4
-                0x3fff0afc      0x3f7 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+                0x3fff0a08      0x227 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+ *fill*         0x3fff0c2f        0x1 
+ .rodata.str1.4
+                0x3fff0c30      0x3f7 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
                                 0x42b (size before relaxing)
- *fill*         0x3fff0ef3        0x1 
+ *fill*         0x3fff1027        0x1 
  .rodata.str1.4
-                0x3fff0ef4      0x12c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
+                0x3fff1028      0x12c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
  .rodata.str1.4
-                0x3fff1020       0xd8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+                0x3fff1154       0xd8 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
  .rodata.padding$3047
-                0x3fff10f8       0x40 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+                0x3fff122c       0x40 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
  .rodata.__func__$3043
-                0x3fff1138       0x19 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
- *fill*         0x3fff1151        0x3 
+                0x3fff126c       0x19 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+ *fill*         0x3fff1285        0x3 
  .rodata.__func__$3023
-                0x3fff1154       0x17 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
- *fill*         0x3fff116b        0x1 
+                0x3fff1288       0x17 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+ *fill*         0x3fff129f        0x1 
+ .rodata.esp_rom_spiflash_config_readmode
+                0x3fff12a0       0x18 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
  .rodata.str1.4
-                0x3fff116c      0x220 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x3fff12b8      0x220 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
                                 0x21e (size before relaxing)
  .rodata.rtc_clk_xtal_freq_estimate
-                0x3fff138c       0x64 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x3fff14d8       0x64 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  .rodata.rtc_clk_cpu_freq_value
-                0x3fff13f0       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x3fff153c       0x14 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  .rodata.__func__$2844
-                0x3fff1404       0x17 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
- *fill*         0x3fff141b        0x1 
+                0x3fff1550       0x17 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+ *fill*         0x3fff1567        0x1 
  .rodata.__func__$2829
-                0x3fff141c       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+                0x3fff1568       0x15 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
  *(.gnu.linkonce.r.*)
  *(.rodata1)
-                0x3fff1431                __XT_EXCEPTION_TABLE_ = ABSOLUTE (.)
+                0x3fff157d                __XT_EXCEPTION_TABLE_ = ABSOLUTE (.)
  *(.xt_except_table)
  *(.gcc_except_table)
  *(.gnu.linkonce.e.*)
  *(.gnu.version_r)
  *(.eh_frame)
-                0x3fff1434                . = ((. + 0x3) & 0xfffffffc)
- *fill*         0x3fff1431        0x3 
-                0x3fff1434                __init_array_start = ABSOLUTE (.)
+                0x3fff1580                . = ((. + 0x3) & 0xfffffffc)
+ *fill*         0x3fff157d        0x3 
+                0x3fff1580                __init_array_start = ABSOLUTE (.)
  *crtbegin.*(.ctors)
  *(EXCLUDE_FILE(*crtend.*) .ctors)
  *(SORT(.ctors.*))
  *(.ctors)
-                0x3fff1434                __init_array_end = ABSOLUTE (.)
+                0x3fff1580                __init_array_end = ABSOLUTE (.)
  *crtbegin.*(.dtors)
  *(EXCLUDE_FILE(*crtend.*) .dtors)
  *(SORT(.dtors.*))
  *(.dtors)
-                0x3fff1434                __XT_EXCEPTION_DESCS_ = ABSOLUTE (.)
+                0x3fff1580                __XT_EXCEPTION_DESCS_ = ABSOLUTE (.)
  *(.xt_except_desc)
  *(.gnu.linkonce.h.*)
-                0x3fff1434                __XT_EXCEPTION_DESCS_END__ = ABSOLUTE (.)
+                0x3fff1580                __XT_EXCEPTION_DESCS_END__ = ABSOLUTE (.)
  *(.xt_except_desc_end)
  *(.dynamic)
  *(.gnu.version_d)
-                0x3fff1434                _rodata_end = ABSOLUTE (.)
-                0x3fff1434                _lit4_start = ABSOLUTE (.)
+                0x3fff1580                _rodata_end = ABSOLUTE (.)
+                0x3fff1580                _lit4_start = ABSOLUTE (.)
  *(*.lit4)
  *(.lit4.*)
  *(.gnu.linkonce.lit4.*)
-                0x3fff1434                _lit4_end = ABSOLUTE (.)
-                0x3fff1434                . = ALIGN (0x4)
-                0x3fff1434                _heap_start = ABSOLUTE (.)
+                0x3fff1580                _lit4_end = ABSOLUTE (.)
+                0x3fff1580                . = ALIGN (0x4)
+                0x3fff1580                _heap_start = ABSOLUTE (.)
                 [!provide]                PROVIDE (abort, 0x4000bba4)
                 [!provide]                PROVIDE (Add2SelfBigHex256, 0x40015b7c)
                 [!provide]                PROVIDE (AddBigHex256, 0x40015b28)
@@ -2943,27 +2983,27 @@ OUTPUT(C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader.elf el
  .debug_frame   0x00000dd0       0x28 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
  .debug_frame   0x00000df8       0x28 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
 
-.debug_info     0x00000000     0xc4ef
+.debug_info     0x00000000     0xc503
  .debug_info    0x00000000      0x350 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
  .debug_info    0x00000350     0x1430 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
- .debug_info    0x00001780     0x1583 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- .debug_info    0x00002d03     0x2adb C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .debug_info    0x000057de      0xbfa C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
- .debug_info    0x000063d8      0x1fe C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
- .debug_info    0x000065d6     0x13c9 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
- .debug_info    0x0000799f      0x526 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
- .debug_info    0x00007ec5      0x27e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
- .debug_info    0x00008143      0x789 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
- .debug_info    0x000088cc      0x44d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
- .debug_info    0x00008d19      0x900 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
- .debug_info    0x00009619      0xaf5 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .debug_info    0x0000a10e     0x14bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
- .debug_info    0x0000b5ca      0x3aa C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
- .debug_info    0x0000b974       0x95 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(gpio_periph.o)
- .debug_info    0x0000ba09      0x339 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
- .debug_info    0x0000bd42      0x118 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
- .debug_info    0x0000be5a       0xcd c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
- .debug_info    0x0000bf27      0x5c8 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
+ .debug_info    0x00001780     0x1597 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ .debug_info    0x00002d17     0x2adb C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ .debug_info    0x000057f2      0xbfa C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+ .debug_info    0x000063ec      0x1fe C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
+ .debug_info    0x000065ea     0x13c9 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+ .debug_info    0x000079b3      0x526 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
+ .debug_info    0x00007ed9      0x27e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
+ .debug_info    0x00008157      0x789 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
+ .debug_info    0x000088e0      0x44d C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+ .debug_info    0x00008d2d      0x900 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
+ .debug_info    0x0000962d      0xaf5 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+ .debug_info    0x0000a122     0x14bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+ .debug_info    0x0000b5de      0x3aa C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+ .debug_info    0x0000b988       0x95 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(gpio_periph.o)
+ .debug_info    0x0000ba1d      0x339 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+ .debug_info    0x0000bd56      0x118 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
+ .debug_info    0x0000be6e       0xcd c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
+ .debug_info    0x0000bf3b      0x5c8 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
 
 .debug_abbrev   0x00000000     0x2525
  .debug_abbrev  0x00000000      0x168 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
@@ -3070,36 +3110,36 @@ OUTPUT(C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader.elf el
  .debug_ranges  0x00000590       0x28 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
  .debug_ranges  0x000005b8       0x60 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
 
-.debug_line     0x00000000     0x68e2
+.debug_line     0x00000000     0x68e8
  .debug_line    0x00000000      0x394 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
  .debug_line    0x00000394      0x954 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
- .debug_line    0x00000ce8      0x9bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
- .debug_line    0x000016a4      0x581 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
- .debug_line    0x00001c25      0x5a0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
- .debug_line    0x000021c5      0x39c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
- .debug_line    0x00002561      0xb07 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
- .debug_line    0x00003068      0x370 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
- .debug_line    0x000033d8      0x211 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
- .debug_line    0x000035e9      0x5fc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
- .debug_line    0x00003be5      0x3e0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
- .debug_line    0x00003fc5      0x50e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
- .debug_line    0x000044d3      0xae0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
- .debug_line    0x00004fb3      0xce2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
- .debug_line    0x00005c95      0x3b9 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
- .debug_line    0x0000604e      0x104 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(gpio_periph.o)
- .debug_line    0x00006152      0x3e4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
- .debug_line    0x00006536      0x195 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
- .debug_line    0x000066cb       0x89 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
- .debug_line    0x00006754      0x18e c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
+ .debug_line    0x00000ce8      0x9c2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+ .debug_line    0x000016aa      0x581 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ .debug_line    0x00001c2b      0x5a0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
+ .debug_line    0x000021cb      0x39c C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_random.o)
+ .debug_line    0x00002567      0xb07 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(esp_image_format.o)
+ .debug_line    0x0000306e      0x370 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_partitions.o)
+ .debug_line    0x000033de      0x211 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_clock.o)
+ .debug_line    0x000035ef      0x5fc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_common.o)
+ .debug_line    0x00003beb      0x3e0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_sha.o)
+ .debug_line    0x00003fcb      0x50e C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/log\liblog.a(log.o)
+ .debug_line    0x000044d9      0xae0 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/spi_flash\libspi_flash.a(spi_flash_rom_patch.o)
+ .debug_line    0x00004fb9      0xce2 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_clk.o)
+ .debug_line    0x00005c9b      0x3b9 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_time.o)
+ .debug_line    0x00006054      0x104 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(gpio_periph.o)
+ .debug_line    0x00006158      0x3e4 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(rtc_init.o)
+ .debug_line    0x0000653c      0x195 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/soc\libsoc.a(cpu_util.o)
+ .debug_line    0x000066d1       0x89 c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_bswapsi2.o)
+ .debug_line    0x0000675a      0x18e c:/msys32/opt/xtensa-esp32-elf/bin/../lib/gcc/xtensa-esp32-elf/5.2.0\libgcc.a(_udivdi3.o)
 
 .debug_str      0x00000000     0x4416
  .debug_str     0x00000000      0x37b C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/main\libmain.a(bootloader_start.o)
                                 0x3df (size before relaxing)
  .debug_str     0x0000037b      0x59f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_utility.o)
                                 0x90a (size before relaxing)
- .debug_str     0x0000091a      0x6bc C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
-                                0xb4d (size before relaxing)
- .debug_str     0x00000fd6     0x188f C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
+ .debug_str     0x0000091a      0x6d7 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_init.o)
+                                0xb68 (size before relaxing)
+ .debug_str     0x00000ff1     0x1874 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(flash_qio_mode.o)
                                0x1bce (size before relaxing)
  .debug_str     0x00002865      0x238 C:/msys32/home/klemen/esp/DoubleLifter/build/bootloader/bootloader_support\libbootloader_support.a(bootloader_flash.o)
                                 0x58c (size before relaxing)
