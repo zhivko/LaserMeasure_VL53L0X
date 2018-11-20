@@ -8,6 +8,9 @@
 // cd ~/esp/openocd-esp32
 // bin/openocd -s share/openocd/scripts -f interface/ftdi/olimex-arm-usb-ocd-h.cfg -f board/esp-wroom-32.cfg -d3
 
+// requires to change #define ASYNC_MAX_ACK_TIME 150000 in AsyncTCP.h
+// requires to change #define WS_MAX_QUEUED_MESSAGES 255 in AsyncWebSocket.h
+
 #include <WiFi.h>
 #include <FS.h>
 #include "SPIFFS.h"
@@ -232,6 +235,8 @@ IRAM_ATTR void reportJson(void *pvParameters) {
 			txtToSend.concat(pid1.getErrorSum());
 			txtToSend.concat("<br>maxIOutput=");
 			txtToSend.concat(pid1.getMaxIOutput());
+			txtToSend.concat("<br>maxError=");
+			txtToSend.concat(pid1.getMaxError());
 			txtToSend.concat("\",");
 
 			txtToSend.concat("\"PID2output\":");
@@ -257,6 +262,8 @@ IRAM_ATTR void reportJson(void *pvParameters) {
 			txtToSend.concat(pid2.getErrorSum());
 			txtToSend.concat("<br>maxIOutput=");
 			txtToSend.concat(pid2.getMaxIOutput());
+			txtToSend.concat("<br>maxError=");
+			txtToSend.concat(pid2.getMaxError());
 			txtToSend.concat("\",");
 
 			txtToSend.concat("\"stop1_top\":");
@@ -373,6 +380,9 @@ String getToken(String data, char separator, int index) {
 }
 
 void setPidsFromString(String input) {
+	// takes pid string in form:
+	// p=40.00 i=2.00 d=0.30 f=0.00 syn=1 synErr=0.00 ramp=50.00 maxIout=1000.00
+	// p=40.00 i=2.00 d=0.30 f=0.00 syn=0 synErr=0.00 ramp=50.00 maxIout=1000.00
 	Serial.printf("Parsing pid: %s\n", input.c_str());
 	String p_str = getToken(input, ' ', 0);
 	String p_val = getToken(p_str, '=', 1);
@@ -397,6 +407,15 @@ void setPidsFromString(String input) {
 	if (ramp_val.equals("")) {
 		ramp_val = "1.0";
 	}
+
+	String maxIOut_str = getToken(input, ' ', 7);
+	String maxIOut_val = getToken(maxIOut_str, '=', 1);
+	if (maxIOut_val.equals("")) {
+		maxIOut_val = "1.0";
+	}
+
+	pid1.setMaxIOutput(maxIOut_val.toFloat());
+	pid2.setMaxIOutput(maxIOut_val.toFloat());
 
 	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
 			f_val.toFloat());
@@ -440,6 +459,8 @@ void sendPidToClient() {
 	txtToSend.concat(pid1.getSyncDisabledForErrorSmallerThen());
 	txtToSend.concat(" ramp=");
 	txtToSend.concat(pid1.getRampRate());
+	txtToSend.concat(" maxIout=");
+	txtToSend.concat(pid1.getMaxIOutput());
 	txtToSend.concat("\",");
 	txtToSend.concat("\"maxPercentOutput\":");
 	txtToSend.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
@@ -719,7 +740,9 @@ String scanNetworks() {
 			ret.concat(" (");
 			ret.concat(WiFi.RSSI(i));
 			ret.concat(") ");
-			ret.concat((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "OPEN" : "PASS");
+			ret.concat(
+					(WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ?
+							"OPEN" : "PASS");
 			ret.concat("\n");
 		}
 	}
@@ -1021,13 +1044,14 @@ void IRAM_ATTR handleIntCapSense() {
 
 void waitForIp() {
 	NO_AP_FOUND_count = 0;
-	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 7) {
+
+	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 4) {
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
 
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		Serial.print("SSID: ");
-		Serial.println(ssid);
+		Serial.print(ssid);
 		Serial.print(" password: ");
 		Serial.print(password);
 		Serial.print(" status: ");
@@ -1072,6 +1096,8 @@ void blink(int i) {
 }
 
 void setup() {
+	//Serial.setDebugOutput(false);
+	esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
@@ -1079,6 +1105,8 @@ void setup() {
 
 	if (nvs_flash_init() != ESP_OK) {
 		Serial.println("Flash init FAILED!");
+		nvs_flash_init_partition("nvs");
+		nvs_flash_init();
 	} else
 		Serial.println("Flash init OK.");
 
@@ -1128,12 +1156,12 @@ void setup() {
 
 	Serial.println("load saved wifi settings...");
 	preferences.begin("settings", false);
-	//ssid = preferences.getString("wifi_ssid", "null");
-	ssid = "null";
+	ssid = preferences.getString("wifi_ssid", "null");
+	//ssid = "null";
 	password = preferences.getString("wifi_password", "null");
-	password = "null";
+	//password = "null";
 	if (ssid.equals("null")) {
-		ssid ="AndroidAP";
+		ssid = "AndroidAP";
 		//ssid = "AsusKZ";
 		password = "Doitman1";
 	}
@@ -1278,7 +1306,7 @@ void setup() {
 	xTaskCreatePinnedToCore(reportJson,  // Task function.
 			"reportJsonTask",            // String with name of task.
 			30000,                       // Stack size in words.
-			NULL,                        // Parameter passed as input of the task
+			NULL,                       // Parameter passed as input of the task
 			tskIDLE_PRIORITY,            // Priority of the task.
 			&reportJsonTask,             // Task handle.
 			1);                          // core number
@@ -1336,17 +1364,14 @@ void setup() {
 
 	preferences.end();
 
-	/*
-	 xTaskCreatePinnedToCore(
-	 Task1,                  // pvTaskCode
-	 "Workload1",            // pcName
-	 4096,                   // usStackDepth
-	 NULL,                   // pvParameters
-	 1,                      // uxPriority
-	 &TaskA,                 // pxCreatedTask
-	 0);                     // xCoreID
-	 esp_task_wdt_add(TaskA);
-	 */
+	xTaskCreatePinnedToCore(Task1,  // pvTaskCode
+			"Workload1",            // pcName
+			4096,                   // usStackDepth
+			NULL,                   // pvParameters
+			1,                      // uxPriority
+			&TaskA,                 // pxCreatedTask
+			0);                     // xCoreID
+	esp_task_wdt_add(TaskA);
 
 	Serial.println("Gate driver ON");
 	digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers

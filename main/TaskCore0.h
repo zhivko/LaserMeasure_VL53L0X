@@ -166,10 +166,10 @@ void Task1( void * parameter )
 	attachInterrupt(digitalPinToInterrupt(rotaryEncoder1.encoderBPin), readEncoder1_ISR, CHANGE);
 
 	for (;;) {
-		//an1 = analogRead( ADC1_CHANNEL_6_GPIO_NUM  );
-		//an2 = analogRead( ADC1_CHANNEL_7_GPIO_NUM  );
-        an1 = 0;
-		an2 = 0;
+		an1 = analogRead( ADC1_CHANNEL_6_GPIO_NUM  );
+		an2 = analogRead( ADC1_CHANNEL_7_GPIO_NUM  );
+        //an1 = 0;
+		//an2 = 0;
 
 		an1_fast = lastAn1_fast*fastFilter+an1*(1-fastFilter);
 		an1_slow = lastAn1_slow*slowFilter+an1*(1-slowFilter);

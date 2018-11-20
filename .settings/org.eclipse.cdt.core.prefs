@@ -4,7 +4,7 @@ environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/value=COM24
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/delimiter=;
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/operation=replace
-environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/value=c\:/msys32/home/klemen/esp/esp-idf-v3.1.1
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/value=c\:/msys32/home/klemen/esp/esp-idf
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/PATH/delimiter=;
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/PATH/operation=replace
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/PATH/value=C\:\\msys32\\usr\\bin;C\:\\msys32\\mingw32\\bin;C\:\\msys32\\opt\\xtensa-esp32-elf\\bin
