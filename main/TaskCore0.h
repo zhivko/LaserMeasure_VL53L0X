@@ -182,7 +182,6 @@ void Task1( void * parameter )
 
 		encoder1_value = rotaryEncoder1.readEncoder();
 		encoder2_value = rotaryEncoder2.readEncoder();
-		esp_task_wdt_reset();
 		if(pidEnabled)
 		{
 			int16_t encoderDelta = encoder1_value - encoder2_value;
@@ -196,7 +195,6 @@ void Task1( void * parameter )
 			pwm1 = (int)(output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
 			pwm2 = (int)(output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
 		}
-        esp_task_wdt_reset();
 		if(status.equals("searchtop") || status.equals("searchbottom"))
 		{
 			// because of higher startup current we do check 1 sec after start of searchtop or searchbottom
@@ -258,8 +256,7 @@ void Task1( void * parameter )
 		}		
 
         //Serial.println("resetting task");
-		esp_task_wdt_reset();
-		vTaskDelay(10 / portTICK_PERIOD_MS);
-
+		//esp_task_wdt_reset();
+		vTaskDelay(20 / portTICK_PERIOD_MS);
 	}
 }

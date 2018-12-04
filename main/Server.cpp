@@ -6,7 +6,8 @@
 // https://esp32.com/viewtopic.php?f=13&t=2525#p12056
 
 // cd ~/esp/openocd-esp32
-// bin/openocd -s share/openocd/scripts -f interface/ftdi/olimex-arm-usb-ocd-h.cfg -f board/esp-wroom-32.cfg -d3
+// .\bin\openocd -l out.txt -d3 -s share/openocd/scripts -f interface/ftdi/esp32_devkitj_v1.cfg -f board/esp32-wrover.cfg
+// .\bin\openocd -s share/openocd/scripts -f interface/ftdi/esp32_devkitj_v1.cfg -f board/esp32-wrover.cfg
 
 // requires to change #define ASYNC_MAX_ACK_TIME 150000 in AsyncTCP.h
 // requires to change #define WS_MAX_QUEUED_MESSAGES 255 in AsyncWebSocket.h
@@ -33,6 +34,28 @@
 #include "nvs_flash.h"
 
 #include "FDC2212.h"
+
+/*SPI Includes*/
+#include "driver/spi_master.h"
+#include "iot_lcd.h"
+#include "Adafruit_GFX.h"
+#include "image.h"
+
+#include "FreeSans9pt7b.h"
+#include "unity.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "lwip/inet.h"
+#include "lwip/ip4_addr.h"
+#include "lwip/dns.h"
+
+static CEspLcd* lcd_obj = NULL;
+static int lcd_y_pos = 0;
+
+// jtag pins: 15, 12 13 14
+
+bool enablePwm = false;
+bool enableLed = true;
 
 String ssid;
 String password;
@@ -129,7 +152,7 @@ ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
 MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
 
-String txtToSend;
+static String txtToSend;
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -160,10 +183,22 @@ void timerCallBack(TimerHandle_t xTimer) {
 	ESP_LOGI(TAG,"tring tring!!!");
 }
 
+void static lcd_out(const char * txt) {
+	lcd_obj->drawString(txt, 3, lcd_y_pos);
+	lcd_y_pos = lcd_y_pos + 10;
+	if (lcd_y_pos > 250) {
+		lcd_y_pos = 0;
+		lcd_obj->fillScreen(COLOR_ESP_BKGD);
+	}
+	//delay(300);
+}
+
 IRAM_ATTR void reportJson(void *pvParameters) {
 	for (;;) {
 		//Serial.println("reportjson1");
 		if (ws.count() > 0) {
+			lcd_out("Reporting JSON");
+
 			//Serial.println("reportjson");
 			//reportingJson = true;reportJson
 			txtToSend = "";
@@ -311,51 +346,13 @@ IRAM_ATTR void reportJson(void *pvParameters) {
 			 *
 			 */
 			ws.textAll(txtToSend.c_str());
-			yield();
 			//reportingJson = false;
 		}
 		//Serial.println("reportjson2");
-		unsigned long start;
-		long delta;
-
-		//long randNumber = random(0, 10);
-		//Serial.println("reportjson3");
-		if (rotaryEncoder1.encoderChanged() != 0
-				&& ((int) target1) == encoder1_value) {
-			//Serial.println("Saving to flash enc1.");
-			encoder1_value = rotaryEncoder1.readEncoder();
-			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-			preferences.begin("settings", false);
-			preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-			preferences.putInt("target1", (int) target1);
-			preferences.end();
-			delta = micros() - start;
-
-			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n",
-						micros(), delta);
-
-			yield();
-		}
-		if (rotaryEncoder2.encoderChanged() != 0
-				&& ((int) target2) == encoder2_value) {
-			//Serial.println("Saving to flash enc2.");
-			encoder2_value = rotaryEncoder2.readEncoder();
-			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-			preferences.begin("settings", false);
-			preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-			preferences.putInt("target2", (int) target2);
-			preferences.end();
-			delta = micros() - start;
-
-			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n",
-						micros(), delta);
-
-			yield();
-		}
-		esp_task_wdt_reset();
-		vTaskDelay(400 / portTICK_PERIOD_MS);
+		//yield();
+		//esp_task_wdt_reset();
+		//vTaskDelay(300 / portTICK_PERIOD_MS);
+		delay(300);
 	}
 }
 
@@ -725,30 +722,6 @@ void gdfVdsStatus(int which) {
 
 }
 
-String scanNetworks() {
-	String ret;
-	int n = WiFi.scanNetworks(false, true, false, 1500);
-
-	Serial.println("scan done");
-	if (n == 0) {
-		ret.concat("no networks found");
-	} else {
-		for (int i = 0; i < n; ++i) {
-			// Print SSID and RSSI for each network found
-			ret.concat("wifi ");
-			ret.concat(WiFi.SSID(i));
-			ret.concat(" (");
-			ret.concat(WiFi.RSSI(i));
-			ret.concat(") ");
-			ret.concat(
-					(WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ?
-							"OPEN" : "PASS");
-			ret.concat("\n");
-		}
-	}
-	return ret;
-}
-
 void processWsData(char *data, AsyncWebSocketClient* client) {
 	String input;
 	input.concat(data);
@@ -911,11 +884,12 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 			setOutputPercent(previousPercent_str_1, 2);
 		}
 	} else if (input.startsWith("scan")) {
-		printf("scan...\n");
-		//vTaskSuspend(reportJsonTask);
-		String scannedNetworks = scanNetworks();
-		ws.textAll(scannedNetworks);
-		//vTaskResume(reportJsonTask);
+		vTaskSuspend(reportJsonTask);
+		delay(10);
+		Serial.println("scan started.");
+		lcd_out("ScanNetworks...Started.");
+		WiFi.scanDelete();
+		WiFi.scanNetworks(true, true, false, 200);
 	}
 }
 
@@ -1048,7 +1022,7 @@ void waitForIp() {
 	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 4) {
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
-
+		lcd_out("WaitForIp delay 1s.");
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		Serial.print("SSID: ");
 		Serial.print(ssid);
@@ -1064,19 +1038,38 @@ void waitForIp() {
 		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
 	}
 	if (WiFi.status() != WL_CONNECTED) {
+		lcd_out("Could not connect... Entering in AP mode.");
 		WiFi.mode(WIFI_AP);
 		if (WiFi.softAP(softAP_ssid, softAP_password)) {
 			Serial.println("Wait 100 ms for AP_START...");
-			delay(100);
-			Serial.println("");
+			delay(200);
 			//IPAddress Ip(192, 168, 1, 8);
 			//IPAddress NMask(255, 255, 255, 0);
 			//WiFi.softAPConfig(Ip, Ip, NMask);
 			IPAddress myIP = WiFi.softAPIP();
+			lcd_out("MLIFT is running.");
 			Serial.println("Network " + String(softAP_ssid) + " is running.");
 			Serial.print("AP IP address: ");
 			Serial.println(myIP);
+
+			tcpip_adapter_ip_info_t ip_info;
+			char* str2;
+			ESP_ERROR_CHECK(
+					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
+			str2 = inet_ntoa(ip_info);
+			String buf("WiFi AP IP: ");
+			buf.concat(str2);
+			lcd_out(buf.c_str());
 		}
+	} else {
+		tcpip_adapter_ip_info_t ip_info;
+		char* str2;
+		ESP_ERROR_CHECK(
+				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+		str2 = inet_ntoa(ip_info);
+		String buf("WiFi STA IP: ");
+		buf.concat(str2);
+		lcd_out(buf.c_str());
 	}
 
 	Serial.print("status: ");
@@ -1084,18 +1077,208 @@ void waitForIp() {
 
 	Serial.print("WiFi local IP: ");
 	Serial.println(WiFi.localIP());
+
 }
 
 void blink(int i) {
-	for (int j = 0; j < i; j++) {
-		digitalWrite(LED_PIN, HIGH);
-		vTaskDelay(50 / portTICK_PERIOD_MS);
-		digitalWrite(LED_PIN, LOW);
-		vTaskDelay(50 / portTICK_PERIOD_MS);
+	if (enableLed) {
+		for (int j = 0; j < i; j++) {
+			digitalWrite(LED_PIN, HIGH);
+			vTaskDelay(50 / portTICK_PERIOD_MS);
+			digitalWrite(LED_PIN, LOW);
+			vTaskDelay(50 / portTICK_PERIOD_MS);
+		}
 	}
 }
 
+extern "C" void esp_draw() {
+	/*Initilize ESP32 to scan for Access points*/
+	nvs_flash_init();
+	/*
+	 tcpip_adapter_init();
+	 wifi_event_group = xEventGroupCreate();
+	 ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
+	 wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	 ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
+	 ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
+	 ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+	 ESP_ERROR_CHECK( esp_wifi_start() );
+	 */
+	/*Initialize LCD*/
+	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
+			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
+			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc =
+					GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl =
+					GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
+			.rst_active_level = 0, .bckl_active_level = 0,
+			.spi_host = HSPI_HOST, .init_spi_bus = true, };
+
+	if (lcd_obj == NULL) {
+		lcd_obj = new CEspLcd(&lcd_pins);
+	}
+	printf("lcd id: 0x%08x\n", lcd_obj->id.id);
+
+	lcd_obj->setRotation(2);
+	lcd_obj->fillScreen(COLOR_ESP_BKGD);
+	lcd_obj->setTextSize(1);
+	lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
+
+	lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	lcd_obj->setFont(NULL);
+
+	/*
+	 int x = 0, y = 0;
+	 int dim = 6;
+	 uint16_t rand_color;
+	 lcd_obj->setRotation(3);
+	 for (int i = 0; i < dim; i++) {
+	 for (int j = 0; j < 10 - 2 * i; j++) {
+	 rand_color = rand();
+	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
+	 ets_delay_us(20000);
+	 x++;
+	 }
+	 x--;
+	 for (int j = 0; j < 10 - 2 * i; j++) {
+	 rand_color = rand();
+	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
+	 ets_delay_us(20000);
+	 y++;
+	 }
+	 y--;
+	 for (int j = 0; j < 10 - 2 * i - 1; j++) {
+	 rand_color = rand();
+	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
+	 ets_delay_us(20000);
+	 x--;
+	 }
+	 x++;
+	 for (int j = 0; j < 10 - 2 * i - 1; j++) {
+	 rand_color = rand();
+	 lcd_obj->fillRect((x - 1) * 32, y * 24, 32, 24, rand_color);
+	 ets_delay_us(20000);
+	 y--;
+	 }
+	 y++;
+	 }
+	 vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+	 lcd_obj->setRotation(2);
+	 lcd_obj->fillScreen(COLOR_ESP_BKGD);
+	 lcd_obj->setTextSize(1);
+	 lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
+
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("CPU",                                     3, 40);
+	 lcd_obj->setFont(NULL);
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("Xtensa Dual-Core 32-bit LX6 MPU",         3, 50);
+	 lcd_obj->drawString("Max Clock Speed at 240 MHz & 600 DMIPS ", 3, 60);
+	 lcd_obj->drawString("at up to 600 DMIPS",                      3, 70);
+	 lcd_obj->drawString("Memory: 520 KiB SRAM",                    3, 80);
+
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("Wireless connectivity",               3,  110);
+	 lcd_obj->setFont(NULL);
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("Wi-Fi: 802.11 b/g/n/e/i",            3,  120);
+	 lcd_obj->drawString("Bluetooth: v4.2 BR/EDR and BLE",      3,  130);
+
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("Power Management",                     3, 160);
+	 lcd_obj->setFont(NULL);
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("Internal LDO",                         3, 170);
+	 lcd_obj->drawString("Individual power domain for RTC",      3, 180);
+	 lcd_obj->drawString("5uA deep sleep current",               3, 190);
+	 lcd_obj->drawString("Wake up from GPIO interrupt" ,         3, 200);
+	 lcd_obj->drawString("Wake up from timer, ADC measurements", 3, 210);
+	 lcd_obj->drawString("Wake up from capacitive sensor intr",  3, 220);
+
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("Security",                               3, 250);
+	 lcd_obj->setFont(NULL);
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("IEEE 802.11 standard security features", 3, 260);
+	 lcd_obj->drawString("Secure boot & Flash Encryption",         3, 270);
+	 lcd_obj->drawString("Cryptographic Hardware Acceleration",    3, 280);
+	 lcd_obj->drawString("AES, RSA, SHA-2, EEC, RNG",              3, 290);
+	 lcd_obj->drawString("1024-bit OTP",                           3, 300);
+
+	 vTaskDelay(4000 / portTICK_PERIOD_MS);
+	 lcd_obj->fillRect(0, 28, 240, 320, COLOR_ESP_BKGD);
+
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("Peripheral Interfaces",               3, 40);
+	 lcd_obj->setFont(NULL);
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("12-bit DAC, 18 channels",             3, 50);
+	 lcd_obj->drawString("8-bit  DAC,  2 channels",             3, 60);
+	 lcd_obj->drawString("SPI,  4 channels",                   3, 70);
+	 lcd_obj->drawString("I2S,  4 channels",                   3, 80);
+	 lcd_obj->drawString("I2C,  2 channels",                   3, 90);
+	 lcd_obj->drawString("UART, 3 channels",                   3, 100);
+	 lcd_obj->drawString("SD/SDIO/MMC Host",                   3, 110);
+	 lcd_obj->drawString("SDIO/SPI Slave",                     3, 120);
+	 lcd_obj->drawString("Ethernet MAC with DMA & IEEE 1588",   3, 130);
+	 lcd_obj->drawString("CAN bus 2.0",                        3, 140);
+	 lcd_obj->drawString("IR/RMT (Tx/Rx)",                     3, 150);
+	 lcd_obj->drawString("Motor PWM",                              3, 160);
+	 lcd_obj->drawString("LED PWM, 16 channels",               3, 170);
+	 lcd_obj->drawString("Ultra Low Power Analog Pre-Amp",      3, 180);
+	 lcd_obj->drawString("Hall Effect Sensor",                 3, 190);
+	 lcd_obj->drawString("Capacitive Touch Sense, 10 channels", 3, 200);
+	 lcd_obj->drawString("Temperature Sensor",                  3, 210);
+	 vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+	 lcd_obj->fillScreen(COLOR_ESP_BKGD);
+	 lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
+	 lcd_obj->drawRoundRect(0, 0, 240, 320, 3, COLOR_WHITE);
+	 lcd_obj->drawFastHLine(0, 25, 320, COLOR_WHITE);
+	 lcd_obj->setTextColor(COLOR_WHITE, COLOR_ESP_BKGD);
+	 lcd_obj->drawString("Wifi-scan", 180, 10);
+	 lcd_obj->setFont(&FreeSans9pt7b);
+	 lcd_obj->drawString("AP Name",    10, 50);
+	 lcd_obj->drawString("RSSI",      180, 50);
+	 lcd_obj->setFont(NULL);
+
+	 //ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
+	 delay(1000);
+	 uint16_t ap_num = 20;
+	 wifi_ap_record_t ap_records[20];
+	 //ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_num, ap_records));
+	 delay(1000);
+	 printf("Found %d access points:\n", ap_num);
+
+	 for (uint8_t i = 0; i < ap_num; i++) {
+	 lcd_obj->drawNumber(i + 1, 10, 60 + (i * 10));
+	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
+	 lcd_obj->drawString((char *) ap_records[i].ssid, 30, 60 + (i * 10));
+	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
+	 lcd_obj->drawNumber(100 + ap_records[i].rssi, 200, 60 + (i * 10));
+	 }
+	 vTaskDelay(2000 / portTICK_PERIOD_MS);
+	 */
+}
+
+void createReportJsonTask() {
+	xTaskCreatePinnedToCore(reportJson,  // Task function.
+			"reportJsonTask",            // String with name of task.
+			30000,                       // Stack size in words.
+			NULL,                       // Parameter passed as input of the task
+			17,            // Priority of the task.
+			&reportJsonTask,             // Task handle.
+			0);                          // core number
+	esp_task_wdt_add(reportJsonTask);
+}
+
 void setup() {
+
 	//Serial.setDebugOutput(false);
 	esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
@@ -1103,6 +1286,7 @@ void setup() {
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
 
+	lcd_out("Flash INIT");
 	if (nvs_flash_init() != ESP_OK) {
 		Serial.println("Flash init FAILED!");
 		nvs_flash_init_partition("nvs");
@@ -1110,49 +1294,80 @@ void setup() {
 	} else
 		Serial.println("Flash init OK.");
 
-	pinMode(LED_PIN, OUTPUT);
+	lcd_out("LED INIT");
+	if (enableLed)
+		pinMode(LED_PIN, OUTPUT);
 	pinMode(SS1, OUTPUT);     // Slave select first gate driver
 	pinMode(SS2, OUTPUT);     // Slave select second gate driver
 
 	vTaskDelay(3 / portTICK_PERIOD_MS);
+	lcd_out("Blinking");
 	blink(2);
 
 	digitalWrite(SS1, HIGH);   // deselect gate driver 1 - CS to HIGH
 	digitalWrite(SS2, HIGH);   // deselect gate driver 2 - CS to HIGH
 
-	pinMode(GATEDRIVER_PIN, OUTPUT); //
-	digitalWrite(GATEDRIVER_PIN, LOW);  //disable gate drivers
+	if (enablePwm) {
+		lcd_out("Gate driving enable");
+		pinMode(GATEDRIVER_PIN, OUTPUT); //
+		digitalWrite(GATEDRIVER_PIN, LOW);  //disable gate drivers
 
-	//initialise vspi with default pins
-	Serial.println("initialise vspi with default pins 1...");
-	vspi = new SPIClass(VSPI);
-	// VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
-	// begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
+		//initialise vspi with default pins
+		Serial.println("initialise vspi with default pins 1...");
+		lcd_out("VSPI");
 
-	pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
-	pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
-	pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
-	pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
+		vspi = new SPIClass(VSPI);
+		// VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
+		// begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
 
+		lcd_out("encoders");
+		pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
+		lcd_out("encoders 1");
+		pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
+		lcd_out("encoders 2");
+		pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
+		lcd_out("encoders 3");
+		pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
+		lcd_out("encoders 4");
+
+		lcd_out("Setting up FDC2212...");
+		Serial.println("Setting up FDC2212...");
+		fdc2212 =
+				FDC2212(
+						[](const CapacityResponse& response) {
+							Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+							return true;
+						});
+		fdc2212.begin();
+		Serial.println("Setting up FDC2212...Done.");
+		lcd_out("Setting up FDC2212...Done.");
+	}
 	pinMode(19, INPUT_PULLUP);
 	pinMode(18, OUTPUT);
 	pinMode(23, OUTPUT);
-	vspi->begin(18, 19, 23, -1);
-	vspi->setDataMode(SPI_MODE1);
-	vspi->setHwCs(false);
 
-	Serial.println("initialise vspi with default pins 3...");
+	lcd_out("VSPI?");
+	if (vspi != NULL) {
+		Serial.println("initialise vspi with default pins 3...");
+		vspi->begin(18, 19, 23, -1);
+		vspi->setDataMode(SPI_MODE1);
+		vspi->setHwCs(false);
+	}
 
-	delay(10);
-	Serial.println("initialise ledc...");
-	ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_2, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_3, 20000, LEDC_RESOLUTION);
-	ledcAttachPin(PWM1_PIN, LEDC_CHANNEL_0);
-	ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
-	ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
-	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
+	if (enableLed) {
+		delay(10);
+		Serial.println("initialise ledc...");
+		ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
+		ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
+		ledcSetup(LEDC_CHANNEL_2, 20000, LEDC_RESOLUTION);
+		ledcSetup(LEDC_CHANNEL_3, 20000, LEDC_RESOLUTION);
+		ledcAttachPin(PWM1_PIN, LEDC_CHANNEL_0);
+		ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
+		ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
+		ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
+	}
+
+	lcd_out("Loading WIFI setting");
 
 	Serial.println("load saved wifi settings...");
 	preferences.begin("settings", false);
@@ -1165,6 +1380,8 @@ void setup() {
 		//ssid = "AsusKZ";
 		password = "Doitman1";
 	}
+	lcd_out(String(" ssid:     " + ssid).c_str());
+	lcd_out(String(" pass:     " + password).c_str());
 
 	String pid_str = preferences.getString("pid", "null");
 	if (!pid_str.equals("null")) {
@@ -1212,6 +1429,7 @@ void setup() {
 	preferences.end();
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		lcd_out("Wifi lost connection.");
 		Serial.print("WiFi lost connection. Reason: ");
 		Serial.println(info.disconnected.reason);
 
@@ -1224,6 +1442,40 @@ void setup() {
 		}
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		Serial.print("WiFi scan complete");
+		lcd_out("SYSTEM_EVENT_SCAN_DONE");
+		int n = WiFi.scanComplete();
+		if(n>0)
+		{
+			String ret;
+			ret.concat("wifi ");
+			for (int i = 0; i < n; ++i) {
+				String wifiData="";
+				wifiData.concat(WiFi.SSID(i));
+				wifiData.concat(" (");
+				wifiData.concat(WiFi.RSSI(i));
+				wifiData.concat(") ");
+				wifiData.concat(
+						(WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ?
+						"OPEN" : "PASS");
+				ret.concat(wifiData);
+				lcd_out(wifiData.c_str());
+				ret.concat("\n");
+			}
+			ws.textAll(ret);
+			lcd_out("Resume reportJsonTask");
+			vTaskResume(reportJsonTask);
+		}
+		else if (n==0)
+		{
+			//ws.textAll("wifi No networks found.");
+			//vTaskResume(reportJsonTask);
+		}
+
+	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
+
+	lcd_out("Configuring adc.");
 	Serial.println("Configuring adc1");
 	adc1_config_width(ADC_WIDTH_BIT_10);
 	adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
@@ -1239,11 +1491,10 @@ void setup() {
 	 WiFi.mode(WIFI_AP);
 	 }
 	 */
-	/*
-	 WiFi.mode(WIFI_AP_STA);
-	 */
 	WiFi.mode(WIFI_STA);
 	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setSleep(false);
+
 	waitForIp();
 
 	Serial.println("Config ntp time...");
@@ -1254,6 +1505,7 @@ void setup() {
 
 	Serial.println(&info, "%Y-%m-%d %H:%M:%S");
 	Serial.println("Config ntp time...DONE.");
+	lcd_out("Config ntp time done.");
 
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
 		Serial.println("/");
@@ -1282,6 +1534,7 @@ void setup() {
 	// OTA callbacks
 	ArduinoOTA.onStart([]() {
 		// Clean SPIFFS
+			lcd_out("OTA.");
 			pidEnabled = false;
 			pwm1=0;
 			pwm2=0;
@@ -1303,15 +1556,7 @@ void setup() {
 			ws.closeAll();
 		});
 
-	xTaskCreatePinnedToCore(reportJson,  // Task function.
-			"reportJsonTask",            // String with name of task.
-			30000,                       // Stack size in words.
-			NULL,                       // Parameter passed as input of the task
-			tskIDLE_PRIORITY,            // Priority of the task.
-			&reportJsonTask,             // Task handle.
-			1);                          // core number
-	esp_task_wdt_add(reportJsonTask);
-
+	createReportJsonTask();
 	/*
 	 xTaskCreatePinnedToCore(
 	 i2cTask_func,                // Task function.
@@ -1364,11 +1609,12 @@ void setup() {
 
 	preferences.end();
 
+	lcd_out("Starting GateDriverTask...");
 	xTaskCreatePinnedToCore(Task1,  // pvTaskCode
 			"Workload1",            // pcName
 			4096,                   // usStackDepth
 			NULL,                   // pvParameters
-			1,                      // uxPriority
+			16,                      // uxPriority
 			&TaskA,                 // pxCreatedTask
 			0);                     // xCoreID
 	esp_task_wdt_add(TaskA);
@@ -1376,18 +1622,9 @@ void setup() {
 	Serial.println("Gate driver ON");
 	digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers
 	Serial.println("Gate driver ON...Done.");
+	lcd_out("Starting GateDriverTask...Done.");
 
 	//mover.attach_ms(10, move);
-
-	Serial.println("Setting up FDC2212...");
-	fdc2212 =
-			FDC2212(
-					[](const CapacityResponse& response) {
-						Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-						return true;
-					});
-	fdc2212.begin();
-	Serial.println("Setting up FDC2212...Done.");
 
 	/*
 	 Serial.println("Setting up interrupt for capsense reading...");
@@ -1444,7 +1681,7 @@ void setup() {
 	esp_task_wdt_init(2, false);
 
 	blink(5);
-
+	lcd_out("Setup Done.");
 }
 
 long i;
@@ -1467,16 +1704,60 @@ void loop() {
 	 myPing.begin(addr)
 	 }
 	 */
+	/*
+	 * 	unsigned long start;
+	 long delta;
 
-	esp_task_wdt_reset();
-	vTaskDelay(500 / portTICK_PERIOD_MS);
+	 //long randNumber = random(0, 10);
+	 //Serial.println("reportjson3");
+
+	 if (rotaryEncoder1.encoderChanged() != 0
+	 && ((int) target1) == encoder1_value) {
+	 //Serial.println("Saving to flash enc1.");
+	 encoder1_value = rotaryEncoder1.readEncoder();
+	 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+	 preferences.begin("settings", false);
+	 preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+	 preferences.putInt("target1", (int) target1);
+	 preferences.end();
+	 delta = micros() - start;
+
+	 if (delta > 1000)
+	 Serial.printf("%lu Preferences save completed in %lu us.\n",
+	 micros(), delta);
+
+	 yield();
+	 }
+	 if (rotaryEncoder2.encoderChanged() != 0
+	 && ((int) target2) == encoder2_value) {
+	 //Serial.println("Saving to flash enc2.");
+	 encoder2_value = rotaryEncoder2.readEncoder();
+	 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+	 preferences.begin("settings", false);
+	 preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+	 preferences.putInt("target2", (int) target2);
+	 preferences.end();
+	 delta = micros() - start;
+
+	 if (delta > 1000)
+	 Serial.printf("%lu Preferences save completed in %lu us.\n",
+	 micros(), delta);
+	 }
+	 */
+
+	//esp_task_wdt_reset();
+	//vTaskDelay(100 / portTICK_PERIOD_MS);
+	delay(50);
 	yield();
+	delay(1);
+	yield();
+	//yield();
 	//Serial.println("Looping.");
 
-	if (i % 1000 == 0) {
-		Serial.print("_async_service_task i=");
-		Serial.println(i);
-	}
+//	if (i % 1000 == 0) {
+//		Serial.print("_async_service_task i=");
+//		Serial.println(i);
+//	}
 }
 
 void move() {
@@ -1516,4 +1797,14 @@ void move() {
 			shouldStopM2 = 0;
 	}
 
+}
+
+extern "C" {
+void app_main();
+}
+void app_main() {
+	esp_draw();
+	lcd_out("Test1");
+	setup();
+	loop();
 }

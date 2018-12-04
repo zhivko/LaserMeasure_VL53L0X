@@ -1,7 +1,7 @@
 eclipse.preferences.version=1
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/delimiter=;
-environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/operation=append
-environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/value=COM24
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/operation=replace
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/ESPPORT/value=COM28
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/delimiter=;
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/operation=replace
 environment/project/cdt.managedbuild.toolchain.gnu.cross.base.961241778/IDF_PATH/value=c\:/msys32/home/klemen/esp/esp-idf
