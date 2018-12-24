@@ -1449,8 +1449,8 @@ void setup() {
 		if(n>0)
 		{
 			String ret;
-			ret.concat("wifi ");
 			for (int i = 0; i < n; ++i) {
+				ret.concat("wifi ");
 				String wifiData="";
 				wifiData.concat(WiFi.SSID(i));
 				wifiData.concat(" (");

@@ -2,9 +2,9 @@ deps_config := \
 	C:\msys32\home\klemen\esp\esp-idf\components\app_trace\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\aws_iot\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\bt\Kconfig \
-	C:\msys32\home\klemen\esp\esp-idf\components\driver\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp32\Kconfig \
 	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-I2Cbus\Kconfig \
+	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-camera\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_adc_cal\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_event\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_http_client\Kconfig \
@@ -29,6 +29,7 @@ deps_config := \
 	C:\msys32\home\klemen\esp\esp-idf\components\unity\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\vfs\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\wear_levelling\Kconfig \
+	C:\msys32\home\klemen\esp\esp-idf\components\app_update\Kconfig.projbuild \
 	C:\msys32\home\klemen\esp\DoubleLifter\components\arduino\Kconfig.projbuild \
 	C:\msys32\home\klemen\esp\esp-idf\components\bootloader\Kconfig.projbuild \
 	C:\msys32\home\klemen\esp\esp-idf\components\esptool_py\Kconfig.projbuild \
