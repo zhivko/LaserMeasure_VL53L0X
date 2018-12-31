@@ -1,0 +1,4 @@
+mon reset halt
+mon program_esp32 c:/msys32/home/klemen/esp/DoubleLifter/build/DoubleLifter.bin 0x10000 verify
+mon reset halt
+flushregs
