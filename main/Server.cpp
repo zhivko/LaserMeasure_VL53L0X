@@ -49,6 +49,16 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include "AsyncUDP.h"
+
+IRAM_ATTR String getJsonString();
+
+
+AsyncUDP udp;
+int udp_port = 1234;
+
 static CEspLcd* lcd_obj = NULL;
 static int lcd_y_pos = 0;
 
@@ -56,6 +66,9 @@ static int lcd_y_pos = 0;
 
 bool enablePwm = false;
 bool enableLed = true;
+bool enableLcd = true;
+int jsonReportInterval = 150;
+
 
 String ssid;
 String password;
@@ -174,23 +187,162 @@ uint32_t cap_reading = 0;
 //AsyncPing myPing;
 //IPAddress addr;
 
-#define TAG "TIME"
 int id = 1;
 TimerHandle_t tmr;
-
-int interval = 5000;
 void timerCallBack(TimerHandle_t xTimer) {
-	ESP_LOGI(TAG,"tring tring!!!");
+	if (ws.count() > 0) {
+		String aTxt = getJsonString();
+		ws.textAll(aTxt.c_str());
+	}
 }
 
 void static lcd_out(const char * txt) {
-	lcd_obj->drawString(txt, 3, lcd_y_pos);
-	lcd_y_pos = lcd_y_pos + 10;
-	if (lcd_y_pos > 250) {
-		lcd_y_pos = 0;
-		lcd_obj->fillScreen(COLOR_ESP_BKGD);
+	if (enableLcd) {
+		lcd_obj->drawString(txt, 3, lcd_y_pos);
+		lcd_y_pos = lcd_y_pos + 10;
+		if (lcd_y_pos > 250) {
+			lcd_y_pos = 0;
+			lcd_obj->fillScreen(COLOR_ESP_BKGD);
+		}
 	}
 	//delay(300);
+}
+
+IRAM_ATTR String getJsonString() {
+	//Serial.println("reportjson");
+	//reportingJson = true;reportJson
+	txtToSend = "";
+	txtToSend.concat("{");
+
+	txtToSend.concat("\"encoder1_value\":");
+	txtToSend.concat(encoder1_value);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"encoder2_value\":");
+	txtToSend.concat(encoder2_value);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"pwm1\":");
+	txtToSend.concat(pwm1);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"pwm2\":");
+	txtToSend.concat(pwm2);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"target1\":");
+	txtToSend.concat(target1);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"target2\":");
+	txtToSend.concat(target2);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"output1\":");
+	txtToSend.concat(output1);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"output2\":");
+	txtToSend.concat(output2);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"an1\":");
+	txtToSend.concat(an1_slow);
+	txtToSend.concat(",");
+	txtToSend.concat("\"an2\":");
+	txtToSend.concat(an2_slow);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"actual_diff\":");
+	txtToSend.concat(pid1.getActual() - pid2.getActual());
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"PID1output\":");
+	txtToSend.concat("\"Pout=");
+	txtToSend.concat(pid1.getPoutput());
+	txtToSend.concat("<br>Iout=");
+	txtToSend.concat(pid1.getIoutput());
+	txtToSend.concat("<br>Dout=");
+	txtToSend.concat(pid1.getDoutput());
+	txtToSend.concat("<br>Fout=");
+	txtToSend.concat(pid1.getFoutput());
+	txtToSend.concat("<br>POSout=");
+	txtToSend.concat(pid1.getPOSoutput());
+	txtToSend.concat("<br>POSoutF=");
+	txtToSend.concat(pid1.getPOSoutputFiltered());
+	txtToSend.concat("<br>setpoint=");
+	txtToSend.concat(pid1.getSetpoint());
+	txtToSend.concat("<br>actual=");
+	txtToSend.concat(pid1.getActual());
+	txtToSend.concat("<br>error=");
+	txtToSend.concat(pid1.getError());
+	txtToSend.concat("<br>errorSum=");
+	txtToSend.concat(pid1.getErrorSum());
+	txtToSend.concat("<br>maxIOutput=");
+	txtToSend.concat(pid1.getMaxIOutput());
+	txtToSend.concat("<br>maxError=");
+	txtToSend.concat(pid1.getMaxError());
+	txtToSend.concat("\",");
+
+	txtToSend.concat("\"PID2output\":");
+	txtToSend.concat("\"Pout=");
+	txtToSend.concat(pid2.getPoutput());
+	txtToSend.concat("<br>Iout=");
+	txtToSend.concat(pid2.getIoutput());
+	txtToSend.concat("<br>Dout=");
+	txtToSend.concat(pid2.getDoutput());
+	txtToSend.concat("<br>Fout=");
+	txtToSend.concat(pid2.getFoutput());
+	txtToSend.concat("<br>POSout=");
+	txtToSend.concat(pid2.getPOSoutput());
+	txtToSend.concat("<br>POSoutF=");
+	txtToSend.concat(pid2.getPOSoutputFiltered());
+	txtToSend.concat("<br>setpoint=");
+	txtToSend.concat(pid2.getSetpoint());
+	txtToSend.concat("<br>actual=");
+	txtToSend.concat(pid2.getActual());
+	txtToSend.concat("<br>error=");
+	txtToSend.concat(pid2.getError());
+	txtToSend.concat("<br>errorSum=");
+	txtToSend.concat(pid2.getErrorSum());
+	txtToSend.concat("<br>maxIOutput=");
+	txtToSend.concat(pid2.getMaxIOutput());
+	txtToSend.concat("<br>maxError=");
+	txtToSend.concat(pid2.getMaxError());
+	txtToSend.concat("\",");
+
+	txtToSend.concat("\"stop1_top\":");
+	txtToSend.concat(stop1_top);
+	txtToSend.concat(",");
+	txtToSend.concat("\"stop1_bottom\":");
+	txtToSend.concat(stop1_bottom);
+	txtToSend.concat(",");
+	txtToSend.concat("\"stop2_top\":");
+	txtToSend.concat(stop2_top);
+	txtToSend.concat(",");
+	txtToSend.concat("\"stop2_bottom\":");
+	txtToSend.concat(stop2_bottom);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"cap_reading\":");
+	txtToSend.concat(fdc2212.reading);
+	txtToSend.concat(",");
+	txtToSend.concat("\"cap_read_time_ms\":");
+	txtToSend.concat(fdc2212.readTimeMs);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"capfast\":");
+	txtToSend.concat(fdc2212.capFast);
+	txtToSend.concat(",");
+	txtToSend.concat("\"capslow\":");
+	txtToSend.concat(fdc2212.capSlow);
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"esp32_heap\":");
+	txtToSend.concat(ESP.getFreeHeap());
+	txtToSend.concat("}");
+
+	return txtToSend;
 }
 
 IRAM_ATTR void reportJson(void *pvParameters) {
@@ -199,138 +351,7 @@ IRAM_ATTR void reportJson(void *pvParameters) {
 		if (ws.count() > 0) {
 			lcd_out("Reporting JSON");
 
-			//Serial.println("reportjson");
-			//reportingJson = true;reportJson
-			txtToSend = "";
-			txtToSend.concat("{");
-
-			txtToSend.concat("\"encoder1_value\":");
-			txtToSend.concat(encoder1_value);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"encoder2_value\":");
-			txtToSend.concat(encoder2_value);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"pwm1\":");
-			txtToSend.concat(pwm1);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"pwm2\":");
-			txtToSend.concat(pwm2);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"target1\":");
-			txtToSend.concat(target1);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"target2\":");
-			txtToSend.concat(target2);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"output1\":");
-			txtToSend.concat(output1);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"output2\":");
-			txtToSend.concat(output2);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"an1\":");
-			txtToSend.concat(an1_slow);
-			txtToSend.concat(",");
-			txtToSend.concat("\"an2\":");
-			txtToSend.concat(an2_slow);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"actual_diff\":");
-			txtToSend.concat(pid1.getActual() - pid2.getActual());
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"PID1output\":");
-			txtToSend.concat("\"Pout=");
-			txtToSend.concat(pid1.getPoutput());
-			txtToSend.concat("<br>Iout=");
-			txtToSend.concat(pid1.getIoutput());
-			txtToSend.concat("<br>Dout=");
-			txtToSend.concat(pid1.getDoutput());
-			txtToSend.concat("<br>Fout=");
-			txtToSend.concat(pid1.getFoutput());
-			txtToSend.concat("<br>POSout=");
-			txtToSend.concat(pid1.getPOSoutput());
-			txtToSend.concat("<br>POSoutF=");
-			txtToSend.concat(pid1.getPOSoutputFiltered());
-			txtToSend.concat("<br>setpoint=");
-			txtToSend.concat(pid1.getSetpoint());
-			txtToSend.concat("<br>actual=");
-			txtToSend.concat(pid1.getActual());
-			txtToSend.concat("<br>error=");
-			txtToSend.concat(pid1.getError());
-			txtToSend.concat("<br>errorSum=");
-			txtToSend.concat(pid1.getErrorSum());
-			txtToSend.concat("<br>maxIOutput=");
-			txtToSend.concat(pid1.getMaxIOutput());
-			txtToSend.concat("<br>maxError=");
-			txtToSend.concat(pid1.getMaxError());
-			txtToSend.concat("\",");
-
-			txtToSend.concat("\"PID2output\":");
-			txtToSend.concat("\"Pout=");
-			txtToSend.concat(pid2.getPoutput());
-			txtToSend.concat("<br>Iout=");
-			txtToSend.concat(pid2.getIoutput());
-			txtToSend.concat("<br>Dout=");
-			txtToSend.concat(pid2.getDoutput());
-			txtToSend.concat("<br>Fout=");
-			txtToSend.concat(pid2.getFoutput());
-			txtToSend.concat("<br>POSout=");
-			txtToSend.concat(pid2.getPOSoutput());
-			txtToSend.concat("<br>POSoutF=");
-			txtToSend.concat(pid2.getPOSoutputFiltered());
-			txtToSend.concat("<br>setpoint=");
-			txtToSend.concat(pid2.getSetpoint());
-			txtToSend.concat("<br>actual=");
-			txtToSend.concat(pid2.getActual());
-			txtToSend.concat("<br>error=");
-			txtToSend.concat(pid2.getError());
-			txtToSend.concat("<br>errorSum=");
-			txtToSend.concat(pid2.getErrorSum());
-			txtToSend.concat("<br>maxIOutput=");
-			txtToSend.concat(pid2.getMaxIOutput());
-			txtToSend.concat("<br>maxError=");
-			txtToSend.concat(pid2.getMaxError());
-			txtToSend.concat("\",");
-
-			txtToSend.concat("\"stop1_top\":");
-			txtToSend.concat(stop1_top);
-			txtToSend.concat(",");
-			txtToSend.concat("\"stop1_bottom\":");
-			txtToSend.concat(stop1_bottom);
-			txtToSend.concat(",");
-			txtToSend.concat("\"stop2_top\":");
-			txtToSend.concat(stop2_top);
-			txtToSend.concat(",");
-			txtToSend.concat("\"stop2_bottom\":");
-			txtToSend.concat(stop2_bottom);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"cap_reading\":");
-			txtToSend.concat(fdc2212.reading);
-			txtToSend.concat(",");
-			txtToSend.concat("\"cap_read_time_ms\":");
-			txtToSend.concat(fdc2212.readTimeMs);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"capfast\":");
-			txtToSend.concat(fdc2212.capFast);
-			txtToSend.concat(",");
-			txtToSend.concat("\"capslow\":");
-			txtToSend.concat(fdc2212.capSlow);
-			txtToSend.concat(",");
-
-			txtToSend.concat("\"esp32_heap\":");
-			txtToSend.concat(ESP.getFreeHeap());
-			txtToSend.concat("}");
+			String aTxt = getJsonString();
 
 			/*
 			 size_t len = txtToSend.len;
@@ -345,14 +366,14 @@ IRAM_ATTR void reportJson(void *pvParameters) {
 			 };
 			 *
 			 */
-			ws.textAll(txtToSend.c_str());
+			ws.textAll(aTxt.c_str());
 			//reportingJson = false;
 		}
 		//Serial.println("reportjson2");
 		//yield();
 		//esp_task_wdt_reset();
-		//vTaskDelay(300 / portTICK_PERIOD_MS);
-		delay(300);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+		//delay(300);
 	}
 }
 
@@ -722,40 +743,60 @@ void gdfVdsStatus(int which) {
 
 }
 
-void processWsData(char *data, AsyncWebSocketClient* client) {
-	String input;
-	input.concat(data);
-	printf("received: %s\n", input.c_str());
+String processInput(String input) {
+	String ret;
 	if (input.equals(String("status"))) {
 		status1 = " ";
 		status2 = " ";
 		testSpi(1);
-		Serial.println("Statuses:");
-		Serial.println(status1);
+		ret.concat("Statuses: ");
+		ret.concat(status1);
 		testSpi(2);
-		Serial.println(status2);
+		ret.concat(status2);
 
-		client->printf("motor1_pos %i", encoder1_value);
-		client->printf("motor2_pos %i", encoder2_value);
+		char buf[20];
+		sprintf(buf, "motor1_pos %i\n", encoder1_value);
+		ret.concat(buf);
 
-		client->printf("status1: %s", status1.c_str());
-		client->printf("status2: %s", status2.c_str());
+		sprintf(buf, "motor2_pos %i\n", encoder2_value);
+		ret.concat(buf);
 
-		client->printf("shouldPwm_M1_left: %d", shouldPwm_M1_left);
-		client->printf("shouldPwm_M1_right: %d", shouldPwm_M1_right);
-		client->printf("shouldstop_M1: %d", shouldStopM1);
-		client->printf("shouldPwm_M2_left: %d", shouldPwm_M2_left);
-		client->printf("shouldPwm_M2_right: %d", shouldPwm_M2_right);
-		client->printf("shouldstop_M2: %d", shouldStopM2);
+		sprintf(buf, "status1: %s\n", status1.c_str());
+		ret.concat(buf);
 
+		sprintf(buf, "status2: %s\n", status2.c_str());
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M1_left: %d\n", shouldPwm_M1_left);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M1_right: %d\n", shouldPwm_M1_right);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldstop_M1: %d\n", shouldStopM1);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M2_left: %d\n", shouldPwm_M2_left);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M2_right: %d\n", shouldPwm_M2_right);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldstop_M2: %d\n", shouldStopM2);
+		ret.concat(buf);
 	} else if (input.startsWith("gdfvdsstatus")) {
 		gdfVdsStatus(1);
 		gdfVdsStatus(2);
-		client->printf("gdfvdsstatus1: %s", gdfVds1.c_str());
-		client->printf("gdfvdsstatus2: %s", gdfVds2.c_str());
+
+		char buf[20];
+		sprintf(buf, "gdfvdsstatus1: %s\n", gdfVds1.c_str());
+		ret.concat(buf);
+
+		sprintf(buf, "gdfvdsstatus2: %s\n", gdfVds2.c_str());
+		ret.concat(buf);
 	} else if (input.startsWith("clrflt")) {
 		clearFault();
-		client->printf("Clear Fault done.");
+		ret.concat("Clear Fault done.");
 	} else if (input.startsWith("pid#")) {
 		String input2 = getToken(input, '#', 1);
 		setPidsFromString(input2);
@@ -765,9 +806,7 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 		preferences.putString("pid", input);
 		preferences.end();
 
-		//ws.textAll(JSONmessageBuffer);
-
-		Serial.printf("Parsing pid done.");
+		ret.concat("Parsing pid done.");
 	} else if (input.startsWith("gCodeCmd")) {
 		Serial.printf("Parsing target1=.. target2=... command:%s\n",
 				input.c_str());
@@ -779,10 +818,12 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 
 		target1 = (double) target1_duty.toFloat();
 		target2 = (double) target2_duty.toFloat();
-		Serial.print("target1= ");
-		Serial.print(target1);
-		Serial.print(" target2= ");
-		Serial.println(target2);
+		ret.concat("target1= ");
+		ret.concat(target1);
+		ret.concat("\n");
+		ret.concat(" target2= ");
+		ret.concat(target2);
+		ret.concat("\n");
 
 	} else if (input.startsWith("enablePid")) {
 		pidEnabled = true;
@@ -813,7 +854,8 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 
 		printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
 				password.c_str());
-		ws.textAll("MLIFT restart.");
+
+		ret.concat("MLIFT restart.");
 		ws.closeAll();
 
 		Serial.printf("wificonnect ssid: %s\n", ssid.c_str());
@@ -884,13 +926,23 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 			setOutputPercent(previousPercent_str_1, 2);
 		}
 	} else if (input.startsWith("scan")) {
-		vTaskSuspend(reportJsonTask);
-		delay(10);
+		//vTaskSuspend(reportJsonTask);
+		//delay(10);
+		BaseType_t retTmr = xTimerStop( tmr, 0 );
 		Serial.println("scan started.");
 		lcd_out("ScanNetworks...Started.");
 		WiFi.scanDelete();
 		WiFi.scanNetworks(true, true, false, 200);
 	}
+
+	return ret;
+}
+
+void processWsData(char *data, AsyncWebSocketClient* client) {
+	String input;
+	input.concat(data);
+	printf("received: %s\n", input.c_str());
+	client->text(processInput(input).c_str());
 }
 
 void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
@@ -1278,7 +1330,7 @@ void createReportJsonTask() {
 }
 
 void setup() {
-
+	esp_wifi_set_max_tx_power(-4);
 	//Serial.setDebugOutput(false);
 	esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
@@ -1465,7 +1517,8 @@ void setup() {
 			}
 			ws.textAll(ret);
 			lcd_out("Resume reportJsonTask");
-			vTaskResume(reportJsonTask);
+			BaseType_t retTmr = xTimerStart( tmr, 0 );
+			//vTaskResume(reportJsonTask);
 		}
 		else if (n==0)
 		{
@@ -1477,7 +1530,7 @@ void setup() {
 
 	lcd_out("Configuring adc.");
 	Serial.println("Configuring adc1");
-	adc1_config_width(ADC_WIDTH_BIT_10);
+	adc1_config_width (ADC_WIDTH_BIT_10);
 	adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
 	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
 
@@ -1556,7 +1609,7 @@ void setup() {
 			ws.closeAll();
 		});
 
-	createReportJsonTask();
+	//createReportJsonTask();
 	/*
 	 xTaskCreatePinnedToCore(
 	 i2cTask_func,                // Task function.
@@ -1672,12 +1725,60 @@ void setup() {
 	 });
 	 */
 
-	/*
-	 tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(interval), pdTRUE, ( void * )id, &timerCallBack);
-	 if( xTimerStart(tmr, 10 ) != pdPASS ) {
-	 printf("Timer start error");
-	 }
-	 */
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportInterval), pdTRUE, (void *) id,
+			&timerCallBack);
+	if ( xTimerStart(tmr, 10 ) != pdPASS) {
+		printf("Timer start error");
+	}
+
+	if (!MDNS.begin("ESP32_Door")) {
+		// will allow to browse web site by: http://esp32_door.local/index.html
+		Serial.println("Error setting up MDNS responder!");
+		while (1) {
+			delay(1000);
+		}
+	} else {
+		if (udp.listen(udp_port)) {
+			Serial.print("UDP Listening on IP: ");
+			Serial.println(WiFi.localIP());
+			lcd_out(
+					(String("UDP Listening on IP: ") + WiFi.localIP().toString()).c_str());
+			udp.onPacket(
+					[](AsyncUDPPacket packet) {
+						Serial.print("UDP Packet Type: ");
+						Serial.print(packet.isBroadcast()?"Broadcast":packet.isMulticast()?"Multicast":"Unicast");
+						Serial.print(", From: ");
+						Serial.print(packet.remoteIP());
+						Serial.print(":");
+						Serial.print(packet.remotePort());
+						Serial.print(", To: ");
+						Serial.print(packet.localIP());
+						Serial.print(":");
+						Serial.print(packet.localPort());
+						Serial.print(", Length: ");
+						Serial.print(packet.length());
+						Serial.print(", Data: ");
+						Serial.write(packet.data(), packet.length());
+						Serial.println();
+						//reply to the client
+						//packet.printf("Got %u bytes of data", packet.length());
+
+						String input = String((char *)packet.data());
+						if(input.equals("status"))
+						{
+							packet.printf(getJsonString().c_str());
+						}
+						else
+						{
+							String retStr = processInput(input);
+							packet.printf(retStr.c_str());
+						}
+					});
+		}
+		MDNS.addService("_http", "_udp", udp_port);
+		MDNS.addServiceTxt("_http", "_udp", "board", "ESP32");
+	}
+
 	esp_task_wdt_init(2, false);
 
 	blink(5);
@@ -1745,23 +1846,11 @@ void loop() {
 	 }
 	 */
 
-	//esp_task_wdt_reset();
-	//vTaskDelay(100 / portTICK_PERIOD_MS);
-	delay(50);
-	yield();
-	delay(1);
-	yield();
-	//yield();
-	//Serial.println("Looping.");
-
-//	if (i % 1000 == 0) {
-//		Serial.print("_async_service_task i=");
-//		Serial.println(i);
-//	}
+	vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void move() {
-	// MOTOR1
+// MOTOR1
 	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
 		if (pwm1 <= (pwmValueMax - pwmDelta)) {
 			pwm1 = pwm1 + pwmDelta;
@@ -1779,7 +1868,7 @@ void move() {
 			shouldStopM1 = 0;
 	}
 
-	// MOTOR2
+// MOTOR2
 	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
 		if (pwm2 <= (pwmValueMax - pwmDelta)) {
 			pwm2 = pwm2 + pwmDelta;
@@ -1803,7 +1892,8 @@ extern "C" {
 void app_main();
 }
 void app_main() {
-	esp_draw();
+	if (enableLcd == true)
+		esp_draw();
 	lcd_out("Test1");
 	setup();
 	loop();

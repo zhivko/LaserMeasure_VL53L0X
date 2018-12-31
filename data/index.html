@@ -24,7 +24,7 @@
     <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=0 target2=0" style="width:150px" type="text">
     <input id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>
 	
-    <tr><td>pid</td><td><input id="pid" onkeypress="return keyPress(event);" value="p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500" style="width:150px" type="text">
+    <tr><td>pid</td><td style="vertical-align:top"><textarea id="pid" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);">p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500</textarea>
     <input id="btn3" value="Send" onMouseDown="doSend(document.getElementById('pid'));" type="button" /></td></tr>
 
 	</table>

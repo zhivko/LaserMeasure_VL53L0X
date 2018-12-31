@@ -2,6 +2,7 @@ deps_config := \
 	C:\msys32\home\klemen\esp\esp-idf\components\app_trace\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\aws_iot\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\bt\Kconfig \
+	C:\msys32\home\klemen\esp\esp-idf\components\driver\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp32\Kconfig \
 	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-I2Cbus\Kconfig \
 	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-camera\Kconfig \

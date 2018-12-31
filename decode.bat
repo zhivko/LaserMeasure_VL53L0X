@@ -1,1 +1,1 @@
-java -jar EspStackTraceDecoder.jar c:\Users\klemen\Dropbox\Voga\BleVogaLifter-esp32-DRV8703Q\xtensa-lx106-elf-addr2line.exe c:\msys32\home\klemen\esp\DoubleLifter\build\hello-world.elf c:\msys32\home\klemen\esp\DoubleLifter\dump2.txt
+java -jar EspStackTraceDecoder.jar c:\Users\klemen\Dropbox\Voga\BleVogaLifter-esp32-DRV8703Q\xtensa-lx106-elf-addr2line.exe c:\msys32\home\klemen\esp\DoubleLifter\build\DoubleLifter.elf c:\msys32\home\klemen\esp\DoubleLifter\dump3.txt
