@@ -1,0 +1,9 @@
+Core 1 register dump:
+PC      : 0x400944f6  PS      : 0x00060034  A0      : 0x8009290d  A1      : 0x3ffbe6c0  
+A2      : 0x3ffb0080  A3      : 0xb33fffff  A4      : 0x00060023  A5      : 0x003fffff  
+A6      : 0x3ffb0ca8  A7      : 0x00000001  A8      : 0x0000cdcd  A9      : 0x0000abab  
+A10     : 0x0000cdcd  A11     : 0x00000000  A12     : 0x8009366b  A13     : 0x3ffb0c30  
+A14     : 0x00000008  A15     : 0x00000001  SAR     : 0x0000001e  EXCCAUSE: 0x00000005  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+Backtrace: 0x400944f6:0x3ffbe6c0 0x4009290a:0x3ffbe6f0 0x4009509c:0x3ffbe710 0x40095052:0x00060c20
