@@ -23,7 +23,7 @@ var chart2;
 
 function handleEnablePID(cb)
 {
-	if(cb.checked)
+	if(!cb.checked)
 		doSendCommand("enablePid");
 	else
 		doSendCommand("disablePid");
@@ -31,7 +31,7 @@ function handleEnablePID(cb)
 
 function handleSearchTop(cb)
 {
-	if(cb.checked)
+	if(!cb.checked)
 		doSendCommand("searchtop start");
 	else
 		doSendCommand("searchtop stop");
@@ -39,7 +39,7 @@ function handleSearchTop(cb)
 
 function handleSearchBottom(cb)
 {
-	if(cb.checked)
+	if(!cb.checked)
 		doSendCommand("searchbottom start");
 	else
 		doSendCommand("searchbottom stop");

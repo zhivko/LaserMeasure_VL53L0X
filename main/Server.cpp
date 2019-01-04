@@ -17,8 +17,11 @@
 #include "SPIFFS.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <Update.h>
+#include <ESPmDNS.h>
 #include <SPI.h>
-#include <ArduinoOTA.h>
+#include "AsyncUDP.h"
+
 #include <stdint.h>
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
@@ -49,12 +52,9 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
-#include <ESPmDNS.h>
-#include <WiFiUdp.h>
-#include "AsyncUDP.h"
+char ptrTaskList[250];
 
 IRAM_ATTR String getJsonString();
-
 
 AsyncUDP udp;
 int udp_port = 1234;
@@ -67,8 +67,10 @@ static int lcd_y_pos = 0;
 bool enablePwm = false;
 bool enableLed = true;
 bool enableLcd = true;
-int jsonReportInterval = 150;
+bool shouldReboot = false;
 
+int jsonReportInterval = 500;
+bool restartRequired = false; // Set this flag in the callbacks to restart ESP in the main loop
 
 String ssid;
 String password;
@@ -156,6 +158,7 @@ TaskHandle_t reportJsonTask;
 volatile double output1, output2;
 volatile double target1, target2;
 volatile bool pidEnabled = true;
+const char* host = "esp32_door";
 
 AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
 ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
@@ -928,7 +931,7 @@ String processInput(String input) {
 	} else if (input.startsWith("scan")) {
 		//vTaskSuspend(reportJsonTask);
 		//delay(10);
-		BaseType_t retTmr = xTimerStop( tmr, 0 );
+		xTimerStop(tmr, 0);
 		Serial.println("scan started.");
 		lcd_out("ScanNetworks...Started.");
 		WiFi.scanDelete();
@@ -1331,8 +1334,9 @@ void createReportJsonTask() {
 
 void setup() {
 	esp_wifi_set_max_tx_power(-4);
-	//Serial.setDebugOutput(false);
-	esp_log_level_set("phy_init", ESP_LOG_INFO);
+	Serial.setDebugOutput(true);
+	esp_log_level_set("*", ESP_LOG_DEBUG);
+	//esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
@@ -1517,7 +1521,7 @@ void setup() {
 			}
 			ws.textAll(ret);
 			lcd_out("Resume reportJsonTask");
-			BaseType_t retTmr = xTimerStart( tmr, 0 );
+			xTimerStart( tmr, 0 );
 			//vTaskResume(reportJsonTask);
 		}
 		else if (n==0)
@@ -1530,7 +1534,7 @@ void setup() {
 
 	lcd_out("Configuring adc.");
 	Serial.println("Configuring adc1");
-	adc1_config_width (ADC_WIDTH_BIT_10);
+	adc1_config_width(ADC_WIDTH_BIT_10);
 	adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
 	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
 
@@ -1560,15 +1564,122 @@ void setup() {
 	Serial.println("Config ntp time...DONE.");
 	lcd_out("Config ntp time done.");
 
+	/*use mdns for host name resolution*/
+	if (!MDNS.begin(host)) { //http://esp32.local
+		Serial.println("Error setting up MDNS responder!");
+		while (1) {
+			delay(1000);
+		}
+	}
+	Serial.println("mDNS responder started");
+
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
 		Serial.println("/");
 		Serial.println("redirecting to /index.html");
 		request->redirect("/index.html");
 	});
 
-	server.onNotFound([](AsyncWebServerRequest *request) {
-		request->send(404);
-	});
+	/*handling uploading firmware file */
+	/*
+	 To upload through terminal you can use: curl -F "image=@firmware.bin" esp8266-webupdate.local/update
+	 */
+	// Simple Firmware Update Form
+	server.on("/update", HTTP_GET,
+			[](AsyncWebServerRequest *request) {
+				request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+			});
+	server.on("/update", HTTP_POST,
+			[](AsyncWebServerRequest *request) {
+				shouldReboot = !Update.hasError();
+				AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
+				response->addHeader("Connection", "close");
+				request->send(response);
+			},
+			[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+				if(!index) {
+					Serial.printf("Update Start: %s\n", filename.c_str());
+					//Update.runAsync(true);
+					if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
+						Update.printError(Serial);
+					}
+				}
+				if(!Update.hasError()) {
+					if(Update.write(data, len) != len) {
+						Update.printError(Serial);
+					}
+				}
+				if(final) {
+					if(Update.end(true)) {
+						Serial.printf("Update Success: %uB\n", index+len);
+					} else {
+						Update.printError(Serial);
+					}
+				}
+			});
+
+	server.onNotFound(
+			[](AsyncWebServerRequest *request) {
+				Serial.printf("NOT_FOUND: ");
+				if(request->method() == HTTP_GET)
+				Serial.printf("GET");
+				else if(request->method() == HTTP_POST)
+				Serial.printf("POST");
+				else if(request->method() == HTTP_DELETE)
+				Serial.printf("DELETE");
+				else if(request->method() == HTTP_PUT)
+				Serial.printf("PUT");
+				else if(request->method() == HTTP_PATCH)
+				Serial.printf("PATCH");
+				else if(request->method() == HTTP_HEAD)
+				Serial.printf("HEAD");
+				else if(request->method() == HTTP_OPTIONS)
+				Serial.printf("OPTIONS");
+				else
+				Serial.printf("UNKNOWN");
+				Serial.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
+
+				if(request->contentLength()) {
+					Serial.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
+					Serial.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
+				}
+
+				int headers = request->headers();
+				int i;
+				for(i=0;i<headers;i++) {
+					AsyncWebHeader* h = request->getHeader(i);
+					Serial.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
+				}
+
+				int params = request->params();
+				for(i=0;i<params;i++) {
+					AsyncWebParameter* p = request->getParam(i);
+					if(p->isFile()) {
+						Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+					} else if(p->isPost()) {
+						Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+					} else {
+						Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+					}
+				}
+
+				request->send(404);
+			});
+	server.onFileUpload(
+			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+				if(!index)
+				Serial.printf("UploadStart: %s\n", filename.c_str());
+				Serial.printf("%s", (const char*)data);
+				if(final)
+				Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+			});
+	server.onRequestBody(
+			[](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+				if(!index)
+				Serial.printf("BodyStart: %u\n", total);
+				Serial.printf("%s", (const char*)data);
+				if(index + len == total)
+				Serial.printf("BodyEnd: %u\n", total);
+			});
 
 	if (!SPIFFS.begin()) {
 		Serial.println("SPIFFS Mount Failed");
@@ -1583,31 +1694,6 @@ void setup() {
 			"index.html"); //.setTemplateProcessor(processor);
 
 	server.begin();
-	ArduinoOTA.begin();
-	// OTA callbacks
-	ArduinoOTA.onStart([]() {
-		// Clean SPIFFS
-			lcd_out("OTA.");
-			pidEnabled = false;
-			pwm1=0;
-			pwm2=0;
-
-			SPIFFS.end();
-
-			//jsonReporter.detach();
-			vTaskSuspend(reportJsonTask);
-			//vTaskSuspend(i2cTask);
-			//mover.detach();
-
-			// Advertise connected clients what's going on
-			ws.textAll("OTA Update Started");
-
-			// Disable client connections
-			ws.enable(false);
-
-			// Close them
-			ws.closeAll();
-		});
 
 	//createReportJsonTask();
 	/*
@@ -1725,61 +1811,48 @@ void setup() {
 	 });
 	 */
 
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportInterval), pdTRUE, (void *) id,
-			&timerCallBack);
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportInterval), pdTRUE,
+			(void *) id, &timerCallBack);
 	if ( xTimerStart(tmr, 10 ) != pdPASS) {
 		printf("Timer start error");
 	}
 
-	if (!MDNS.begin("ESP32_Door")) {
-		// will allow to browse web site by: http://esp32_door.local/index.html
-		Serial.println("Error setting up MDNS responder!");
-		while (1) {
-			delay(1000);
-		}
-	} else {
-		if (udp.listen(udp_port)) {
-			Serial.print("UDP Listening on IP: ");
-			Serial.println(WiFi.localIP());
-			lcd_out(
-					(String("UDP Listening on IP: ") + WiFi.localIP().toString()).c_str());
-			udp.onPacket(
-					[](AsyncUDPPacket packet) {
-						Serial.print("UDP Packet Type: ");
-						Serial.print(packet.isBroadcast()?"Broadcast":packet.isMulticast()?"Multicast":"Unicast");
-						Serial.print(", From: ");
-						Serial.print(packet.remoteIP());
-						Serial.print(":");
-						Serial.print(packet.remotePort());
-						Serial.print(", To: ");
-						Serial.print(packet.localIP());
-						Serial.print(":");
-						Serial.print(packet.localPort());
-						Serial.print(", Length: ");
-						Serial.print(packet.length());
-						Serial.print(", Data: ");
-						Serial.write(packet.data(), packet.length());
-						Serial.println();
-						//reply to the client
-						//packet.printf("Got %u bytes of data", packet.length());
+	/*
+	 if (enableOta) {
+	 ArduinoOTA.begin();
+	 // OTA callbacks
+	 ArduinoOTA.onStart([]() {
+	 // Clean SPIFFS
+	 lcd_out("OTA.");
+	 pidEnabled = false;
+	 pwm1=0;
+	 pwm2=0;
 
-						String input = String((char *)packet.data());
-						if(input.equals("status"))
-						{
-							packet.printf(getJsonString().c_str());
-						}
-						else
-						{
-							String retStr = processInput(input);
-							packet.printf(retStr.c_str());
-						}
-					});
-		}
-		MDNS.addService("_http", "_udp", udp_port);
-		MDNS.addServiceTxt("_http", "_udp", "board", "ESP32");
-	}
+	 SPIFFS.end();
+	 BaseType_t retTmr = xTimerStop(tmr, 0);
 
-	esp_task_wdt_init(2, false);
+	 //jsonReporter.detach();
+	 //vTaskSuspend(reportJsonTask);
+	 //vTaskSuspend(i2cTask);
+	 //mover.detach();
+
+	 // Advertise connected clients what's going on
+	 ws.textAll("OTA Update Started");
+
+	 // Disable client connections
+	 ws.enable(false);
+
+	 // Close them
+	 ws.closeAll();
+	 });
+	 }
+	 }
+	 */
+
+//esp_task_wdt_init(2, false);
+//disableLoopWDT();
+	disableCore0WDT();
+	disableCore1WDT();
 
 	blink(5);
 	lcd_out("Setup Done.");
@@ -1787,16 +1860,17 @@ void setup() {
 
 long i;
 void loop() {
-	i++;
-	ArduinoOTA.handle();
+	while (true) {
+		i++;
+		//ArduinoOTA.handle();
+		fdc2212.getReading();
+		vTaskDelay(10 / portTICK_PERIOD_MS);
 
-	/*
-	 if(i % 10000 == 0)
-	 {
-	 fdc2212.getReading();
-	 Serial.printf("FDC2212 read: %du\n", fdc2212.reading);
-	 }
-	 */
+		if (i % 100 == 0) {
+			Serial.printf("SETUP heap size: %u\n", ESP.getFreeHeap());
+		}
+	}
+
 	/*
 	 if(i % 500 == 0)
 	 {
@@ -1845,8 +1919,6 @@ void loop() {
 	 micros(), delta);
 	 }
 	 */
-
-	vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void move() {
@@ -1894,7 +1966,6 @@ void app_main();
 void app_main() {
 	if (enableLcd == true)
 		esp_draw();
-	lcd_out("Test1");
 	setup();
 	loop();
 }
