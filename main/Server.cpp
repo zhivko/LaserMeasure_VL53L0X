@@ -1694,6 +1694,7 @@ void setup() {
 			"index.html"); //.setTemplateProcessor(processor);
 
 	server.begin();
+	MDNS.addService("http", "tcp", 80);
 
 	//createReportJsonTask();
 	/*
