@@ -68,7 +68,7 @@ bool enablePwm = false;
 bool enableLed = true;
 bool enableLcd = true;
 bool shouldReboot = false;
-
+const char* host = "esp32_door";
 int jsonReportInterval = 500;
 bool restartRequired = false; // Set this flag in the callbacks to restart ESP in the main loop
 
@@ -87,8 +87,8 @@ const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
 		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
 		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP",
 		"AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6",
-		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED",
-		"ETH_GOT_IP", "MAX" };
+		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED", "ETH_GOT_IP",
+		"MAX" };
 
 int NO_AP_FOUND_count = 0;
 
@@ -158,7 +158,6 @@ TaskHandle_t reportJsonTask;
 volatile double output1, output2;
 volatile double target1, target2;
 volatile bool pidEnabled = true;
-const char* host = "esp32_door";
 
 AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
 ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
@@ -542,9 +541,9 @@ void clearFault() {
 	byte data = data_read | data_address;
 
 	uint16_t data_int = data << 8 | B00000001;  // B00000001 ... CLR_FLT
-												// B00000010 ... IN2/EN
-												// B00000100 ... IN1/PH
-												// B00111000 ... LOCK
+	// B00000010 ... IN2/EN
+	// B00000100 ... IN1/PH
+	// B00111000 ... LOCK
 
 	vspi->transfer16(data_int);
 	vspi->endTransaction();
@@ -811,8 +810,7 @@ String processInput(String input) {
 
 		ret.concat("Parsing pid done.");
 	} else if (input.startsWith("gCodeCmd")) {
-		Serial.printf("Parsing target1=.. target2=... command:%s\n",
-				input.c_str());
+		Serial.printf("Parsing target1=.. target2=... command:%s\n", input.c_str());
 		String input2 = getToken(input, '#', 1);
 		String target1_str = getToken(input2, ' ', 0);
 		String target1_duty = getToken(target1_str, '=', 1);
@@ -952,8 +950,7 @@ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		AwsEventType type, void * arg, uint8_t *data, size_t len) {
 	if (type == WS_EVT_CONNECT) {
 		//client connected
-		printf("%lu ws[%s][%u] connect\n", millis(), server->url(),
-				client->id());
+		printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
 		client->printf("Hello Client %u :)", client->id());
 		client->ping();
 		sendPidToClient();
@@ -999,18 +996,17 @@ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 			//message is comprised of multiple frames or the frame is split into multiple packets
 			if (info->index == 0) {
 				if (info->num == 0)
-					printf("%lu ws[%s][%u] %s-message start\n", millis(),
-							server->url(), client->id(),
-							(info->message_opcode == WS_TEXT) ?
-									"text" : "binary");
+					printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(),
+							client->id(),
+							(info->message_opcode == WS_TEXT) ? "text" : "binary");
 				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(),
 						server->url(), client->id(), info->num, info->len);
 			}
 
 			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(),
 					server->url(), client->id(), info->num,
-					(info->message_opcode == WS_TEXT) ? "text" : "binary",
-					info->index, info->index + len);
+					(info->message_opcode == WS_TEXT) ? "text" : "binary", info->index,
+					info->index + len);
 			if (info->message_opcode == WS_TEXT) {
 				printf("%s\n", (char*) data);
 			} else {
@@ -1021,13 +1017,12 @@ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 			}
 
 			if ((info->index + len) == info->len) {
-				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(),
-						server->url(), client->id(), info->num, info->len);
+				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(),
+						client->id(), info->num, info->len);
 				if (info->final) {
-					printf("%lu ws[%s][%u] %s-message end\n", millis(),
-							server->url(), client->id(),
-							(info->message_opcode == WS_TEXT) ?
-									"text" : "binary");
+					printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(),
+							client->id(),
+							(info->message_opcode == WS_TEXT) ? "text" : "binary");
 					/*
 					 if(info->message_opcode == WS_TEXT)
 					 client->text("I got your text message");
@@ -1109,8 +1104,7 @@ void waitForIp() {
 
 			tcpip_adapter_ip_info_t ip_info;
 			char* str2;
-			ESP_ERROR_CHECK(
-					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
+			ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
 			str2 = inet_ntoa(ip_info);
 			String buf("WiFi AP IP: ");
 			buf.concat(str2);
@@ -1119,8 +1113,7 @@ void waitForIp() {
 	} else {
 		tcpip_adapter_ip_info_t ip_info;
 		char* str2;
-		ESP_ERROR_CHECK(
-				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+		ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 		str2 = inet_ntoa(ip_info);
 		String buf("WiFi STA IP: ");
 		buf.concat(str2);
@@ -1161,12 +1154,11 @@ extern "C" void esp_draw() {
 	 */
 	/*Initialize LCD*/
 	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
-			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
-			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc =
-					GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl =
-					GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
-			.rst_active_level = 0, .bckl_active_level = 0,
-			.spi_host = HSPI_HOST, .init_spi_bus = true, };
+			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23, .pin_num_clk = GPIO_NUM_19,
+			.pin_num_cs = GPIO_NUM_22, .pin_num_dc = GPIO_NUM_21, .pin_num_rst =
+					GPIO_NUM_18, .pin_num_bckl = GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
+			.rst_active_level = 0, .bckl_active_level = 0, .spi_host = HSPI_HOST,
+			.init_spi_bus = true, };
 
 	if (lcd_obj == NULL) {
 		lcd_obj = new CEspLcd(&lcd_pins);
@@ -1570,8 +1562,9 @@ void setup() {
 		while (1) {
 			delay(1000);
 		}
+	} else {
+		Serial.println("mDNS responder started");
 	}
-	Serial.println("mDNS responder started");
 
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
 		Serial.println("/");
@@ -1596,6 +1589,7 @@ void setup() {
 				request->send(response);
 			},
 			[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+				Serial.printf("Update Started...: %s\n", filename.c_str());
 				if(!index) {
 					Serial.printf("Update Start: %s\n", filename.c_str());
 					//Update.runAsync(true);
@@ -1756,7 +1750,7 @@ void setup() {
 			NULL,                   // pvParameters
 			16,                      // uxPriority
 			&TaskA,                 // pxCreatedTask
-			0);                     // xCoreID
+			1);                     // xCoreID
 	esp_task_wdt_add(TaskA);
 
 	Serial.println("Gate driver ON");
@@ -1870,6 +1864,8 @@ void loop() {
 		if (i % 100 == 0) {
 			Serial.printf("SETUP heap size: %u\n", ESP.getFreeHeap());
 		}
+		delay(1);
+
 	}
 
 	/*

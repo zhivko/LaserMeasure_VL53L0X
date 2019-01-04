@@ -256,7 +256,7 @@ void Task1( void * parameter )
 		}		
 
         //Serial.println("resetting task");
-		//esp_task_wdt_reset();
+		esp_task_wdt_reset();
 		vTaskDelay(10 / portTICK_PERIOD_MS);
 	}
 }
