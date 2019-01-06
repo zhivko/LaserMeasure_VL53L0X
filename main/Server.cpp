@@ -64,13 +64,15 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = false;
+bool enablePwm = true;
 bool enableLed = true;
-bool enableLcd = true;
+bool enableLcd = false;
 bool shouldReboot = false;
 const char* host = "esp32_door";
-int jsonReportInterval = 500;
+int jsonReportIntervalMs = 500;
+int loopIntervalMs = 100;
 bool restartRequired = false; // Set this flag in the callbacks to restart ESP in the main loop
+static int taskCore = 1;
 
 String ssid;
 String password;
@@ -1589,7 +1591,7 @@ void setup() {
 				request->send(response);
 			},
 			[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-				Serial.printf("Update Started...: %s\n", filename.c_str());
+				Serial.printf("Update Started...: index:%d len:%d\n", index, len);
 				if(!index) {
 					Serial.printf("Update Start: %s\n", filename.c_str());
 					//Update.runAsync(true);
@@ -1750,7 +1752,7 @@ void setup() {
 			NULL,                   // pvParameters
 			16,                      // uxPriority
 			&TaskA,                 // pxCreatedTask
-			1);                     // xCoreID
+			taskCore);                     // xCoreID
 	esp_task_wdt_add(TaskA);
 
 	Serial.println("Gate driver ON");
@@ -1806,7 +1808,7 @@ void setup() {
 	 });
 	 */
 
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportInterval), pdTRUE,
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
 			(void *) id, &timerCallBack);
 	if ( xTimerStart(tmr, 10 ) != pdPASS) {
 		printf("Timer start error");
@@ -1846,28 +1848,22 @@ void setup() {
 
 //esp_task_wdt_init(2, false);
 //disableLoopWDT();
-	disableCore0WDT();
-	disableCore1WDT();
+	//disableCore0WDT();
+	//disableCore1WDT();
 
 	blink(5);
 	lcd_out("Setup Done.");
 }
 
-long i;
+uint32_t previousHeap;
 void loop() {
-	while (true) {
-		i++;
 		//ArduinoOTA.handle();
-		fdc2212.getReading();
-		vTaskDelay(10 / portTICK_PERIOD_MS);
-
-		if (i % 100 == 0) {
-			Serial.printf("SETUP heap size: %u\n", ESP.getFreeHeap());
+		if(abs(ESP.getFreeHeap()-previousHeap)>10000)
+		{
+			previousHeap = ESP.getFreeHeap();
+			Serial.printf("SETUP heap size: %u\n", previousHeap);
 		}
-		delay(1);
-
-	}
-
+		fdc2212.getReading();
 	/*
 	 if(i % 500 == 0)
 	 {
@@ -1957,6 +1953,15 @@ void move() {
 
 }
 
+
+int id2 = 2;
+TimerHandle_t tmr2;
+void loopCallBack(TimerHandle_t xTimer) {
+	loop();
+}
+
+
+
 extern "C" {
 void app_main();
 }
@@ -1964,5 +1969,11 @@ void app_main() {
 	if (enableLcd == true)
 		esp_draw();
 	setup();
-	loop();
+
+	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
+			(void *) id2, &loopCallBack);
+	if ( xTimerStart(tmr2, 10 ) != pdPASS) {
+		printf("Timer loop start error");
+	}
+	//loop();
 }
