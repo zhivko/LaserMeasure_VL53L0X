@@ -463,16 +463,16 @@ IRAM_ATTR uint32_t FDC2212::getReading() {
 			 Serial.print((_response.status == true)?"ON":"OFF");
 			 */
 			if (abs(capSlow - capFast) < triggerDiff
-					&& _response.status == true) {
-				_response.difference = abs(capSlow - capFast);
-				_response.timeMs = millis();
-				_response.status = false;
-				_on_trigger(_response);
-			}
-			if (capSlow - capFast > triggerDiff && _response.status == false) {
+					&& _response.status == false) {
 				_response.difference = abs(capSlow - capFast);
 				_response.timeMs = millis();
 				_response.status = true;
+				_on_trigger(_response);
+			}
+			if (capSlow - capFast > triggerDiff && _response.status == true) {
+				_response.difference = abs(capSlow - capFast);
+				_response.timeMs = millis();
+				_response.status = false;
 				_on_trigger(_response);
 			}
 

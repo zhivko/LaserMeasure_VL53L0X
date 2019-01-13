@@ -18,10 +18,10 @@
 
     <h1>DOUBLE Motor controller</h1>
 	<table border="0">
-    <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=300 target2=300" style="width:150px" type="text">
+    <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=15300 target2=15300" style="width:150px" type="text">
     <input id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
 	
-    <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=0 target2=0" style="width:150px" type="text">
+    <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=15000 target2=15000" style="width:150px" type="text">
     <input id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>
 	
     <tr><td>pid</td><td style="vertical-align:top"><textarea id="pid" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);">p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500</textarea>
@@ -40,13 +40,14 @@
 	<tr><td>current</td><td id='an1'></td><td></td><td id='an2'></td></tr>
 	<tr><td>out %</td><td><input id="maxPercentOutput1" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td><td></td><td><input id="maxPercentOutput2" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td></tr>
 	<tr><td></td><td><object id="pwm_m1_right" data="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></object></td><td></td><td><object id="pwm_m2_right" data="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></object></td></tr>
-	<tr><td><input type="checkbox" id="definebottom" name="definebottom" ononMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><object id="gobottom 1" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop1_bottom'/></td><td></td><td align="center"><object id="gobottom 2" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop2_bottom'/></td></tr>
+	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><object id="gobottom 1" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop1_bottom'/></td><td></td><td align="center"><object id="gobottom 2" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop2_bottom'/></td></tr>
 	</tbody></table>
 	
 <p>
 Capacity sense:      <a style="font-family: monospace" id="cap_reading"></a><br>
 Capacity sense time: <a style="font-family: monospace" id="cap_read_time_ms"></a><br>
-Esp32 free heap: <a id="esp32_heap"></a><br>
+Esp32 free heap [bytes]: <a id="esp32_heap"></a><br>
+Uptime [hour]: <a id="uptime_h"></a><br>
 Encoder actual difference: <a id="actual_diff"></a><br>
 PID regulation data:<br>
 <table border="1">
@@ -55,9 +56,10 @@ PID regulation data:<br>
 <input type="checkbox" checked="checked" id="enablePID" name="enablePID" onMouseDown="handleEnablePID(this);" value="Bike" />Pid enabled
 
 
-<div id="chartContainer1" style="height: 300px; width:500px;position:absolute;z-index:10;top:50px;left:300px"></div>
-<div id="chartContainer2" style="height: 300px; width:500px;position:absolute;z-index:10;top:330px;left:300px"></div>
-<div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:10;top:610px;left:300px"></div>
+<div id="chartContainer1" style="height: 200px; width:500px;position:absolute;z-index:10;top:50px;left:300px"></div>
+<div id="chartContainer4" style="height: 200px; width:500px;position:absolute;z-index:20;top:250px;left:300px"></div>
+<div id="chartContainer2" style="height: 200px; width:500px;position:absolute;z-index:30;top:450px;left:300px"></div>
+<div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:40;top:650px;left:300px"></div>
 
 </p>
     <p>

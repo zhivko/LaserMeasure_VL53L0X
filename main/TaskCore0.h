@@ -1,9 +1,14 @@
+#include "esp32-hal.h"
 #include <driver/adc.h>
 #include "MiniPID.h"
 #include <Preferences.h>
 #include "AiEsp32RotaryEncoder.h"
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
+#include <esp_adc_cal.h>
+
+#define REF_VOLTAGE 1100
+esp_adc_cal_characteristics_t *adc_chars = new esp_adc_cal_characteristics_t;
 
 // use first channel of 16 channels (started from zero)
 #define LEDC_CHANNEL_0 0
@@ -11,6 +16,7 @@
 #define LEDC_CHANNEL_2 2
 #define LEDC_CHANNEL_3 3
 extern volatile uint16_t pwmValueMax;
+extern void printEncoderInfo();
 
 
 
@@ -21,7 +27,7 @@ extern AiEsp32RotaryEncoder rotaryEncoder2;
 extern AiEsp32RotaryEncoder rotaryEncoder1;
 
 extern Preferences preferences;
-extern volatile int16_t encoder1_value, encoder2_value;
+extern volatile int32_t encoder1_value, encoder2_value;
 extern volatile double output1, output2;
 extern volatile double target1, target2;
 extern volatile int16_t pwm1, pwm2;
@@ -156,6 +162,38 @@ static void IRAM_ATTR readEncoder2_ISR()
 	portEXIT_CRITICAL_ISR(&(rotaryEncoder2.mux));
 }
 
+uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 8) {
+  adc1_channel_t chan;
+  switch (pin) {
+    case 32:
+      chan = ADC1_CHANNEL_4;
+      break;
+    case 33:
+      chan = ADC1_CHANNEL_5;
+      break;
+    case 34:
+      chan = ADC1_CHANNEL_6;
+      break;
+    case 35:
+      chan = ADC1_CHANNEL_7;
+      break;
+    case 36:
+      chan = ADC1_CHANNEL_3;
+      break;
+    case 39:
+      chan = ADC1_CHANNEL_0;
+      break;
+    default:
+			chan = ADC1_CHANNEL_0;
+  }
+  uint32_t sum = 0;
+  for (int x=0; x<samples; x++) {
+    sum += adc1_get_raw(chan);
+  }
+  sum /= samples;
+  return esp_adc_cal_raw_to_voltage(sum, adc_chars);
+}
+
 void Task1( void * parameter )
 {
 	rotaryEncoder2.begin();
@@ -165,9 +203,34 @@ void Task1( void * parameter )
 	attachInterrupt(digitalPinToInterrupt(rotaryEncoder1.encoderAPin), readEncoder1_ISR, CHANGE);
 	attachInterrupt(digitalPinToInterrupt(rotaryEncoder1.encoderBPin), readEncoder1_ISR, CHANGE);
 
+	Serial.println("Configuring adc1");
+
+	adc1_config_width(ADC_WIDTH_BIT_10);
+	adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
+	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
+
+  //Characterize ADC at particular atten
+  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_10, REF_VOLTAGE, adc_chars);
+  //Check type of calibration value used to characterize ADC
+  if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+      printf("eFuse Vref");
+  } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
+      printf("Two Point");
+  } else {
+      printf("Default");
+  }
+
+	Serial.println("Configuring adc end.");
+	printEncoderInfo();
+
+
 	for (;;) {
-		an1 = analogRead( ADC1_CHANNEL_6_GPIO_NUM  );
-		an2 = analogRead( ADC1_CHANNEL_7_GPIO_NUM  );
+		//an1 = analogRead( ADC1_CHANNEL_6_GPIO_NUM  );
+		//an2 = analogRead( ADC1_CHANNEL_7_GPIO_NUM  );
+
+		an1 = avgAnalogRead(ADC1_CHANNEL_6_GPIO_NUM);
+		an2 = avgAnalogRead(ADC1_CHANNEL_7_GPIO_NUM);
+
         //an1 = 0;
 		//an2 = 0;
 
@@ -205,23 +268,25 @@ void Task1( void * parameter )
 				Serial.print("an2_slow: ");
 				Serial.println(an2_slow);
 				target1 = encoder1_value;
-				target2 = encoder2_value;
+				target2 = encoder1_value;
 
 				if(status.equals("searchtop"))
 				{
 					stop1_top = encoder1_value;
-					stop2_top = encoder2_value;
+					stop2_top = encoder1_value;
 					preferences.begin("settings", false);
 					preferences.putInt("stop1_top", stop1_top);
 					preferences.end();
+					rotaryEncoder2.reset(encoder1_value);
 				}
 				else
 				{
 					stop1_bottom = encoder1_value;
-					stop2_bottom = encoder2_value;
+					stop2_bottom = encoder1_value;
 					preferences.begin("settings", false);
 					preferences.putInt("stop1_bottom", stop1_bottom);
 					preferences.end();
+					rotaryEncoder2.reset(encoder1_value);
 				}
 				status = "";
 				setOutputPercent(previousPercent_str_1, 1);
@@ -230,7 +295,7 @@ void Task1( void * parameter )
 		}
 
 
-		if(pwm1 > 0)
+		if(pwm1 >= 0)
 		{
 			ledcAnalogWrite(LEDC_CHANNEL_0, pwm1, pwmValueMax);
 			ledcAnalogWrite(LEDC_CHANNEL_1, 0, pwmValueMax);
@@ -256,7 +321,13 @@ void Task1( void * parameter )
 		}		
 
         //Serial.println("resetting task");
-		esp_task_wdt_reset();
+		//esp_task_wdt_reset();
+		//feedLoopWDT();
+    esp_err_t err = esp_task_wdt_reset();
+    if(err != ESP_OK){
+        log_e("Failed to feed WDT! Error: %d", err);
+    }
+
 		vTaskDelay(10 / portTICK_PERIOD_MS);
 	}
 }

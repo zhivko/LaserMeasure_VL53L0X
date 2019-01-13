@@ -12,15 +12,24 @@
 // requires to change #define ASYNC_MAX_ACK_TIME 150000 in AsyncTCP.h
 // requires to change #define WS_MAX_QUEUED_MESSAGES 255 in AsyncWebSocket.h
 
+/*handling uploading firmware file */
+/*
+ To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
+ curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
+ curl -F "image=@build/DoubleLifter.bin" 192.168.1.7/update
+ */
+// PID: p=60.00 i=3.00 d=1.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=700.00
 #include <WiFi.h>
 #include <FS.h>
+#include <ArduinoOTA.h>
 #include "SPIFFS.h"
 #include <AsyncTCP.h>
+
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 #include <ESPmDNS.h>
 #include <SPI.h>
-#include "AsyncUDP.h"
+//#include "AsyncUDP.h"
 
 #include <stdint.h>
 #include <esp_int_wdt.h>
@@ -54,10 +63,10 @@
 
 char ptrTaskList[250];
 
-IRAM_ATTR String getJsonString();
+//IRAM_ATTR String getJsonString();
 
-AsyncUDP udp;
-int udp_port = 1234;
+//AsyncUDP udp;
+//int udp_port = 1234;
 
 static CEspLcd* lcd_obj = NULL;
 static int lcd_y_pos = 0;
@@ -68,9 +77,13 @@ bool enablePwm = true;
 bool enableLed = true;
 bool enableLcd = false;
 bool shouldReboot = false;
-const char* host = "esp32_door";
-int jsonReportIntervalMs = 500;
-int loopIntervalMs = 100;
+bool enableCapSense = true;
+bool enableMover = true;
+const char* hostName = "esp32_door";
+int jsonReportIntervalMs = 100;
+int capSenseIntervalMs = 50;
+int moverIntervalMs = 30;
+int loopIntervalMs = 500;
 bool restartRequired = false; // Set this flag in the callbacks to restart ESP in the main loop
 static int taskCore = 1;
 
@@ -84,6 +97,7 @@ const char softAP_password[] = "Doitman1";
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncEventSource events("/events");
 const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
 		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
 		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
@@ -149,8 +163,8 @@ String status2;
 String gdfVds1;
 String gdfVds2;
 
-volatile int16_t encoder1_value;
-volatile int16_t encoder2_value;
+volatile int32_t encoder1_value;
+volatile int32_t encoder2_value;
 //Ticker mover;
 //Ticker jsonReporter;
 TaskHandle_t TaskA;
@@ -159,6 +173,7 @@ TaskHandle_t reportJsonTask;
 
 volatile double output1, output2;
 volatile double target1, target2;
+double target1_read, target2_read;
 volatile bool pidEnabled = true;
 
 AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
@@ -191,25 +206,13 @@ uint32_t cap_reading = 0;
 //AsyncPing myPing;
 //IPAddress addr;
 
-int id = 1;
-TimerHandle_t tmr;
-void timerCallBack(TimerHandle_t xTimer) {
-	if (ws.count() > 0) {
-		String aTxt = getJsonString();
-		ws.textAll(aTxt.c_str());
-	}
-}
-
-void static lcd_out(const char * txt) {
-	if (enableLcd) {
-		lcd_obj->drawString(txt, 3, lcd_y_pos);
-		lcd_y_pos = lcd_y_pos + 10;
-		if (lcd_y_pos > 250) {
-			lcd_y_pos = 0;
-			lcd_obj->fillScreen(COLOR_ESP_BKGD);
-		}
-	}
-	//delay(300);
+IRAM_ATTR String getJsonString2() {
+	txtToSend = "";
+	txtToSend.concat("{");
+	txtToSend.concat("\"esp32_heap\":");
+	txtToSend.concat(ESP.getFreeHeap());
+	txtToSend.concat("}");
+	return txtToSend;
 }
 
 IRAM_ATTR String getJsonString() {
@@ -342,6 +345,14 @@ IRAM_ATTR String getJsonString() {
 	txtToSend.concat(fdc2212.capSlow);
 	txtToSend.concat(",");
 
+	txtToSend.concat("\"uptime_h\":");
+	txtToSend.concat((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
+	txtToSend.concat(",");
+
+	txtToSend.concat("\"enablePID\":");
+	txtToSend.concat(pidEnabled ? "1" : "0");
+	txtToSend.concat(",");
+
 	txtToSend.concat("\"esp32_heap\":");
 	txtToSend.concat(ESP.getFreeHeap());
 	txtToSend.concat("}");
@@ -349,36 +360,79 @@ IRAM_ATTR String getJsonString() {
 	return txtToSend;
 }
 
-IRAM_ATTR void reportJson(void *pvParameters) {
-	for (;;) {
-		//Serial.println("reportjson1");
-		if (ws.count() > 0) {
-			lcd_out("Reporting JSON");
-
-			String aTxt = getJsonString();
-
-			/*
-			 size_t len = txtToSend.len;
-			 AsyncWebSocketMessageBuffer * buffer = ws.makeBuffer(len); //  creates a buffer (len + 1) for you.
-			 if (buffer) {
-			 root.printTo((char *)buffer->get(), len + 1);
-			 if (client) {
-			 client->text(buffer);
-			 } else {
-			 ws.textAll(buffer);
-			 }
-			 };
-			 *
-			 */
-			ws.textAll(aTxt.c_str());
-			//reportingJson = false;
-		}
-		//Serial.println("reportjson2");
-		//yield();
-		//esp_task_wdt_reset();
-		vTaskDelay(10 / portTICK_PERIOD_MS);
-		//delay(300);
+TimerHandle_t tmr;
+void timerCallBack(TimerHandle_t xTimer) {
+	if (ws.count() > 0) {
+		ws.textAll(getJsonString().c_str());
 	}
+}
+
+TimerHandle_t tmrCapSense;
+void timerCapSenseCallBack(TimerHandle_t xTimer) {
+	fdc2212.getReading();
+}
+
+TimerHandle_t tmrMover;
+void moverCallBack(TimerHandle_t xTimer) {
+// MOTOR1
+	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
+		if (pwm1 <= (pwmValueMax - pwmDelta)) {
+			pwm1 = pwm1 + pwmDelta;
+		}
+	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
+		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
+			pwm1 = pwm1 - pwmDelta;
+		}
+	} else if (shouldStopM1 == 1) {
+		if (pwm1 > 0) {
+			if (pwm1 > pwmDelta)
+				pwm1 = pwm1 - pwmDelta;
+			else
+				pwm1 = 0;
+		} else if (pwm1 < 0) {
+			if (pwm1 < -pwmDelta)
+				pwm1 = pwm1 + pwmDelta;
+			else
+				pwm1 = 0;
+		} else
+			shouldStopM1 = 0;
+	}
+
+// MOTOR2
+	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
+		if (pwm2 <= (pwmValueMax - pwmDelta)) {
+			pwm2 = pwm2 + pwmDelta;
+		}
+	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
+		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
+			pwm2 = pwm2 - pwmDelta;
+		}
+	} else if (shouldStopM2 == 1) {
+		if (pwm2 > 0) {
+			if (pwm2 > pwmDelta)
+				pwm2 = pwm2 - pwmDelta;
+			else
+				pwm2 = 0;
+		} else if (pwm2 < 0) {
+			if (pwm2 < -pwmDelta)
+				pwm2 = pwm2 + pwmDelta;
+			else
+				pwm2 = 0;
+		} else
+			shouldStopM2 = 0;
+	}
+}
+
+void static lcd_out(const char * txt) {
+	if (enableLcd) {
+		lcd_obj->drawString(txt, 3, lcd_y_pos);
+		lcd_y_pos = lcd_y_pos + 10;
+		if (lcd_y_pos > 250) {
+			lcd_y_pos = 0;
+			lcd_obj->fillScreen(COLOR_ESP_BKGD);
+		}
+	}
+//delay(300);
 }
 
 String getToken(String data, char separator, int index) {
@@ -402,9 +456,9 @@ String getToken(String data, char separator, int index) {
 }
 
 void setPidsFromString(String input) {
-	// takes pid string in form:
-	// p=40.00 i=2.00 d=0.30 f=0.00 syn=1 synErr=0.00 ramp=50.00 maxIout=1000.00
-	// p=40.00 i=2.00 d=0.30 f=0.00 syn=0 synErr=0.00 ramp=50.00 maxIout=1000.00
+// takes pid string in form:
+// p=40.00 i=2.00 d=0.30 f=0.00 syn=1 synErr=0.00 ramp=50.00 maxIout=1000.00
+// p=40.00 i=2.00 d=0.30 f=0.00 syn=0 synErr=0.00 ramp=50.00 maxIout=1000.00
 	Serial.printf("Parsing pid: %s\n", input.c_str());
 	String p_str = getToken(input, ' ', 0);
 	String p_val = getToken(p_str, '=', 1);
@@ -417,6 +471,9 @@ void setPidsFromString(String input) {
 
 	String f_str = getToken(input, ' ', 3);
 	String f_val = getToken(f_str, '=', 1);
+	if (f_val.equals("")) {
+		f_val = "0.0";
+	}
 
 	String syn_str = getToken(input, ' ', 4);
 	String syn_val = getToken(syn_str, '=', 1);
@@ -436,20 +493,19 @@ void setPidsFromString(String input) {
 		maxIOut_val = "1.0";
 	}
 
-	pid1.setMaxIOutput(maxIOut_val.toFloat());
-	pid2.setMaxIOutput(maxIOut_val.toFloat());
-
 	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
 			f_val.toFloat());
 	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
 			f_val.toFloat());
 	pid1.setOutputRampRate(ramp_val.toFloat());
 	pid2.setOutputRampRate(ramp_val.toFloat());
-	//pid1.setOutputFilter(0.01);
-	//pid2.setOutputFilter(0.01);
+//pid1.setOutputFilter(0.01);
+//pid2.setOutputFilter(0.01);
+	Serial.print("f_val: ");
+	Serial.println(f_val.toFloat());
 
-	Serial.print("SynError: ");
-	Serial.println(synerr_val.toFloat());
+	pid1.setMaxIOutput(maxIOut_val.toFloat());
+	pid2.setMaxIOutput(maxIOut_val.toFloat());
 
 	pid1.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
 	pid2.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
@@ -535,7 +591,7 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels) {
 
 void clearFault() {
 	digitalWrite(SS1, LOW);
-	// SPI WRITE
+// SPI WRITE
 	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
 
 	byte data_read = B00000000;  // WRITE OPERATION
@@ -543,9 +599,9 @@ void clearFault() {
 	byte data = data_read | data_address;
 
 	uint16_t data_int = data << 8 | B00000001;  // B00000001 ... CLR_FLT
-	// B00000010 ... IN2/EN
-	// B00000100 ... IN1/PH
-	// B00111000 ... LOCK
+// B00000010 ... IN2/EN
+// B00000100 ... IN1/PH
+// B00111000 ... LOCK
 
 	vspi->transfer16(data_int);
 	vspi->endTransaction();
@@ -554,7 +610,7 @@ void clearFault() {
 
 String getfault(uint16_t reply) {
 	String status1 = "";
-	// fault bytes:
+// fault bytes:
 	uint8_t FAULT_FAULT = B1 << 7; // FAULT R 0b Logic OR of the FAULT status register excluding the OTW bit
 	uint8_t FAULT_WDFLT = B1 << 6;     // WDFLT R 0b Watchdog time-out fault
 	uint8_t FAULT_GDF = B1 << 5; // GDF R 0b Indicates gate drive fault condition
@@ -597,12 +653,12 @@ void testSpi(int which) {
 		digitalWrite(SS1, LOW);
 	else
 		digitalWrite(SS2, LOW);
-	// SPI WRITE
+// SPI WRITE
 	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
 
-	// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
-	// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
-	// page 42
+// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
+// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
+// page 42
 	byte data_read = B10000000;  // READ OPERATION
 	byte data_address = B00010000; // ADDRES 02x MAIN REGISTER
 	byte data = data_read | data_address;
@@ -627,7 +683,7 @@ void testSpi(int which) {
 
 		usleep(1);
 
-		// SPI WRITE
+// SPI WRITE
 		vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
 
 		data_read = B10000000;  // READ OPERATION
@@ -670,12 +726,12 @@ void gdfVdsStatus(int which) {
 		digitalWrite(SS1, LOW);
 	else
 		digitalWrite(SS2, LOW);
-	// SPI WRITE
+// SPI WRITE
 	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
 
-	// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
-	// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
-	// page 42
+// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
+// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
+// page 42
 
 	byte data_read = B10000000;  // READ OPERATION
 	byte data_address = B00001000; // ADDRES 01x VDS and GDF Status Register Name
@@ -692,7 +748,7 @@ void gdfVdsStatus(int which) {
 	usleep(1);
 	String ret = "";
 
-	// fault bytes:
+// fault bytes:
 	uint8_t H2_GDF = B1 << 7; // Gate drive fault on the high-side FET of half bridge 2
 	uint8_t L2_GDF = B1 << 6; // Gate drive fault on the low-side FET of half bridge 2
 	uint8_t H1_GDF = B1 << 5; // Gate drive fault on the high-side FET of half bridge 1
@@ -807,7 +863,7 @@ String processInput(String input) {
 		sendPidToClient();
 
 		preferences.begin("settings", false);
-		preferences.putString("pid", input);
+		preferences.putString("pid", input2);
 		preferences.end();
 
 		ret.concat("Parsing pid done.");
@@ -892,10 +948,20 @@ String processInput(String input) {
 	} else if (input.startsWith("gotop")) {
 		target1 = stop1_top;
 		target2 = stop1_top;
+		Serial.println();
+		Serial.print(" target1: ");
+		Serial.println(target1);
+		Serial.print(" target2: ");
+		Serial.println(target2);
 		pidEnabled = true;
 	} else if (input.startsWith("gobottom")) {
 		target1 = stop1_bottom;
 		target2 = stop1_bottom;
+		Serial.println();
+		Serial.print(" target1: ");
+		Serial.println(target1);
+		Serial.print(" target2: ");
+		Serial.println(target2);
 		pidEnabled = true;
 	} else if (input.startsWith("searchtop")
 			|| input.startsWith("searchbottom")) {
@@ -921,6 +987,12 @@ String processInput(String input) {
 				target2 = target1;
 			}
 			target2 = target1;
+			Serial.println();
+			Serial.print(" target1: ");
+			Serial.println(target1);
+			Serial.print(" target2: ");
+			Serial.println(target2);
+
 			pidEnabled = true;
 			searchTopMilis = millis();
 		} else {
@@ -929,8 +1001,8 @@ String processInput(String input) {
 			setOutputPercent(previousPercent_str_1, 2);
 		}
 	} else if (input.startsWith("scan")) {
-		//vTaskSuspend(reportJsonTask);
-		//delay(10);
+//vTaskSuspend(reportJsonTask);
+//delay(10);
 		xTimerStop(tmr, 0);
 		Serial.println("scan started.");
 		lcd_out("ScanNetworks...Started.");
@@ -951,25 +1023,25 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		AwsEventType type, void * arg, uint8_t *data, size_t len) {
 	if (type == WS_EVT_CONNECT) {
-		//client connected
+//client connected
 		printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
 		client->printf("Hello Client %u :)", client->id());
 		client->ping();
 		sendPidToClient();
 	} else if (type == WS_EVT_DISCONNECT) {
-		//client disconnected
+//client disconnected
 		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
 				client->id());
 	} else if (type == WS_EVT_ERROR) {
-		//error was received from the other end
+//error was received from the other end
 		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
 				client->id(), *((uint16_t*) arg), (char*) data);
 	} else if (type == WS_EVT_PONG) {
-		//pong message was received (in response to a ping request maybe)
+//pong message was received (in response to a ping request maybe)
 		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
 				client->id(), len, (len) ? (char*) data : "");
 	} else if (type == WS_EVT_DATA) {
-		//data packet
+//data packet
 		AwsFrameInfo * info = (AwsFrameInfo*) arg;
 		if (info->final && info->index == 0 && info->len == len) {
 			//the whole message is in a single frame and we got all of it's data
@@ -1085,8 +1157,8 @@ void waitForIp() {
 
 		Serial.print("no ap count count: ");
 		Serial.println(NO_AP_FOUND_count);
-		//if(checkNoApFoundCritical())
-		//  break;
+//if(checkNoApFoundCritical())
+//  break;
 		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
 	}
 	if (WiFi.status() != WL_CONNECTED) {
@@ -1175,162 +1247,40 @@ extern "C" void esp_draw() {
 	lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
 	lcd_obj->setFont(NULL);
 
-	/*
-	 int x = 0, y = 0;
-	 int dim = 6;
-	 uint16_t rand_color;
-	 lcd_obj->setRotation(3);
-	 for (int i = 0; i < dim; i++) {
-	 for (int j = 0; j < 10 - 2 * i; j++) {
-	 rand_color = rand();
-	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
-	 ets_delay_us(20000);
-	 x++;
-	 }
-	 x--;
-	 for (int j = 0; j < 10 - 2 * i; j++) {
-	 rand_color = rand();
-	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
-	 ets_delay_us(20000);
-	 y++;
-	 }
-	 y--;
-	 for (int j = 0; j < 10 - 2 * i - 1; j++) {
-	 rand_color = rand();
-	 lcd_obj->fillRect(x * 32, y * 24, 32, 24, rand_color);
-	 ets_delay_us(20000);
-	 x--;
-	 }
-	 x++;
-	 for (int j = 0; j < 10 - 2 * i - 1; j++) {
-	 rand_color = rand();
-	 lcd_obj->fillRect((x - 1) * 32, y * 24, 32, 24, rand_color);
-	 ets_delay_us(20000);
-	 y--;
-	 }
-	 y++;
-	 }
-	 vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-	 lcd_obj->setRotation(2);
-	 lcd_obj->fillScreen(COLOR_ESP_BKGD);
-	 lcd_obj->setTextSize(1);
-	 lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
-
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("CPU",                                     3, 40);
-	 lcd_obj->setFont(NULL);
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("Xtensa Dual-Core 32-bit LX6 MPU",         3, 50);
-	 lcd_obj->drawString("Max Clock Speed at 240 MHz & 600 DMIPS ", 3, 60);
-	 lcd_obj->drawString("at up to 600 DMIPS",                      3, 70);
-	 lcd_obj->drawString("Memory: 520 KiB SRAM",                    3, 80);
-
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("Wireless connectivity",               3,  110);
-	 lcd_obj->setFont(NULL);
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("Wi-Fi: 802.11 b/g/n/e/i",            3,  120);
-	 lcd_obj->drawString("Bluetooth: v4.2 BR/EDR and BLE",      3,  130);
-
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("Power Management",                     3, 160);
-	 lcd_obj->setFont(NULL);
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("Internal LDO",                         3, 170);
-	 lcd_obj->drawString("Individual power domain for RTC",      3, 180);
-	 lcd_obj->drawString("5uA deep sleep current",               3, 190);
-	 lcd_obj->drawString("Wake up from GPIO interrupt" ,         3, 200);
-	 lcd_obj->drawString("Wake up from timer, ADC measurements", 3, 210);
-	 lcd_obj->drawString("Wake up from capacitive sensor intr",  3, 220);
-
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("Security",                               3, 250);
-	 lcd_obj->setFont(NULL);
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("IEEE 802.11 standard security features", 3, 260);
-	 lcd_obj->drawString("Secure boot & Flash Encryption",         3, 270);
-	 lcd_obj->drawString("Cryptographic Hardware Acceleration",    3, 280);
-	 lcd_obj->drawString("AES, RSA, SHA-2, EEC, RNG",              3, 290);
-	 lcd_obj->drawString("1024-bit OTP",                           3, 300);
-
-	 vTaskDelay(4000 / portTICK_PERIOD_MS);
-	 lcd_obj->fillRect(0, 28, 240, 320, COLOR_ESP_BKGD);
-
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("Peripheral Interfaces",               3, 40);
-	 lcd_obj->setFont(NULL);
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("12-bit DAC, 18 channels",             3, 50);
-	 lcd_obj->drawString("8-bit  DAC,  2 channels",             3, 60);
-	 lcd_obj->drawString("SPI,  4 channels",                   3, 70);
-	 lcd_obj->drawString("I2S,  4 channels",                   3, 80);
-	 lcd_obj->drawString("I2C,  2 channels",                   3, 90);
-	 lcd_obj->drawString("UART, 3 channels",                   3, 100);
-	 lcd_obj->drawString("SD/SDIO/MMC Host",                   3, 110);
-	 lcd_obj->drawString("SDIO/SPI Slave",                     3, 120);
-	 lcd_obj->drawString("Ethernet MAC with DMA & IEEE 1588",   3, 130);
-	 lcd_obj->drawString("CAN bus 2.0",                        3, 140);
-	 lcd_obj->drawString("IR/RMT (Tx/Rx)",                     3, 150);
-	 lcd_obj->drawString("Motor PWM",                              3, 160);
-	 lcd_obj->drawString("LED PWM, 16 channels",               3, 170);
-	 lcd_obj->drawString("Ultra Low Power Analog Pre-Amp",      3, 180);
-	 lcd_obj->drawString("Hall Effect Sensor",                 3, 190);
-	 lcd_obj->drawString("Capacitive Touch Sense, 10 channels", 3, 200);
-	 lcd_obj->drawString("Temperature Sensor",                  3, 210);
-	 vTaskDelay(4000 / portTICK_PERIOD_MS);
-
-	 lcd_obj->fillScreen(COLOR_ESP_BKGD);
-	 lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
-	 lcd_obj->drawRoundRect(0, 0, 240, 320, 3, COLOR_WHITE);
-	 lcd_obj->drawFastHLine(0, 25, 320, COLOR_WHITE);
-	 lcd_obj->setTextColor(COLOR_WHITE, COLOR_ESP_BKGD);
-	 lcd_obj->drawString("Wifi-scan", 180, 10);
-	 lcd_obj->setFont(&FreeSans9pt7b);
-	 lcd_obj->drawString("AP Name",    10, 50);
-	 lcd_obj->drawString("RSSI",      180, 50);
-	 lcd_obj->setFont(NULL);
-
-	 //ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
-	 delay(1000);
-	 uint16_t ap_num = 20;
-	 wifi_ap_record_t ap_records[20];
-	 //ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_num, ap_records));
-	 delay(1000);
-	 printf("Found %d access points:\n", ap_num);
-
-	 for (uint8_t i = 0; i < ap_num; i++) {
-	 lcd_obj->drawNumber(i + 1, 10, 60 + (i * 10));
-	 lcd_obj->setTextColor(COLOR_YELLOW, COLOR_ESP_BKGD);
-	 lcd_obj->drawString((char *) ap_records[i].ssid, 30, 60 + (i * 10));
-	 lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	 lcd_obj->drawNumber(100 + ap_records[i].rssi, 200, 60 + (i * 10));
-	 }
-	 vTaskDelay(2000 / portTICK_PERIOD_MS);
-	 */
 }
 
-void createReportJsonTask() {
-	xTaskCreatePinnedToCore(reportJson,  // Task function.
-			"reportJsonTask",            // String with name of task.
-			30000,                       // Stack size in words.
-			NULL,                       // Parameter passed as input of the task
-			17,            // Priority of the task.
-			&reportJsonTask,             // Task handle.
-			0);                          // core number
-	esp_task_wdt_add(reportJsonTask);
+//void createReportJsonTask() {
+//	xTaskCreatePinnedToCore(reportJson,  // Task function.
+//			"reportJsonTask",            // String with name of task.
+//			30000,                       // Stack size in words.
+//			NULL,                       // Parameter passed as input of the task
+//			17,            // Priority of the task.
+//			&reportJsonTask,             // Task handle.
+//			0);                          // core number
+//	esp_task_wdt_add(reportJsonTask);
+//}
+
+void printEncoderInfo() {
+	Serial.print("encoder1_value: ");
+	Serial.print(encoder1_value);
+	Serial.print(" ");
+	Serial.print(rotaryEncoder1.readEncoder());
+	Serial.print(" target1: ");
+	Serial.println(target1);
+
+	Serial.print("encoder2_value: ");
+	Serial.print(encoder2_value);
+	Serial.print(" ");
+	Serial.print(rotaryEncoder2.readEncoder());
+	Serial.print(" target2: ");
+	Serial.println(target2);
 }
 
 void setup() {
 	esp_wifi_set_max_tx_power(-4);
 	Serial.setDebugOutput(true);
 	esp_log_level_set("*", ESP_LOG_DEBUG);
-	//esp_log_level_set("phy_init", ESP_LOG_INFO);
+//esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
@@ -1362,13 +1312,13 @@ void setup() {
 		pinMode(GATEDRIVER_PIN, OUTPUT); //
 		digitalWrite(GATEDRIVER_PIN, LOW);  //disable gate drivers
 
-		//initialise vspi with default pins
+//initialise vspi with default pins
 		Serial.println("initialise vspi with default pins 1...");
 		lcd_out("VSPI");
 
 		vspi = new SPIClass(VSPI);
-		// VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
-		// begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
+// VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
+// begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
 
 		lcd_out("encoders");
 		pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
@@ -1379,7 +1329,9 @@ void setup() {
 		lcd_out("encoders 3");
 		pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
 		lcd_out("encoders 4");
+	}
 
+	if (enableCapSense) {
 		lcd_out("Setting up FDC2212...");
 		Serial.println("Setting up FDC2212...");
 		fdc2212 =
@@ -1392,6 +1344,7 @@ void setup() {
 		Serial.println("Setting up FDC2212...Done.");
 		lcd_out("Setting up FDC2212...Done.");
 	}
+
 	pinMode(19, INPUT_PULLUP);
 	pinMode(18, OUTPUT);
 	pinMode(23, OUTPUT);
@@ -1404,7 +1357,7 @@ void setup() {
 		vspi->setHwCs(false);
 	}
 
-	if (enableLed) {
+	if (enablePwm) {
 		delay(10);
 		Serial.println("initialise ledc...");
 		ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
@@ -1422,12 +1375,12 @@ void setup() {
 	Serial.println("load saved wifi settings...");
 	preferences.begin("settings", false);
 	ssid = preferences.getString("wifi_ssid", "null");
-	//ssid = "null";
+//ssid = "null";
 	password = preferences.getString("wifi_password", "null");
-	//password = "null";
+//password = "null";
 	if (ssid.equals("null")) {
 		ssid = "AndroidAP";
-		//ssid = "AsusKZ";
+//ssid = "AsusKZ";
 		password = "Doitman1";
 	}
 	lcd_out(String(" ssid:     " + ssid).c_str());
@@ -1526,12 +1479,6 @@ void setup() {
 
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
-	lcd_out("Configuring adc.");
-	Serial.println("Configuring adc1");
-	adc1_config_width(ADC_WIDTH_BIT_10);
-	adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
-	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11); //ADC_ATTEN_DB_11 = 0V...3,6V
-
 	/*
 	 if(!ssid.equals(""))
 	 {
@@ -1558,14 +1505,39 @@ void setup() {
 	Serial.println("Config ntp time...DONE.");
 	lcd_out("Config ntp time done.");
 
+//arduinoOTA
+//Send OTA events to the browser
+	ArduinoOTA.onStart([]() {
+		events.send("Update Start", "ota");
+	});
+	ArduinoOTA.onEnd([]() {
+		events.send("Update End", "ota");
+	});
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+		char p[32];
+		sprintf(p, "Progress: %u%%\n", (progress / (total / 100)));
+		events.send(p, "ota");
+	});
+	ArduinoOTA.onError([](ota_error_t error) {
+		if (error == OTA_AUTH_ERROR) events.send("Auth Failed", "ota");
+		else if (error == OTA_BEGIN_ERROR) events.send("Begin Failed", "ota");
+		else if (error == OTA_CONNECT_ERROR) events.send("Connect Failed", "ota");
+		else if (error == OTA_RECEIVE_ERROR) events.send("Recieve Failed", "ota");
+		else if (error == OTA_END_ERROR) events.send("End Failed", "ota");
+	});
+	ArduinoOTA.setHostname(hostName);
+	ArduinoOTA.begin();
+
 	/*use mdns for host name resolution*/
-	if (!MDNS.begin(host)) { //http://esp32.local
+	if (!MDNS.begin(hostName)) { //http://esp32.local
 		Serial.println("Error setting up MDNS responder!");
 		while (1) {
 			delay(1000);
 		}
 	} else {
+		delay(300);
 		Serial.println("mDNS responder started");
+		MDNS.addService("_http", "_tcp", 80);
 	}
 
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -1574,11 +1546,7 @@ void setup() {
 		request->redirect("/index.html");
 	});
 
-	/*handling uploading firmware file */
-	/*
-	 To upload through terminal you can use: curl -F "image=@firmware.bin" esp8266-webupdate.local/update
-	 */
-	// Simple Firmware Update Form
+// Simple Firmware Update Form
 	server.on("/update", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
@@ -1607,6 +1575,7 @@ void setup() {
 				if(final) {
 					if(Update.end(true)) {
 						Serial.printf("Update Success: %uB\n", index+len);
+						esp_restart();
 					} else {
 						Update.printError(Serial);
 					}
@@ -1614,44 +1583,44 @@ void setup() {
 			});
 
 	server.onNotFound(
-			[](AsyncWebServerRequest *request) {
+			[](AsyncWebServerRequest * request) {
 				Serial.printf("NOT_FOUND: ");
-				if(request->method() == HTTP_GET)
+				if (request->method() == HTTP_GET)
 				Serial.printf("GET");
-				else if(request->method() == HTTP_POST)
+				else if (request->method() == HTTP_POST)
 				Serial.printf("POST");
-				else if(request->method() == HTTP_DELETE)
+				else if (request->method() == HTTP_DELETE)
 				Serial.printf("DELETE");
-				else if(request->method() == HTTP_PUT)
+				else if (request->method() == HTTP_PUT)
 				Serial.printf("PUT");
-				else if(request->method() == HTTP_PATCH)
+				else if (request->method() == HTTP_PATCH)
 				Serial.printf("PATCH");
-				else if(request->method() == HTTP_HEAD)
+				else if (request->method() == HTTP_HEAD)
 				Serial.printf("HEAD");
-				else if(request->method() == HTTP_OPTIONS)
+				else if (request->method() == HTTP_OPTIONS)
 				Serial.printf("OPTIONS");
 				else
 				Serial.printf("UNKNOWN");
 				Serial.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
 
-				if(request->contentLength()) {
+				if (request->contentLength()) {
 					Serial.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
 					Serial.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
 				}
 
 				int headers = request->headers();
 				int i;
-				for(i=0;i<headers;i++) {
+				for (i = 0; i < headers; i++) {
 					AsyncWebHeader* h = request->getHeader(i);
 					Serial.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
 				}
 
 				int params = request->params();
-				for(i=0;i<params;i++) {
+				for (i = 0; i < params; i++) {
 					AsyncWebParameter* p = request->getParam(i);
-					if(p->isFile()) {
+					if (p->isFile()) {
 						Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
-					} else if(p->isPost()) {
+					} else if (p->isPost()) {
 						Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
 					} else {
 						Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
@@ -1661,19 +1630,19 @@ void setup() {
 				request->send(404);
 			});
 	server.onFileUpload(
-			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-				if(!index)
+			[](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
+				if (!index)
 				Serial.printf("UploadStart: %s\n", filename.c_str());
 				Serial.printf("%s", (const char*)data);
-				if(final)
-				Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+				if (final)
+				Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index + len);
 			});
 	server.onRequestBody(
-			[](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-				if(!index)
+			[](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+				if (!index)
 				Serial.printf("BodyStart: %u\n", total);
 				Serial.printf("%s", (const char*)data);
-				if(index + len == total)
+				if (index + len == total)
 				Serial.printf("BodyEnd: %u\n", total);
 			});
 
@@ -1682,6 +1651,7 @@ void setup() {
 	}
 
 	listDir(SPIFFS, "/", 0);
+	delay(200);
 
 	ws.onEvent(onEvent);
 	server.addHandler(&ws);
@@ -1692,275 +1662,183 @@ void setup() {
 	server.begin();
 	MDNS.addService("http", "tcp", 80);
 
-	//createReportJsonTask();
-	/*
-	 xTaskCreatePinnedToCore(
-	 i2cTask_func,                // Task function.
-	 "i2cTask",                   // String with name of task.
-	 30000,                       // Stack size in words.
-	 NULL,                        // Parameter passed as input of the task
-	 tskIDLE_PRIORITY,            // Priority of the task.
-	 &i2cTask,                    // Task handle.
-	 1);                          // core number
-	 */
-	rotaryEncoder1.setBoundaries(-10000, 10000, false);
-	rotaryEncoder2.setBoundaries(-10000, 10000, false);
+	rotaryEncoder1.setBoundaries(0, 30000, false);
+	rotaryEncoder2.setBoundaries(0, 30000, false);
 
 	preferences.begin("settings", true);
-	encoder1_value = preferences.getInt("encoder1_value");
-	encoder2_value = preferences.getInt("encoder2_value");
+	encoder1_value = preferences.getInt("encoder1_value", -32000);
+	Serial.println("");
+	Serial.print("read encoder1_value: ");
+	Serial.println(encoder1_value);
 
-	rotaryEncoder1.reset(encoder1_value);
-	Serial.println(rotaryEncoder1.readEncoder());
-	rotaryEncoder2.reset(encoder2_value);
-	Serial.println(rotaryEncoder2.readEncoder());
+	rotaryEncoder1.disable();
+	if (encoder1_value != -32000)
+		rotaryEncoder1.reset(encoder1_value);
+	else {
+		encoder1_value = 15000;
+		Serial.printf("Resetting encoder1 to: %d\n", encoder1_value);
+		rotaryEncoder1.reset(encoder1_value);
+		target1 = encoder1_value;
+		Serial.println("reset encoder1.");
+	}
+	rotaryEncoder1.enable();
 
-	/*
-	 if(abs(preferences.getInt("target1") - encoder1_value)>100)
-	 target1 = (double)encoder1_value;
-	 else
-	 */
-	target1 = (double) preferences.getInt("target1");
+	encoder2_value = preferences.getInt("encoder2_value", -32000);
+	Serial.print("read encoder2_value: ");
+	Serial.println(encoder2_value);
+	rotaryEncoder2.disable();
+	if (encoder2_value != -32000)
+		rotaryEncoder2.reset(encoder2_value);
+	else {
+		encoder2_value = 15000;
+		Serial.printf("Resetting encoder2 to: %d\n", encoder2_value);
+		rotaryEncoder2.reset(encoder2_value);
+		target2 = encoder2_value;
+		Serial.println("reset encoder2.");
+	}
+	rotaryEncoder2.enable();
+	Serial.printf("encoder1: %d\n", rotaryEncoder1.readEncoder());
+	Serial.printf("encoder2: %d\n", rotaryEncoder2.readEncoder());
 
-	/*
-	 if(abs(preferences.getInt("target2") - encoder2_value)>100)
-	 target2 = (double)encoder2_value;
-	 else
-	 */
-	target2 = (double) preferences.getInt("target2");
-
-	Serial.print("encoder1_value: ");
-	Serial.print(encoder1_value);
-	Serial.print(" ");
-	Serial.print(rotaryEncoder1.readEncoder());
-	Serial.print(" target1: ");
-	Serial.println(target1);
-
-	Serial.print("encoder2_value: ");
-	Serial.print(encoder2_value);
-	Serial.print(" ");
-	Serial.print(rotaryEncoder2.readEncoder());
-	Serial.print(" target2: ");
-	Serial.println(target2);
-
+	target1_read = (double) preferences.getInt("target1", -15000);
+	target2_read = (double) preferences.getInt("target2", -15000);
 	preferences.end();
 
-	lcd_out("Starting GateDriverTask...");
-	xTaskCreatePinnedToCore(Task1,  // pvTaskCode
-			"Workload1",            // pcName
-			4096,                   // usStackDepth
-			NULL,                   // pvParameters
-			16,                      // uxPriority
-			&TaskA,                 // pxCreatedTask
-			taskCore);                     // xCoreID
-	esp_task_wdt_add(TaskA);
-
-	Serial.println("Gate driver ON");
-	digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers
-	Serial.println("Gate driver ON...Done.");
-	lcd_out("Starting GateDriverTask...Done.");
-
-	//mover.attach_ms(10, move);
-
-	/*
-	 Serial.println("Setting up interrupt for capsense reading...");
-	 pinMode(GPIO_NUM_0, INPUT_PULLUP);
-	 attachInterrupt(digitalPinToInterrupt(GPIO_NUM_0), handleIntCapSense, RISING);
-	 Serial.println("Setting up interrupt for capsense reading...Done.");
-	 */
-
-	/*
-
-	 myPing.on(true,[](const AsyncPingResponse& response){
-	 IPAddress addr(response.addr); //to prevent with no const toString() in 2.3.0
-	 if (response.answer)
-	 Serial.printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d ms\n", response.size, addr.toString().c_str(), response.icmp_seq, response.ttl, response.time);
-	 else
-	 Serial.printf("no answer yet for %s icmp_seq=%d\n", addr.toString().c_str(), response.icmp_seq);
-	 return false; //do not stop
-	 });
-
-	 myPing.on(false,[](const AsyncPingResponse& response){
-	 IPAddress addr(response.addr); //to prevent with no const toString() in 2.3.0
-	 Serial.printf("total answer from %s sent %d recevied %d time %d ms\n",addr.toString().c_str(),response.total_sent,response.total_recv,response.total_time);
-	 if (response.mac)
-	 Serial.printf("detected eth address " MACSTR "\n",MAC2STR(response.mac->addr));
-
-	 if(WiFi.getMode() != WIFI_MODE_AP)
-	 {
-	 WiFi.mode(WIFI_AP);
-	 if(WiFi.softAP(softAP_ssid, softAP_password))
-	 {
-	 Serial.println("Wait 100 ms for AP_START...");
-	 delay(100);
-	 Serial.println("");
-	 IPAddress Ip(192, 168, 1, 1);
-	 IPAddress NMask(255, 255, 255, 0);
-	 WiFi.softAPConfig(Ip, Ip, NMask);
-	 IPAddress myIP = WiFi.softAPIP();
-	 Serial.println("Network " + String(softAP_ssid) + " is running.");
-	 Serial.print("AP IP address: ");
-	 Serial.println(myIP);
-	 }
-	 }
-
-	 return true;
-	 });
-	 */
-
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
-			(void *) id, &timerCallBack);
-	if ( xTimerStart(tmr, 10 ) != pdPASS) {
-		printf("Timer start error");
+	if (target1_read == -15000) {
+		target1 = rotaryEncoder1.readEncoder();
+	} else {
+		target1 = target1_read;
 	}
 
-	/*
-	 if (enableOta) {
-	 ArduinoOTA.begin();
-	 // OTA callbacks
-	 ArduinoOTA.onStart([]() {
-	 // Clean SPIFFS
-	 lcd_out("OTA.");
-	 pidEnabled = false;
-	 pwm1=0;
-	 pwm2=0;
+	if (target2_read == -15000) {
+		target2 = rotaryEncoder2.readEncoder();
+	} else {
+		target2 = target2_read;
+	}
 
-	 SPIFFS.end();
-	 BaseType_t retTmr = xTimerStop(tmr, 0);
+	printEncoderInfo();
 
-	 //jsonReporter.detach();
-	 //vTaskSuspend(reportJsonTask);
-	 //vTaskSuspend(i2cTask);
-	 //mover.detach();
+	esp_err_t errWdtInit = esp_task_wdt_init(5,true);
+  if(errWdtInit != ESP_OK){
+      log_e("Failed to init WDT! Error: %d", errWdtInit);
+  }
 
-	 // Advertise connected clients what's going on
-	 ws.textAll("OTA Update Started");
+	enableCore0WDT();
+	enableCore1WDT();
 
-	 // Disable client connections
-	 ws.enable(false);
+	if (enablePwm) {
+		lcd_out("Starting GateDriverTask...");
+		xTaskCreatePinnedToCore(Task1,  // pvTaskCode
+				"Workload1",            // pcName
+				4096,                   // usStackDepth
+				NULL,                   // pvParameters
+				16,                      // uxPriority
+				&TaskA,                 // pxCreatedTask
+				taskCore);                     // xCoreID
+		esp_task_wdt_add(TaskA);
 
-	 // Close them
-	 ws.closeAll();
-	 });
-	 }
-	 }
-	 */
+		Serial.println("Gate driver ON");
+		digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers
+		Serial.println("Gate driver ON...Done.");
+		lcd_out("Starting GateDriverTask...Done.");
+	}
 
-//esp_task_wdt_init(2, false);
-//disableLoopWDT();
-	//disableCore0WDT();
-	//disableCore1WDT();
+//mover.attach_ms(10, move);
+
+	int id1 = 1;
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
+			(void *) id1, &timerCallBack);
+	if ( xTimerStart(tmr, pdMS_TO_TICKS(100) ) != pdPASS) {
+		printf("Timer jsonReport start error\n");
+	}
+
+	if (enableCapSense) {
+		int id2 = 2;
+		tmrCapSense = xTimerCreate("MyTimerCapSense",
+				pdMS_TO_TICKS(capSenseIntervalMs),
+				pdTRUE, (void *) id2, &timerCapSenseCallBack);
+		if ( xTimerStart(tmrCapSense, pdMS_TO_TICKS(100) ) != pdPASS) {
+			printf("Timer capsense start error\n");
+		}
+	}
+
+	if (enableMover) {
+		int id3 = 3;
+		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
+		pdTRUE, (void *) id3, &moverCallBack);
+		if ( xTimerStart(tmrMover, pdMS_TO_TICKS(100) ) != pdPASS) {
+			printf("Timer capsense start error\n");
+		}
+	}
 
 	blink(5);
 	lcd_out("Setup Done.");
+	Serial.println("Setup done.");
+
+//printEncoderInfo();
 }
 
 uint32_t previousHeap;
+uint64_t mySecond = 0;
+uint64_t previousSecond = 0;
+long delta;
+long start;
 void loop() {
-		//ArduinoOTA.handle();
-		if(abs(ESP.getFreeHeap()-previousHeap)>10000)
-		{
-			previousHeap = ESP.getFreeHeap();
-			Serial.printf("SETUP heap size: %u\n", previousHeap);
-		}
-		fdc2212.getReading();
-	/*
-	 if(i % 500 == 0)
-	 {
-	 //Serial.printf("FDC2212 read: %du\n", cap_reading);
-	 addr.fromString("google.com");
-	 myPing.begin(addr)
-	 }
-	 */
-	/*
-	 * 	unsigned long start;
-	 long delta;
+//ArduinoOTA.handle();
 
-	 //long randNumber = random(0, 10);
-	 //Serial.println("reportjson3");
+//printEncoderInfo();
 
-	 if (rotaryEncoder1.encoderChanged() != 0
-	 && ((int) target1) == encoder1_value) {
-	 //Serial.println("Saving to flash enc1.");
-	 encoder1_value = rotaryEncoder1.readEncoder();
-	 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-	 preferences.begin("settings", false);
-	 preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-	 preferences.putInt("target1", (int) target1);
-	 preferences.end();
-	 delta = micros() - start;
-
-	 if (delta > 1000)
-	 Serial.printf("%lu Preferences save completed in %lu us.\n",
-	 micros(), delta);
-
-	 yield();
-	 }
-	 if (rotaryEncoder2.encoderChanged() != 0
-	 && ((int) target2) == encoder2_value) {
-	 //Serial.println("Saving to flash enc2.");
-	 encoder2_value = rotaryEncoder2.readEncoder();
-	 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-	 preferences.begin("settings", false);
-	 preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-	 preferences.putInt("target2", (int) target2);
-	 preferences.end();
-	 delta = micros() - start;
-
-	 if (delta > 1000)
-	 Serial.printf("%lu Preferences save completed in %lu us.\n",
-	 micros(), delta);
-	 }
-	 */
-}
-
-void move() {
-// MOTOR1
-	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
-		if (pwm1 <= (pwmValueMax - pwmDelta)) {
-			pwm1 = pwm1 + pwmDelta;
-		}
-	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
-		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
-			pwm1 = pwm1 - pwmDelta;
-		}
-	} else if (shouldStopM1 == 1) {
-		if (pwm1 > 0)
-			pwm1 = pwm1 - pwmDelta;
-		else if (pwm1 < 0)
-			pwm1 = pwm1 + pwmDelta;
-		else
-			shouldStopM1 = 0;
+	mySecond = esp_timer_get_time() / 1000000.0;
+	if ((mySecond % 10 == 0 && mySecond != previousSecond)
+			|| (abs(ESP.getFreeHeap()-previousHeap) > 10000)) {
+		previousHeap = ESP.getFreeHeap();
+		Serial.printf("time[s]: %" PRIu64 " heap size: %d uptime[h]: ", mySecond,
+				previousHeap);
+		Serial.print((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
+		Serial.printf("\n");
+		previousSecond = mySecond;
 	}
 
-// MOTOR2
-	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
-		if (pwm2 <= (pwmValueMax - pwmDelta)) {
-			pwm2 = pwm2 + pwmDelta;
-		}
-	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
-		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
-			pwm2 = pwm2 - pwmDelta;
-		}
-	} else if (shouldStopM2 == 1) {
-		if (pwm2 > 0)
-			pwm2 = pwm2 - pwmDelta;
-		else if (pwm2 < 0)
-			pwm2 = pwm2 + pwmDelta;
-		else
-			shouldStopM2 = 0;
+	if (rotaryEncoder1.encoderChanged() != 0
+			&& ((int) target1) == encoder1_value) {
+//Serial.println("Saving to flash enc1.");
+		encoder1_value = rotaryEncoder1.readEncoder();
+		start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+		preferences.begin("settings", false);
+		preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+		preferences.putInt("target1", (int) target1);
+		preferences.end();
+		delta = micros() - start;
+
+		if (delta > 1000)
+			Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
+					delta);
+
+		yield();
+	}
+	if (rotaryEncoder2.encoderChanged() != 0
+			&& ((int) target2) == encoder2_value) {
+//Serial.println("Saving to flash enc2.");
+		encoder2_value = rotaryEncoder2.readEncoder();
+		start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+		preferences.begin("settings", false);
+		preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+		preferences.putInt("target2", (int) target2);
+		preferences.end();
+		delta = micros() - start;
+
+		if (delta > 1000)
+			Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
+					delta);
 	}
 
 }
 
-
-int id2 = 2;
+int id3 = 4;
 TimerHandle_t tmr2;
 void loopCallBack(TimerHandle_t xTimer) {
 	loop();
 }
-
-
 
 extern "C" {
 void app_main();
@@ -1971,9 +1849,9 @@ void app_main() {
 	setup();
 
 	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
-			(void *) id2, &loopCallBack);
+			(void *) id3, &loopCallBack);
 	if ( xTimerStart(tmr2, 10 ) != pdPASS) {
 		printf("Timer loop start error");
 	}
-	//loop();
+//loop();
 }

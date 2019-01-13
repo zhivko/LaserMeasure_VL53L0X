@@ -14,12 +14,13 @@ var capfast = [];   //dataPoints.
 var capslow = [];   //dataPoints.
 
 
-
 var x1=0;
 var max1=-1000000;
 var min1=1000000;
 var chart1;
 var chart2;
+var chart3;
+var chart4;
 
 function handleEnablePID(cb)
 {
@@ -90,14 +91,6 @@ function init()
 		showInLegend: true,
 		dataPoints : dps2,
 		backgroundColor: "rgba(0,255,0,0.4)"
-		},
-		{
-		type: "line",
-		name: "pos_diff",
-		lineThickness: 3,
-		showInLegend: true,
-		dataPoints : dps3,
-		backgroundColor: "rgba(0,0,255,0.4)"
 		}		
 	  ]
 	});
@@ -165,7 +158,34 @@ function init()
 		backgroundColor: "rgba(0,255,0,0.4)"
 		}		
 	  ]
-	});	
+	});
+	chart3.render;
+	
+	
+	chart4 = new CanvasJS.Chart("chartContainer4",{
+	animationEnabled: true,
+	zoomEnabled: true,
+	title :{
+		text: "Position difference"
+	},
+	axisX: {
+		title: "timeline"
+	},
+	axisY: {						
+		title: "Units"
+	},
+	data: [ 
+		{
+		type: "line",
+		name: "pos_diff",
+		lineThickness: 3,
+		showInLegend: true,
+		dataPoints : dps3,
+		backgroundColor: "rgba(0,0,255,0.4)"
+		}
+	  ]
+	});		
+	chart4.render;
 }
 function testWebSocket()
 {
@@ -206,6 +226,8 @@ function onMessage(evt)
 			   {
 			   		if(document.getElementById(propertyName).nodeName == "INPUT")
 			   			document.getElementById(propertyName).value = obj[propertyName];
+					else if(document.getElementById(propertyName).nodeName == "checkbox")
+			   			document.getElementById(propertyName).checked = obj[propertyName];					
 			   		else	
 						document.getElementById(propertyName).innerHTML = obj[propertyName];
 			   }
@@ -317,7 +339,6 @@ function drawChart(obj)
 			{
 				dps2.shift();					
 			}
-			
 			if (dps3.length >  100 )
 			{
 				dps3.shift();					
@@ -325,14 +346,15 @@ function drawChart(obj)
 			
 			var max_01 = maxValue(chart1.options.data[0].dataPoints);
 			var max_02 = maxValue(chart1.options.data[1].dataPoints);
-			chart1.options.axisY.maximum = Math.max(max_01, max_02);
+			chart1.options.axisY.maximum = Math.max(max_01, max_02)+20;
 			
 			var min_01 = minValue(chart1.options.data[0].dataPoints);
 			var min_02 = minValue(chart1.options.data[1].dataPoints);
-			var min_03 = minValue(chart1.options.data[2].dataPoints);
-			min_04 = Math.min(min_01, min_02);
-			
-			chart1.options.axisY.minimum =Math.min(min_04, min_03)-5;
+			chart1.options.axisY.minimum = Math.min(min_01, min_02)-20;
+
+			chart4.options.axisY.maximum = maxValue(chart4.options.data[0].dataPoints)+5;
+			chart4.options.axisY.minimum = minValue(chart4.options.data[0].dataPoints)-5;
+			chart4.render();
 			chart1.render();
 		}
 
