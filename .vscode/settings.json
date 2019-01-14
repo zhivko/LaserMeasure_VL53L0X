@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "initializer_list": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "list": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp",
+        "iosfwd": "cpp",
+        "xmemory0": "cpp",
+        "system_error": "cpp",
+        "type_traits": "cpp",
+        "xfunctional": "cpp",
+        "xlocmon": "cpp",
+        "xstddef": "cpp",
+        "xtr1common": "cpp"
+    },
+    "terminal.integrated.env.windows": {
+        "PATH": "C:\\Users\\klemen\\.platformio\\penv\\Scripts;C:\\Users\\klemen\\.platformio\\penv;C:\\Windows;C:\\Python27\\;C:\\Python27\\Scripts;C:\\ESP_IDF_Tools\\mconf-idf;C:\\ESP_IDF_Tools\\tools\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files\\Intel\\WiFi\\bin\\;C:\\Program Files\\Common Files\\Intel\\WirelessCommon\\;C:\\Program Files\\Git\\cmd;C:\\Program Files\\PuTTY\\;c:\\Python37-32\\;c:\\Python37-32\\Scripts\\;C:\\Program Files\\CMake\\bin;C:\\Users\\klemen\\AppData\\Local\\Microsoft\\WindowsApps;c:\\JavaLibraries\\apache-maven-3.5.3\\bin\\;C:\\Program Files\\Intel\\WiFi\\bin\\;C:\\Program Files\\Common Files\\Intel\\WirelessCommon\\;C:\\Users\\klemen\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Windows;C:\\Python27\\;C:\\Python27\\Scripts;C:\\ESP_IDF_Tools\\mconf-idf;C:\\ESP_IDF_Tools\\tools\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files\\Intel\\WiFi\\bin\\;C:\\Program Files\\Common Files\\Intel\\WirelessCommon\\;C:\\Program Files\\Git\\cmd;C:\\Program Files\\PuTTY\\;c:\\Python37-32\\;c:\\Python37-32\\Scripts\\;C:\\Program Files\\CMake\\bin;C:\\Users\\klemen\\AppData\\Local\\Microsoft\\WindowsApps;c:\\JavaLibraries\\apache-maven-3.5.3\\bin\\;C:\\Program Files\\Intel\\WiFi\\bin\\;C:\\Program Files\\Common Files\\Intel\\WirelessCommon\\;C:\\Users\\klemen\\AppData\\Local\\Programs\\Microsoft VS Code\\bin",
+        "PLATFORMIO_CALLER": "vscode"
+    }
+}
