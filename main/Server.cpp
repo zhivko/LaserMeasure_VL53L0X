@@ -61,6 +61,10 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
+#include "EspSaveCrash.h"
+
+EspSaveCrash SaveCrash;
+
 char ptrTaskList[250];
 
 //IRAM_ATTR String getJsonString();
@@ -1285,6 +1289,9 @@ void setup() {
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
+
+	Serial.print("SaveCrash:");
+	SaveCrash.print();
 
 	lcd_out("Flash INIT");
 	if (nvs_flash_init() != ESP_OK) {

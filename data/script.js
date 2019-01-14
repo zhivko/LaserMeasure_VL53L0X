@@ -375,12 +375,12 @@ function drawChart(obj)
 			
 			var max_01 = maxValue(chart2.options.data[0].dataPoints);
 			var max_02 = maxValue(chart2.options.data[1].dataPoints);
-			chart2.options.axisY.maximum = Math.max(max_01, max_02);
+			chart2.options.axisY.maximum = Math.max(max_01, max_02)+10;
 			
 			var min_01 = minValue(chart2.options.data[0].dataPoints);
 			var min_02 = minValue(chart2.options.data[1].dataPoints);
 			
-			chart2.options.axisY.minimum =Math.min(min_01, min_02)-5;
+			chart2.options.axisY.minimum =Math.min(min_01, min_02)-10;
 			chart2.render();
 		}
 		

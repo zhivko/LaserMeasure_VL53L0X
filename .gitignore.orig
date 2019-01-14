@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 .pio
 .pioenvs
 .piolibdeps
@@ -8,3 +9,8 @@
 =======
 *.DS_Store
 >>>>>>> f8f26ab04492c28be5922ac06994a78440ad8258
+/build/
+=======
+_input
+Thumbs.db
+>>>>>>> e643cce2988d6f5bbd115959a732e4d59de07432
