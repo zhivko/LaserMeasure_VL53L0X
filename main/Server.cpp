@@ -61,6 +61,11 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
+
+#include "idf_wmonitor_coredump.h"
+#include <esp_partition.h>
+//#include "idf_wmonitor.cpp"
+
 char ptrTaskList[250];
 
 //IRAM_ATTR String getJsonString();
@@ -205,6 +210,12 @@ uint32_t cap_reading = 0;
 
 //AsyncPing myPing;
 //IPAddress addr;
+
+uint32_t idf_wmonitor_coredump_size(void)
+{
+    const esp_partition_t *p = coredump_partition();
+    return idf_wmonitor_coredump_size_from_partition(p);
+}
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -1276,7 +1287,56 @@ void printEncoderInfo() {
 	Serial.println(target2);
 }
 
+/*
+static void idf_wmonitor_start_task(tcpip_adapter_if_t iface) {
+	xTaskCreatePinnedToCore(idf_monitor_server_task, "WMONITOR", 4096,
+			(void *) iface, tskIDLE_PRIORITY + 1,
+			NULL, WIFI_TASK_CORE_ID);
+}
+
+
+static void idf_wmonitor_do_coredump_read(int s)
+{
+    uint32_t coredump_size = idf_wmonitor_coredump_size();
+    uint8_t resp = CMD_COREDUMP_READ;
+    coredump_size = htonl(coredump_size);
+    xSemaphoreTake(state.socket_sema, portMAX_DELAY);
+    write(s, &resp, sizeof(resp));
+    write(s, &coredump_size, sizeof(&coredump_size));
+    idf_wmonitor_coredump_read(idf_wmonitor_coredump_reader, &s);
+    xSemaphoreGive(state.socket_sema);
+}
+*/
+
+void idf_wmonitor_coredump_copy()
+{
+  const esp_partition_t *p = coredump_partition();
+  if (p)
+  {
+  	  File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
+      uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
+      uint32_t off = 0; // Send everything including the initial magic bytes
+      char buf[128];
+      while (off < size)
+      {
+          size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
+          if (esp_partition_read(p, off, buf, rs) != ESP_OK)
+          {
+              // Signal failure
+              //fn(NULL, -1, user_data);
+              return;
+          }
+          //fn(buf, rs, user_data);
+          off += rs;
+          file.println(buf);
+      }
+      file.close();
+  }
+}
+
+
 void setup() {
+
 	esp_wifi_set_max_tx_power(-4);
 	Serial.setDebugOutput(true);
 	esp_log_level_set("*", ESP_LOG_DEBUG);
@@ -1383,6 +1443,8 @@ void setup() {
 //ssid = "AsusKZ";
 		password = "Doitman1";
 	}
+	//password = "klemenklemen";
+	//ssid = "SINTEX";
 	lcd_out(String(" ssid:     " + ssid).c_str());
 	lcd_out(String(" pass:     " + password).c_str());
 
@@ -1494,6 +1556,7 @@ void setup() {
 	WiFi.setSleep(false);
 
 	waitForIp();
+	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
 
 	Serial.println("Config ntp time...");
 	configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
@@ -1646,8 +1709,15 @@ void setup() {
 				Serial.printf("BodyEnd: %u\n", total);
 			});
 
-	if (!SPIFFS.begin()) {
+	if (!SPIFFS.begin(true)) {
 		Serial.println("SPIFFS Mount Failed");
+	}
+	else
+	{
+		//idf_wmonitor_do_coredump_read(cs);
+		if( idf_wmonitor_coredump_size() >0 )  {
+		  idf_wmonitor_coredump_copy();
+		}
 	}
 
 	listDir(SPIFFS, "/", 0);
@@ -1718,10 +1788,10 @@ void setup() {
 
 	printEncoderInfo();
 
-	esp_err_t errWdtInit = esp_task_wdt_init(5,true);
-  if(errWdtInit != ESP_OK){
-      log_e("Failed to init WDT! Error: %d", errWdtInit);
-  }
+	esp_err_t errWdtInit = esp_task_wdt_init(5, true);
+	if (errWdtInit != ESP_OK) {
+		log_e("Failed to init WDT! Error: %d", errWdtInit);
+	}
 
 	enableCore0WDT();
 	enableCore1WDT();
@@ -1774,6 +1844,8 @@ void setup() {
 	blink(5);
 	lcd_out("Setup Done.");
 	Serial.println("Setup done.");
+
+	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
 
 //printEncoderInfo();
 }

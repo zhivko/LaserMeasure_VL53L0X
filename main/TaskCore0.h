@@ -325,7 +325,7 @@ void Task1( void * parameter )
 		//feedLoopWDT();
     esp_err_t err = esp_task_wdt_reset();
     if(err != ESP_OK){
-        log_e("Failed to feed WDT! Error: %d", err);
+        //log_e("Failed to feed WDT! Error: %d", err);
     }
 
 		vTaskDelay(10 / portTICK_PERIOD_MS);
