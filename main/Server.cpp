@@ -62,7 +62,7 @@
 #include "lwip/dns.h"
 
 
-#include "idf_wmonitor_coredump.h"
+#include <idf_wmonitor/idf_wmonitor.h>
 #include <esp_partition.h>
 //#include "idf_wmonitor.cpp"
 
@@ -211,11 +211,13 @@ uint32_t cap_reading = 0;
 //AsyncPing myPing;
 //IPAddress addr;
 
+/*
 uint32_t idf_wmonitor_coredump_size(void)
 {
     const esp_partition_t *p = coredump_partition();
     return idf_wmonitor_coredump_size_from_partition(p);
 }
+*/
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -1308,6 +1310,7 @@ static void idf_wmonitor_do_coredump_read(int s)
 }
 */
 
+/*
 void idf_wmonitor_coredump_copy()
 {
   const esp_partition_t *p = coredump_partition();
@@ -1333,7 +1336,7 @@ void idf_wmonitor_coredump_copy()
       file.close();
   }
 }
-
+*/
 
 void setup() {
 
@@ -1715,9 +1718,11 @@ void setup() {
 	else
 	{
 		//idf_wmonitor_do_coredump_read(cs);
+		/*
 		if( idf_wmonitor_coredump_size() >0 )  {
 		  idf_wmonitor_coredump_copy();
 		}
+		*/
 	}
 
 	listDir(SPIFFS, "/", 0);
@@ -1840,6 +1845,13 @@ void setup() {
 			printf("Timer capsense start error\n");
 		}
 	}
+
+  idf_wmonitor_opts_t opts = {
+      .config = IDF_WMONITOR_CONFIG_DEFAULT(),
+      .flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP,
+  };
+  idf_wmonitor_start(&opts);
+
 
 	blink(5);
 	lcd_out("Setup Done.");
