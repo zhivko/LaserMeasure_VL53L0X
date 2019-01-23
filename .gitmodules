@@ -1,0 +1,15 @@
+[submodule "components/AsyncTCP"]
+	path = components/AsyncTCP
+	url = https://github.com/me-no-dev/AsyncTCP.git
+[submodule "components/ESPAsyncWebServer"]
+	path = components/ESPAsyncWebServer
+	url = https://github.com/me-no-dev/ESPAsyncWebServer.git
+[submodule "components/MiniPID"]
+	path = components/MiniPID
+	url = https://github.com/zhivko/MiniPID.git
+[submodule "components/ai-esp32-rotary-encoder"]
+	path = components/ai-esp32-rotary-encoder
+	url = https://github.com/zhivko/ai-esp32-rotary-encoder.git
+[submodule "components/arduino"]
+	path = components/arduino
+	url = https://github.com/espressif/arduino-esp32.git

@@ -1,2 +1,17 @@
+I (32506) wifi: new:<1,1>, old:<1,0>, ap:<1,1>, sta:<255,255>, prof:1
+I (32506) wifi: bss=0x3ffbcfac, resp=16 join
+I (32506) wifi: station: 78:0c:b8:b3:33:c3 join, AID=1, bgn, 40U
+I (32506) wifi: join success, ap send assoc response
+W (32516) event: unexpected system event 63!
+E (32516) event: mismatch or invalid event, id=63
+E (32526) event: default event handler failed!
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+Core 1 register dump:
+PC      : 0x40099ad4  PS      : 0x00060330  A0      : 0x800dd0e6  A1      : 0x3ffc0740  
+A2      : 0xb33fffff  A3      : 0xb33ffffb  A4      : 0x000000ff  A5      : 0x0000ff00  
+A6      : 0x00ff0000  A7      : 0xff000000  A8      : 0x00000000  A9      : 0x00000000  
+A10     : 0x00000000  A11     : 0x3ffc0942  A12     : 0x00000000  A13     : 0x3ffbe27c  
+A14     : 0x00000002  A15     : 0x3ffbe920  SAR     : 0x00000004  EXCCAUSE: 0x0000001c  
+EXCVADDR: 0xb33fffff  LBEG    : 0x40099af5  LEND    : 0x40099b05  LCOUNT  : 0xfffffffc  
 
-Backtrace: 0x40099ad4:0x3ffc0850 0x400dd0e3:0x3ffc0860 0x4016850d:0x3ffc0b70 0x4016855a:0x3ffc0c00 0x4010007a:0x3ffc0c40 0x401040ce:0x3ffc0ca0 0x401044f2:0x3ffc0d70 0x40094725:0x3ffc0da0
+Backtrace: 0x40099ad4:0x3ffc0740 0x400dd0e3:0x3ffc0750 0x4016850d:0x3ffc0a60 0x4016855a:0x3ffc0af0 0x4010007a:0x3ffc0b30 0x401040ce:0x3ffc0b90 0x401044f2:0x3ffc0c60 0x40094725:0x3ffc0c90

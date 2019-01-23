@@ -61,7 +61,6 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
-
 #include <idf_wmonitor/idf_wmonitor.h>
 #include <esp_partition.h>
 
@@ -211,12 +210,12 @@ uint32_t cap_reading = 0;
 //IPAddress addr;
 
 /*
-uint32_t idf_wmonitor_coredump_size(void)
-{
-    const esp_partition_t *p = coredump_partition();
-    return idf_wmonitor_coredump_size_from_partition(p);
-}
-*/
+ uint32_t idf_wmonitor_coredump_size(void)
+ {
+ const esp_partition_t *p = coredump_partition();
+ return idf_wmonitor_coredump_size_from_partition(p);
+ }
+ */
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -1289,53 +1288,53 @@ void printEncoderInfo() {
 }
 
 /*
-static void idf_wmonitor_start_task(tcpip_adapter_if_t iface) {
-	xTaskCreatePinnedToCore(idf_monitor_server_task, "WMONITOR", 4096,
-			(void *) iface, tskIDLE_PRIORITY + 1,
-			NULL, WIFI_TASK_CORE_ID);
-}
+ static void idf_wmonitor_start_task(tcpip_adapter_if_t iface) {
+ xTaskCreatePinnedToCore(idf_monitor_server_task, "WMONITOR", 4096,
+ (void *) iface, tskIDLE_PRIORITY + 1,
+ NULL, WIFI_TASK_CORE_ID);
+ }
 
 
-static void idf_wmonitor_do_coredump_read(int s)
-{
-    uint32_t coredump_size = idf_wmonitor_coredump_size();
-    uint8_t resp = CMD_COREDUMP_READ;
-    coredump_size = htonl(coredump_size);
-    xSemaphoreTake(state.socket_sema, portMAX_DELAY);
-    write(s, &resp, sizeof(resp));
-    write(s, &coredump_size, sizeof(&coredump_size));
-    idf_wmonitor_coredump_read(idf_wmonitor_coredump_reader, &s);
-    xSemaphoreGive(state.socket_sema);
-}
-*/
+ static void idf_wmonitor_do_coredump_read(int s)
+ {
+ uint32_t coredump_size = idf_wmonitor_coredump_size();
+ uint8_t resp = CMD_COREDUMP_READ;
+ coredump_size = htonl(coredump_size);
+ xSemaphoreTake(state.socket_sema, portMAX_DELAY);
+ write(s, &resp, sizeof(resp));
+ write(s, &coredump_size, sizeof(&coredump_size));
+ idf_wmonitor_coredump_read(idf_wmonitor_coredump_reader, &s);
+ xSemaphoreGive(state.socket_sema);
+ }
+ */
 
 /*
-void idf_wmonitor_coredump_copy()
-{
-  const esp_partition_t *p = coredump_partition();
-  if (p)
-  {
-  	  File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
-      uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
-      uint32_t off = 0; // Send everything including the initial magic bytes
-      char buf[128];
-      while (off < size)
-      {
-          size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
-          if (esp_partition_read(p, off, buf, rs) != ESP_OK)
-          {
-              // Signal failure
-              //fn(NULL, -1, user_data);
-              return;
-          }
-          //fn(buf, rs, user_data);
-          off += rs;
-          file.println(buf);
-      }
-      file.close();
-  }
-}
-*/
+ void idf_wmonitor_coredump_copy()
+ {
+ const esp_partition_t *p = coredump_partition();
+ if (p)
+ {
+ File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
+ uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
+ uint32_t off = 0; // Send everything including the initial magic bytes
+ char buf[128];
+ while (off < size)
+ {
+ size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
+ if (esp_partition_read(p, off, buf, rs) != ESP_OK)
+ {
+ // Signal failure
+ //fn(NULL, -1, user_data);
+ return;
+ }
+ //fn(buf, rs, user_data);
+ off += rs;
+ file.println(buf);
+ }
+ file.close();
+ }
+ }
+ */
 
 void setup() {
 
@@ -1713,15 +1712,13 @@ void setup() {
 
 	if (!SPIFFS.begin(true)) {
 		Serial.println("SPIFFS Mount Failed");
-	}
-	else
-	{
+	} else {
 		//idf_wmonitor_do_coredump_read(cs);
 		/*
-		if( idf_wmonitor_coredump_size() >0 )  {
-		  idf_wmonitor_coredump_copy();
-		}
-		*/
+		 if( idf_wmonitor_coredump_size() >0 )  {
+		 idf_wmonitor_coredump_copy();
+		 }
+		 */
 	}
 
 	listDir(SPIFFS, "/", 0);
@@ -1822,16 +1819,16 @@ void setup() {
 	int id1 = 1;
 	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
 			(void *) id1, &timerCallBack);
-	if ( xTimerStart(tmr, pdMS_TO_TICKS(100) ) != pdPASS) {
+	if (xTimerStart(tmr, pdMS_TO_TICKS(100)) != pdPASS) {
 		printf("Timer jsonReport start error\n");
 	}
 
 	if (enableCapSense) {
 		int id2 = 2;
 		tmrCapSense = xTimerCreate("MyTimerCapSense",
-				pdMS_TO_TICKS(capSenseIntervalMs),
-				pdTRUE, (void *) id2, &timerCapSenseCallBack);
-		if ( xTimerStart(tmrCapSense, pdMS_TO_TICKS(100) ) != pdPASS) {
+				pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
+				&timerCapSenseCallBack);
+		if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
 			printf("Timer capsense start error\n");
 		}
 	}
@@ -1839,18 +1836,20 @@ void setup() {
 	if (enableMover) {
 		int id3 = 3;
 		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
-		pdTRUE, (void *) id3, &moverCallBack);
-		if ( xTimerStart(tmrMover, pdMS_TO_TICKS(100) ) != pdPASS) {
+				pdTRUE, (void *) id3, &moverCallBack);
+		if (xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS) {
 			printf("Timer capsense start error\n");
 		}
 	}
 
-  idf_wmonitor_opts_t opts = {
-      .config = IDF_WMONITOR_CONFIG_DEFAULT(),
-      .flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP,
-  };
-  idf_wmonitor_start(&opts);
+	idf_wmonitor_config_t a;
+	a.wifi.mode = IDF_WMONITOR_WIFI_AUTO;
 
+	idf_wmonitor_opts_t opts;
+	opts.config = a;
+	opts.flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP;
+
+	//idf_wmonitor_start(&opts);
 
 	blink(5);
 	lcd_out("Setup Done.");
@@ -1873,7 +1872,7 @@ void loop() {
 
 	mySecond = esp_timer_get_time() / 1000000.0;
 	if ((mySecond % 10 == 0 && mySecond != previousSecond)
-			|| (abs(ESP.getFreeHeap()-previousHeap) > 10000)) {
+			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 		previousHeap = ESP.getFreeHeap();
 		Serial.printf("time[s]: %" PRIu64 " heap size: %d uptime[h]: ", mySecond,
 				previousHeap);
@@ -1933,7 +1932,7 @@ void app_main() {
 
 	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
 			(void *) id3, &loopCallBack);
-	if ( xTimerStart(tmr2, 10 ) != pdPASS) {
+	if (xTimerStart(tmr2, 10) != pdPASS) {
 		printf("Timer loop start error");
 	}
 //loop();
