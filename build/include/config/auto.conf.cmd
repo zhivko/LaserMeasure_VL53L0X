@@ -4,6 +4,7 @@ deps_config := \
 	C:\msys32\home\klemen\esp\esp-idf\components\bt\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\driver\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp32\Kconfig \
+	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-I2Cbus\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_adc_cal\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_event\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_http_client\Kconfig \

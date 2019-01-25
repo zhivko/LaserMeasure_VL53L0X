@@ -18,7 +18,7 @@
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
  curl -F "image=@build/DoubleLifter.bin" 192.168.1.7/update
  */
-// PID: p=60.00 i=3.00 d=1.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=700.00
+// PID: p=70.00 i=1.00 d=10.00 f=0.00 syn=0 synErr=0.00 ramp=100.00 maxIout=2048.00
 #include <WiFi.h>
 #include <FS.h>
 #include <ArduinoOTA.h>
@@ -62,6 +62,7 @@
 #include "lwip/dns.h"
 
 #include <idf_wmonitor/idf_wmonitor.h>
+#include <idf_wmonitor/idf_wmonitor_coredump.h>
 #include <esp_partition.h>
 
 char ptrTaskList[250];
@@ -94,6 +95,8 @@ String ssid;
 String password;
 Preferences preferences;
 bool reportingJson = false;
+
+String coredumpStr="";
 
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
@@ -216,6 +219,14 @@ uint32_t cap_reading = 0;
  return idf_wmonitor_coredump_size_from_partition(p);
  }
  */
+
+String processor(const String& var)
+{
+  if(var == "COREDUMP")
+    return coredumpStr;
+  return String();
+}
+
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -1120,11 +1131,11 @@ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 	}
 }
 
-String processor(const String& var) {
-	if (var == "encoder1_value")
-		return F("Hello world!");
-	return String();
-}
+//String processor(const String& var) {
+//	if (var == "encoder1_value")
+//		return F("Hello world!");
+//	return String();
+//}
 
 bool checkNoApFoundCritical() {
 	if (NO_AP_FOUND_count >= 5) {
@@ -1308,33 +1319,31 @@ void printEncoderInfo() {
  }
  */
 
-/*
- void idf_wmonitor_coredump_copy()
- {
- const esp_partition_t *p = coredump_partition();
- if (p)
- {
- File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
- uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
- uint32_t off = 0; // Send everything including the initial magic bytes
- char buf[128];
- while (off < size)
- {
- size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
- if (esp_partition_read(p, off, buf, rs) != ESP_OK)
- {
- // Signal failure
- //fn(NULL, -1, user_data);
- return;
- }
- //fn(buf, rs, user_data);
- off += rs;
- file.println(buf);
- }
- file.close();
- }
- }
- */
+String idf_wmonitor_coredump_copy() {
+	String ret="";
+	const esp_partition_t *p = coredump_partition();
+	if (p) {
+		File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
+		uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
+		uint32_t off = 0; // Send everything including the initial magic bytes
+		char buf[128];
+		while (off < size) {
+			size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
+			if (esp_partition_read(p, off, buf, rs) != ESP_OK) {
+				// Signal failure
+				//fn(NULL, -1, user_data);
+				return ret;
+			}
+			//fn(buf, rs, user_data);
+			off += rs;
+			file.println(buf);
+			const char *p = reinterpret_cast<const char*>(buf);
+			ret.concat(p);
+		}
+		file.close();
+	}
+	return ret;
+}
 
 void setup() {
 
@@ -1716,9 +1725,12 @@ void setup() {
 		//idf_wmonitor_do_coredump_read(cs);
 		/*
 		 if( idf_wmonitor_coredump_size() >0 )  {
-		 idf_wmonitor_coredump_copy();
+		 String coreDumpStr = idf_wmonitor_coredump_copy();
 		 }
 		 */
+		coredumpStr = idf_wmonitor_coredump_copy();
+		Serial.println("Previous coreDump: ");
+		Serial.println(coredumpStr);
 	}
 
 	listDir(SPIFFS, "/", 0);
@@ -1728,7 +1740,7 @@ void setup() {
 	server.addHandler(&ws);
 
 	server.serveStatic("/", SPIFFS, "/").setCacheControl("max-age=600").setDefaultFile(
-			"index.html"); //.setTemplateProcessor(processor);
+			"index.html").setTemplateProcessor(processor);
 
 	server.begin();
 	MDNS.addService("http", "tcp", 80);
@@ -1842,20 +1854,17 @@ void setup() {
 		}
 	}
 
-	idf_wmonitor_config_t a;
-	a.wifi.mode = IDF_WMONITOR_WIFI_AUTO;
-
-	idf_wmonitor_opts_t opts;
-	opts.config = a;
-	opts.flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP;
-
-	//idf_wmonitor_start(&opts);
+	/*
+	 idf_wmonitor_opts_t opts = {
+	 .wifi = { .ssid=ssid, .password=password, .mode=IDF_WMONITOR_WIFI_AUTO},
+	 .flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP
+	 };
+	 idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
+	 */
 
 	blink(5);
 	lcd_out("Setup Done.");
 	Serial.println("Setup done.");
-
-	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
 
 //printEncoderInfo();
 }
