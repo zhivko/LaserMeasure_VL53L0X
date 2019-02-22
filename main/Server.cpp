@@ -18,7 +18,6 @@
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
  curl -F "image=@build/DoubleLifter.bin" 192.168.1.7/update
  */
-// PID: p=70.00 i=1.00 d=10.00 f=0.00 syn=0 synErr=0.00 ramp=100.00 maxIout=2048.00
 #include <WiFi.h>
 #include <FS.h>
 #include <ArduinoOTA.h>
@@ -208,6 +207,10 @@ int16_t deltaSearch = 2000;
 FDC2212 fdc2212;
 
 uint32_t cap_reading = 0;
+
+// PID
+String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
+
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -1464,10 +1467,8 @@ void setup() {
 		setPidsFromString(pid_str);
 	} else {
 		Serial.printf("no PID from flash.\n");
-		pid1.setOutputRampRate(10);
-		pid2.setOutputRampRate(10);
-		pid1.setPID(70, 40, 10, 0);
-		pid2.setPID(70, 40, 10, 0);
+		Serial.printf("using initial string: %s\n", initialPidStr);
+		setPidsFromString(initialPidStr);
 	}
 
 	int32_t outputMin_ = preferences.getInt("outputMin1", -100000);
