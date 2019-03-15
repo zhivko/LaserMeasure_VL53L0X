@@ -13,9 +13,9 @@
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
-[submodule "components/idf_wmonitor_lib"]
-	path = components/idf_wmonitor_lib
-	url = https://github.com/zhivko/idf_wmonitor_lib.git
 [submodule "components/esp32-I2Cbus"]
 	path = components/esp32-I2Cbus
 	url = https://github.com/natanaeljr/esp32-I2Cbus.git 
+[submodule "components/arduinoWebSockets"]
+	path = components/arduinoWebSockets
+	url = https://github.com/Links2004/arduinoWebSockets.git 
