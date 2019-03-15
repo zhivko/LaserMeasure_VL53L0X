@@ -1,7 +1,11 @@
-set echo off
+set echo on
 set project_folder=c:\msys32\home\klemen\esp\DoubleLifter
 
 echo %project_folder%
+
+rem cd ./data_template
+rem convert.bat
+rem cd %project_folder%
 
 del spiffs.bin
 mkspiffs.exe -p 256 -b 4096 -s 1433600 -d 5 -c ./data ./spiffs.bin

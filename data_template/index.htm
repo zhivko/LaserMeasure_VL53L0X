@@ -1,5 +1,5 @@
 <html><head>
-    <title>Motor controller</title>
+    <title>MC</title>
 	<meta charset="UTF-8">
 	<meta http-equiv="cache-control" content="max-age=0">
 	<meta http-equiv="cache-control" content="no-cache">
@@ -10,13 +10,13 @@
 	
 <!--<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>						  -->
 <!--<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>    -->
-	<script type="text/javascript" src="/canvasjs.min.js"></script> 
-	<script type="text/javascript" src="/moment.min.js"></script>	
+	<script type="text/javascript" src="canvasjs.min.js"></script> 
+	<script type="text/javascript" src="moment.min.js"></script>	
 	<link rel="shortcut icon" href="favicon.ico" />
   </head>
   <body>
 
-    <h1>DOUBLE Motor controller</h1>
+    <h1>MC</h1>
 	<table border="0">
     <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=15300 target2=15300" style="width:150px" type="text">
     <input id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
@@ -30,27 +30,25 @@
 	</table>
 	
 	<table border="1">
-	<tbody>
-	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search top</td><td align="center"><a id='stop1_top'></a><br /><object id="gotop 1" data="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></object></td><td></td><td align="center"><a id='stop2_top'></a><br><object id="gotop 2" data="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></object></td></tr>
-	<tr><td></td><td><object id="pwm_m1_left" data="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></object></td><td></td><td><object id="pwm_m2_left" data="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></object></td></tr>
+	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search top</td><td align="center"><a id='stop1_top'></a><br /><img id="gotop 1" src="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></svg></td><td></td><td align="center"><a id='stop2_top'></a><br><img id="gotop 2" src="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
+	<tr><td></td><td><img id="pwm_m1_left" src="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></img></td><td></td><td><img id="pwm_m2_left" src="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
 	<tr><td>encoder</td><td id='encoder1_value'></td><td></td><td id='encoder2_value'></td></tr>
 	<tr><td>target</td><td id='target1'></td><td></td><td id='target2'></td></tr>
 	<tr><td>output</td><td id='output1'></td><td></td><td id='output2'></td></tr>
 	<tr><td>pwm</td><td id='pwm1'></td><td></td><td id='pwm2'></td></tr>
 	<tr><td>current</td><td id='an1'></td><td></td><td id='an2'></td></tr>
 	<tr><td>out %</td><td><input id="maxPercentOutput1" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td><td></td><td><input id="maxPercentOutput2" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td></tr>
-	<tr><td></td><td><object id="pwm_m1_right" data="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></object></td><td></td><td><object id="pwm_m2_right" data="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></object></td></tr>
-	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><object id="gobottom 1" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop1_bottom'/></td><td></td><td align="center"><object id="gobottom 2" data="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></object><br><a id='stop2_bottom'/></td></tr>
-	</tbody></table>
+	<tr><td></td><td><img id="pwm_m1_right" src="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></img></td><td></td><td><img id="pwm_m2_right" src="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
+	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><img id="gobottom 1" src="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></img><br><a id='stop1_bottom'/></td><td></td><td align="center"><img id="gobottom 2" src="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></img><br><a id='stop2_bottom'/></td></tr>
+	</table>
 	
 <p>
 Capacity sense:      <a style="font-family: monospace" id="cap_reading"></a><br>
 Capacity sense time: <a style="font-family: monospace" id="cap_read_time_ms"></a><br>
 Esp32 free heap [bytes]: <a id="esp32_heap"></a><br>
 Uptime [hour]: <a id="uptime_h"></a><br>
-CrashDumpStr: <a id="coredump">%COREDUMP%</a>
 Encoder actual difference: <a id="actual_diff"></a><br>
-PID regulation data:<br>
+PID regulation data:</p>
 <table border="1">
 <tr><td><small id="PID1output"></small></td><td><small id="PID2output"></small></td></tr>
 </table>
@@ -62,15 +60,13 @@ PID regulation data:<br>
 <div id="chartContainer2" style="height: 200px; width:500px;position:absolute;z-index:30;top:450px;left:300px"></div>
 <div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:40;top:650px;left:300px"></div>
 
-</p>
-    <p>
-	<button onMouseDown="doSendCommand('status')" type="button">Status</button> 
-	<button onMouseDown="doSendCommand('gdfvdsstatus')" type="button">GDF VDS Status</button> 
-	
-	<button onMouseDown="doSendCommand('clrflt')" type="button">Clear Fault</button> 
-	<button onMouseDown="doSendCommand('scan')" type="button">Scan</button> 
-	
-	</p><div id="output">
-  
 
-</div></body></html>
+<p>
+<button onMouseDown="doSendCommand('status')" type="button">Status</button>
+<button onMouseDown="doSendCommand('gdfvdsstatus')" type="button">GDF VDS Status</button>
+<button onMouseDown="doSendCommand('clrflt')" type="button">Clear Fault</button>
+<button onMouseDown="doSendCommand('scan')" type="button">Scan</button>
+
+<div id="output"></div>
+
+</body></html>

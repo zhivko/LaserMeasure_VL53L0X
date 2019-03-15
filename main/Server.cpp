@@ -23,8 +23,10 @@
 #include <ArduinoOTA.h>
 #include "SPIFFS.h"
 #include <AsyncTCP.h>
-
 #include <ESPAsyncWebServer.h>
+
+#include <WebSocketsServer.h>
+
 #include <Update.h>
 #include <ESPmDNS.h>
 #include <SPI.h>
@@ -60,10 +62,6 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
-#include <idf_wmonitor/idf_wmonitor.h>
-#include <idf_wmonitor/idf_wmonitor_coredump.h>
-#include <esp_partition.h>
-
 char ptrTaskList[250];
 
 //IRAM_ATTR String getJsonString();
@@ -81,27 +79,29 @@ bool enableLed = true;
 bool enableLcd = false;
 bool shouldReboot = false;
 bool enableCapSense = true;
-bool enableMover = true;
+bool enableMover = false;
 const char* hostName = "esp32_door";
-int jsonReportIntervalMs = 100;
+int jsonReportIntervalMs = 200;
 int capSenseIntervalMs = 50;
-int moverIntervalMs = 30;
+int moverIntervalMs = 50;
 int loopIntervalMs = 500;
-bool restartRequired = false; // Set this flag in the callbacks to restart ESP in the main loop
-static int taskCore = 1;
+static int taskCore = 0;
 
 String ssid;
 String password;
 Preferences preferences;
 bool reportingJson = false;
 
-String coredumpStr="";
+String coredumpStr = "";
 
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
 
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+//AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+WebSocketsServer ws = WebSocketsServer(81);
+
+
 AsyncEventSource events("/events");
 const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
 		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
@@ -209,8 +209,8 @@ FDC2212 fdc2212;
 uint32_t cap_reading = 0;
 
 // PID
-String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
-
+String initialPidStr =
+		"p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -223,13 +223,11 @@ String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100
  }
  */
 
-String processor(const String& var)
-{
-  if(var == "COREDUMP")
-    return coredumpStr;
-  return String();
+String processor(const String& var) {
+	if (var == "COREDUMP")
+		return coredumpStr;
+	return String();
 }
-
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -387,9 +385,7 @@ IRAM_ATTR String getJsonString() {
 
 TimerHandle_t tmr;
 void timerCallBack(TimerHandle_t xTimer) {
-	if (ws.count() > 0) {
-		ws.textAll(getJsonString().c_str());
-	}
+	ws.broadcastTXT(getJsonString().c_str());
 }
 
 TimerHandle_t tmrCapSense;
@@ -568,7 +564,7 @@ void sendPidToClient() {
 	txtToSend.concat("\"maxPercentOutput\":");
 	txtToSend.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
 	txtToSend.concat("}");
-	ws.textAll(txtToSend.c_str());
+	ws.broadcastTXT(txtToSend.c_str());
 
 }
 
@@ -936,11 +932,14 @@ String processInput(String input) {
 		preferences.putString("wifi_password", password);
 		preferences.end();
 
+		/*
 		printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
 				password.c_str());
+		*/
+		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
 
 		ret.concat("MLIFT restart.");
-		ws.closeAll();
+		ws.disconnect();
 
 		Serial.printf("wificonnect ssid: %s\n", ssid.c_str());
 		delay(500);
@@ -1045,94 +1044,47 @@ void processWsData(char *data, AsyncWebSocketClient* client) {
 	client->text(processInput(input).c_str());
 }
 
-void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
-		AwsEventType type, void * arg, uint8_t *data, size_t len) {
-	if (type == WS_EVT_CONNECT) {
-//client connected
-		printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
-		client->printf("Hello Client %u :)", client->id());
-		client->ping();
-		sendPidToClient();
-	} else if (type == WS_EVT_DISCONNECT) {
-//client disconnected
-		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
-				client->id());
-	} else if (type == WS_EVT_ERROR) {
-//error was received from the other end
-		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
-				client->id(), *((uint16_t*) arg), (char*) data);
-	} else if (type == WS_EVT_PONG) {
-//pong message was received (in response to a ping request maybe)
-		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
-				client->id(), len, (len) ? (char*) data : "");
-	} else if (type == WS_EVT_DATA) {
-//data packet
-		AwsFrameInfo * info = (AwsFrameInfo*) arg;
-		if (info->final && info->index == 0 && info->len == len) {
-			//the whole message is in a single frame and we got all of it's data
-			printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(),
-					client->id(), (info->opcode == WS_TEXT) ? "text" : "binary",
-					info->len);
-			if (info->opcode == WS_TEXT) {
-				data[len] = 0;
-				printf("%s\n", (char*) data);
-				processWsData((char*) data, client);
-			} else {
-				printf("not text\n");
-				for (size_t i = 0; i < info->len; i++) {
-					printf("%02x ", data[i]);
-				}
-				printf("\n");
-			}
-			/*
-			 if(info->opcode == WS_TEXT)
-			 client->text("I got your text message");
-			 else
-			 client->binary("I got your binary message");
-			 */
-		} else {
-			printf("multi frames\n");
-			//message is comprised of multiple frames or the frame is split into multiple packets
-			if (info->index == 0) {
-				if (info->num == 0)
-					printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(),
-							client->id(),
-							(info->message_opcode == WS_TEXT) ? "text" : "binary");
-				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(),
-						server->url(), client->id(), info->num, info->len);
-			}
 
-			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(),
-					server->url(), client->id(), info->num,
-					(info->message_opcode == WS_TEXT) ? "text" : "binary", info->index,
-					info->index + len);
-			if (info->message_opcode == WS_TEXT) {
-				printf("%s\n", (char*) data);
-			} else {
-				for (size_t i = 0; i < len; i++) {
-					printf("%02x ", data[i]);
-				}
-				printf("\n");
-			}
+void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+	switch (type) {
+	case WStype_DISCONNECTED:
+		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
+		break;
+	case WStype_CONNECTED: {
+		//IPAddress ip = webSocket.remoteIP(num);
+		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+		Serial.print("connected");
 
-			if ((info->index + len) == info->len) {
-				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(),
-						client->id(), info->num, info->len);
-				if (info->final) {
-					printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(),
-							client->id(),
-							(info->message_opcode == WS_TEXT) ? "text" : "binary");
-					/*
-					 if(info->message_opcode == WS_TEXT)
-					 client->text("I got your text message");
-					 else
-					 client->binary("I got your binary message");
-					 */
-				}
-			}
-		}
+		// send message to client
+		ws.broadcastTXT("Connected");
 	}
+		break;
+	case WStype_TEXT:
+		Serial.printf("Client: [%u] got Text: %s\n", num, payload);
+		ws.sendTXT(num, processInput((char*) payload).c_str());
+		// send message to client
+		// webSocket.sendTXT(num, "message here");
+
+		// send data to all connected clients
+		// webSocket.broadcastTXT("message here");
+		break;
+	case WStype_BIN:
+		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
+
+		// send message to client
+		// webSocket.sendBIN(num, payload, length);
+		break;
+
+	case WStype_ERROR:
+	case WStype_FRAGMENT_TEXT_START:
+	case WStype_FRAGMENT_BIN_START:
+	case WStype_FRAGMENT:
+	case WStype_FRAGMENT_FIN:
+		break;
+	}
+
 }
+
 
 //String processor(const String& var) {
 //	if (var == "encoder1_value")
@@ -1168,15 +1120,15 @@ void IRAM_ATTR handleIntCapSense() {
 void waitForIp() {
 	NO_AP_FOUND_count = 0;
 
-	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 4) {
+	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 10) {
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
 		lcd_out("WaitForIp delay 1s.");
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		Serial.print("SSID: ");
 		Serial.print(ssid);
-		Serial.print(" password: ");
-		Serial.print(password);
+		Serial.print(" password: ***");
+		//Serial.print(password);
 		Serial.print(" status: ");
 		Serial.println(WiFi.status());
 
@@ -1322,37 +1274,11 @@ void printEncoderInfo() {
  }
  */
 
-String idf_wmonitor_coredump_copy() {
-	String ret="";
-	const esp_partition_t *p = coredump_partition();
-	if (p) {
-		File file = SPIFFS.open("/coredump.txt", FILE_WRITE);
-		uint32_t size = idf_wmonitor_coredump_size_from_partition(p);
-		uint32_t off = 0; // Send everything including the initial magic bytes
-		char buf[128];
-		while (off < size) {
-			size_t rs = sizeof(buf) < (size - off) ? sizeof(buf) : (size - off);
-			if (esp_partition_read(p, off, buf, rs) != ESP_OK) {
-				// Signal failure
-				//fn(NULL, -1, user_data);
-				return ret;
-			}
-			//fn(buf, rs, user_data);
-			off += rs;
-			file.println(buf);
-			const char *p = reinterpret_cast<const char*>(buf);
-			ret.concat(p);
-		}
-		file.close();
-	}
-	return ret;
-}
-
 void setup() {
 
 	esp_wifi_set_max_tx_power(-4);
 	Serial.setDebugOutput(true);
-	esp_log_level_set("*", ESP_LOG_DEBUG);
+	esp_log_level_set("*", ESP_LOG_WARN);
 //esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
@@ -1467,7 +1393,7 @@ void setup() {
 		setPidsFromString(pid_str);
 	} else {
 		Serial.printf("no PID from flash.\n");
-		Serial.printf("using initial string: %s\n", initialPidStr);
+		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
 		setPidsFromString(initialPidStr);
 	}
 
@@ -1539,14 +1465,14 @@ void setup() {
 				lcd_out(wifiData.c_str());
 				ret.concat("\n");
 			}
-			ws.textAll(ret);
+			ws.broadcastTXT(ret);
 			lcd_out("Resume reportJsonTask");
 			xTimerStart( tmr, 0 );
 			//vTaskResume(reportJsonTask);
 		}
 		else if (n==0)
 		{
-			//ws.textAll("wifi No networks found.");
+			//ws.broadcastTXT("wifi No networks found.");
 			//vTaskResume(reportJsonTask);
 		}
 
@@ -1563,8 +1489,9 @@ void setup() {
 	 }
 	 */
 	WiFi.mode(WIFI_STA);
-	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setTxPower(WIFI_POWER_19_5dBm);
 	WiFi.setSleep(false);
+	WiFi.begin(ssid.c_str(), password.c_str());
 
 	waitForIp();
 	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
@@ -1723,27 +1650,32 @@ void setup() {
 	if (!SPIFFS.begin(true)) {
 		Serial.println("SPIFFS Mount Failed");
 	} else {
-		//idf_wmonitor_do_coredump_read(cs);
-		/*
-		 if( idf_wmonitor_coredump_size() >0 )  {
-		 String coreDumpStr = idf_wmonitor_coredump_copy();
-		 }
-		 */
-		coredumpStr = idf_wmonitor_coredump_copy();
-		Serial.println("Previous coreDump: ");
-		Serial.println(coredumpStr);
 	}
 
 	listDir(SPIFFS, "/", 0);
 	delay(200);
 
-	ws.onEvent(onEvent);
-	server.addHandler(&ws);
+	//ws.onEvent(onEvent);
+	ws.onEvent(wsEvent);
+	//server.addHandler(&ws);
 
-	server.serveStatic("/", SPIFFS, "/").setCacheControl("max-age=600").setDefaultFile(
-			"index.html").setTemplateProcessor(processor);
+//	server.serveStatic("/", SPIFFS, "/").setCacheControl("max-age=600").setDefaultFile(
+//			"index.html"); //.setTemplateProcessor(processor);
+//
+	server.serveStatic("/", SPIFFS, "/index.html", "max-age=600");
+	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
+	server.serveStatic("/48px-Gnome-go-bottom.svg", SPIFFS, "/48px-Gnome-go-bottom.svg", "max-age=600");
+	server.serveStatic("/48px-Gnome-go-down.svg", SPIFFS, "/48px-Gnome-go-down.svg", "max-age=600");
+	server.serveStatic("/48px-Gnome-go-top.svg", SPIFFS, "/48px-Gnome-go-top.svg", "max-age=600");
+	server.serveStatic("/48px-Gnome-go-up.svg", SPIFFS, "/48px-Gnome-go-up.svg", "max-age=600");
+	server.serveStatic("/moment.min.js", SPIFFS, "/moment.min.js", "max-age=600");
+	server.serveStatic("/canvasjs.min.js", SPIFFS, "/canvasjs.min.js", "max-age=600");
+	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+	server.serveStatic("/script.js", SPIFFS, "/script.js", "max-age=600");
+
 
 	server.begin();
+	ws.begin();
 	MDNS.addService("http", "tcp", 80);
 
 	rotaryEncoder1.setBoundaries(0, 30000, false);
@@ -1802,13 +1734,10 @@ void setup() {
 
 	printEncoderInfo();
 
-	esp_err_t errWdtInit = esp_task_wdt_init(5, true);
+	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
 	if (errWdtInit != ESP_OK) {
 		log_e("Failed to init WDT! Error: %d", errWdtInit);
 	}
-
-	enableCore0WDT();
-	enableCore1WDT();
 
 	if (enablePwm) {
 		lcd_out("Starting GateDriverTask...");
@@ -1876,61 +1805,69 @@ uint64_t previousSecond = 0;
 long delta;
 long start;
 void loop() {
+	log_i("In loop on CORE: %d", xPortGetCoreID());
 //ArduinoOTA.handle();
-
+	esp_task_wdt_add(NULL);
+	//enableCore0WDT();
+	enableCore1WDT();
 //printEncoderInfo();
+	for (;;) {
+		mySecond = esp_timer_get_time() / 1000000.0;
+		if ((mySecond % 10 == 0 && mySecond != previousSecond)
+				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+			previousHeap = ESP.getFreeHeap();
+			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f", mySecond, ESP.getFreeHeap(), time);
+			previousSecond = mySecond;
+		}
 
-	mySecond = esp_timer_get_time() / 1000000.0;
-	if ((mySecond % 10 == 0 && mySecond != previousSecond)
-			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
-		previousHeap = ESP.getFreeHeap();
-		Serial.printf("time[s]: %" PRIu64 " heap size: %d uptime[h]: ", mySecond,
-				previousHeap);
-		Serial.print((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
-		Serial.printf("\n");
-		previousSecond = mySecond;
-	}
-
-	if (rotaryEncoder1.encoderChanged() != 0
-			&& ((int) target1) == encoder1_value) {
+		if (rotaryEncoder1.encoderChanged() != 0
+				&& ((int) target1) == encoder1_value) {
 //Serial.println("Saving to flash enc1.");
-		encoder1_value = rotaryEncoder1.readEncoder();
-		start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-		preferences.begin("settings", false);
-		preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-		preferences.putInt("target1", (int) target1);
-		preferences.end();
-		delta = micros() - start;
+			encoder1_value = rotaryEncoder1.readEncoder();
+			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+			preferences.begin("settings", false);
+			preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+			preferences.putInt("target1", (int) target1);
+			preferences.end();
+			delta = micros() - start;
 
-		if (delta > 1000)
-			Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
-					delta);
+			if (delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
+						delta);
 
-		yield();
-	}
-	if (rotaryEncoder2.encoderChanged() != 0
-			&& ((int) target2) == encoder2_value) {
+		}
+		if (rotaryEncoder2.encoderChanged() != 0
+				&& ((int) target2) == encoder2_value) {
 //Serial.println("Saving to flash enc2.");
-		encoder2_value = rotaryEncoder2.readEncoder();
-		start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-		preferences.begin("settings", false);
-		preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-		preferences.putInt("target2", (int) target2);
-		preferences.end();
-		delta = micros() - start;
+			encoder2_value = rotaryEncoder2.readEncoder();
+			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+			preferences.begin("settings", false);
+			preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+			preferences.putInt("target2", (int) target2);
+			preferences.end();
+			delta = micros() - start;
 
-		if (delta > 1000)
-			Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
-					delta);
+			if (delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
+						delta);
+		}
+
+		esp_err_t resetOK = esp_task_wdt_reset();
+		if (resetOK != ESP_OK) {
+			Serial.printf("Failed reset wdt: err %#03x\n", resetOK);
+		}
+		ws.loop();
 	}
-
 }
 
 int id3 = 4;
+/*
 TimerHandle_t tmr2;
 void loopCallBack(TimerHandle_t xTimer) {
 	loop();
 }
+*/
 
 extern "C" {
 void app_main();
@@ -1940,10 +1877,13 @@ void app_main() {
 		esp_draw();
 	setup();
 
-	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
-			(void *) id3, &loopCallBack);
-	if (xTimerStart(tmr2, 10) != pdPASS) {
-		printf("Timer loop start error");
-	}
-//loop();
+	/*
+	 tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
+	 (void *) id3, &loopCallBack);
+	 if (xTimerStart(tmr2, 10) != pdPASS) {
+	 printf("Timer loop start error");
+	 }
+	 */
+
+	loop();
 }

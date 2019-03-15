@@ -3,12 +3,15 @@ deps_config := \
 	C:\msys32\home\klemen\esp\esp-idf\components\aws_iot\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\bt\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\driver\Kconfig \
+	C:\msys32\home\klemen\esp\esp-idf\components\efuse\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp32\Kconfig \
 	C:\msys32\home\klemen\esp\DoubleLifter\components\esp32-I2Cbus\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_adc_cal\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_event\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_http_client\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\esp_http_server\Kconfig \
+	C:\msys32\home\klemen\esp\esp-idf\components\esp_https_ota\Kconfig \
+	C:\msys32\home\klemen\esp\esp-idf\components\espcoredump\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\ethernet\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\fatfs\Kconfig \
 	C:\msys32\home\klemen\esp\esp-idf\components\freemodbus\Kconfig \
