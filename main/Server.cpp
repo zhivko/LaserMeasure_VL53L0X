@@ -20,17 +20,15 @@
  */
 #include <WiFi.h>
 #include <FS.h>
-#include <ArduinoOTA.h>
-#include "SPIFFS.h"
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 
-#include <WebSocketsServer.h>
+#include "SPIFFS.h"
 
 #include <Update.h>
 #include <ESPmDNS.h>
 #include <SPI.h>
-//#include "AsyncUDP.h"
+
+#include <WebServer.h>
+#include <WebSocketsServer.h>
 
 #include <stdint.h>
 #include <esp_int_wdt.h>
@@ -75,13 +73,14 @@ static int lcd_y_pos = 0;
 // jtag pins: 15, 12 13 14
 
 bool enablePwm = true;
-bool enableLed = true;
-bool enableLcd = false;
-bool shouldReboot = false;
 bool enableCapSense = true;
-bool enableMover = false;
+bool enableLcd = false;
+bool enableMover = true;
+
+bool enableLed = true;
+bool shouldReboot = false;
 const char* hostName = "esp32_door";
-int jsonReportIntervalMs = 200;
+int jsonReportIntervalMs = 100;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
@@ -97,19 +96,15 @@ String coredumpStr = "";
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
 
-AsyncWebServer server(80);
+//AsyncWebServer server(80);
 //AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+WebServer server(80);
 WebSocketsServer ws = WebSocketsServer(81);
 
-
-AsyncEventSource events("/events");
-const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
-		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
-		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
-		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP",
-		"AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6",
-		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED", "ETH_GOT_IP",
-		"MAX" };
+const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START", "STA_STOP", "STA_CONNECTED",
+		"STA_DISCONNECTED", "STA_AUTHMODE_CHANGE", "STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
+		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP", "AP_STACONNECTED", "AP_STADISCONNECTED",
+		"AP_PROBEREQRECVED", "GOT_IP6", "ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED", "ETH_GOT_IP", "MAX" };
 
 int NO_AP_FOUND_count = 0;
 
@@ -209,8 +204,7 @@ FDC2212 fdc2212;
 uint32_t cap_reading = 0;
 
 // PID
-String initialPidStr =
-		"p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
+String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -223,10 +217,125 @@ String initialPidStr =
  }
  */
 
-String processor(const String& var) {
-	if (var == "COREDUMP")
-		return coredumpStr;
-	return String();
+String processInput(String input);
+
+String getContentTypeGz(String filename) {
+	if (server.hasArg("download"))
+		return "application/octet-stream";
+	else if (filename.endsWith(".htm.gz"))
+		return "text/html";
+	else if (filename.endsWith(".html.gz"))
+		return "text/html";
+	else if (filename.endsWith(".css.gz"))
+		return "text/css";
+	else if (filename.endsWith(".js.gz"))
+		return "application/javascript";
+	else if (filename.endsWith(".png.gz"))
+		return "image/png";
+	else if (filename.endsWith(".gif.gz"))
+		return "image/gif";
+	else if (filename.endsWith(".jpg.gz"))
+		return "image/jpeg";
+	else if (filename.endsWith(".ico.gz"))
+		return "image/x-icon";
+	else if (filename.endsWith(".xml.gz"))
+		return "text/xml";
+	else if (filename.endsWith(".pdf.gz"))
+		return "application/x-pdf";
+	else if (filename.endsWith(".zip.gz"))
+		return "application/x-zip";
+	else if (filename.endsWith(".gz"))
+		return "application/x-gzip";
+	return "application/x-gzip";
+}
+
+String getContentType(String filename) { // convert the file extension to the MIME type
+	if (filename.endsWith(".html"))
+		return "text/html";
+	else if (filename.endsWith(".css"))
+		return "text/css";
+	else if (filename.endsWith(".js"))
+		return "application/javascript";
+	else if (filename.endsWith(".ico"))
+		return "image/x-icon";
+	return "text/plain";
+}
+
+bool handleFileRead(String path) { // send the right file to the client (if it exists)
+	Serial.println("handleFileRead: " + path);
+	if (path.endsWith("/"))
+		path += "index.html";       // If a folder is requested, send the index file
+	String contentType = getContentType(path);            // Get the MIME type
+	String pathWithGz = path + ".gz";
+	if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)) {
+		if (SPIFFS.exists(pathWithGz)) {
+			path += ".gz";                          // If the file exists
+			contentType = getContentTypeGz(pathWithGz);
+		}
+		File file = SPIFFS.open(path, "r");                 // Open it
+		size_t sent = server.streamFile(file, contentType); // And send it to the client
+		Serial.printf("Sent %d byte to client.", sent);
+		file.close();                                   // Then close the file again
+		return true;
+	}
+	Serial.println("\tFile Not Found");
+	return false;                       // If the file doesn't exist, return false
+}
+
+void handleNotFound() {
+
+	String message = "File Not Found\n\n";
+	message += "URI: ";
+	message += server.uri();
+	message += "\nMethod: ";
+	message += (server.method() == HTTP_GET) ? "GET" : "POST";
+	message += "\nArguments: ";
+	message += server.args();
+	message += "\n";
+	for (uint8_t i = 0; i < server.args(); i++) {
+		message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+	}
+	server.send(404, "text/plain", message);
+}
+
+void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+	switch (type) {
+	case WStype_DISCONNECTED:
+		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
+		break;
+	case WStype_CONNECTED: {
+		//IPAddress ip = webSocket.remoteIP(num);
+		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+		Serial.print("connected");
+
+		// send message to client
+		ws.broadcastTXT("Connected");
+	}
+		break;
+	case WStype_TEXT:
+		Serial.printf("Client: [%u] got Text: %s\n", num, payload);
+		ws.sendTXT(num, processInput((char*) payload).c_str());
+		// send message to client
+		// webSocket.sendTXT(num, "message here");
+
+		// send data to all connected clients
+		// webSocket.broadcastTXT("message here");
+		break;
+	case WStype_BIN:
+		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
+
+		// send message to client
+		// webSocket.sendBIN(num, payload, length);
+		break;
+
+	case WStype_ERROR:
+	case WStype_FRAGMENT_TEXT_START:
+	case WStype_FRAGMENT_BIN_START:
+	case WStype_FRAGMENT:
+	case WStype_FRAGMENT_FIN:
+		break;
+	}
+
 }
 
 IRAM_ATTR String getJsonString2() {
@@ -239,8 +348,8 @@ IRAM_ATTR String getJsonString2() {
 }
 
 IRAM_ATTR String getJsonString() {
-	//Serial.println("reportjson");
-	//reportingJson = true;reportJson
+//Serial.println("reportjson");
+//reportingJson = true;reportJson
 	txtToSend = "";
 	txtToSend.concat("{");
 
@@ -514,10 +623,8 @@ void setPidsFromString(String input) {
 		maxIOut_val = "1.0";
 	}
 
-	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
-	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
+	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
+	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
 	pid1.setOutputRampRate(ramp_val.toFloat());
 	pid2.setOutputRampRate(ramp_val.toFloat());
 //pid1.setOutputFilter(0.01);
@@ -641,8 +748,7 @@ String getfault(uint16_t reply) {
 	uint8_t FAULT_OTSD = B1 << 1; // OTSD R 0b Indicates overtemperature shutdown
 	uint8_t FAULT_OTW = B1 << 0;   // OTW R 0b Indicates overtemperature warning
 	if ((reply & FAULT_FAULT) > 0) {
-		status1.concat(
-				"Logic OR of the FAULT status register excluding the OTW bit\n");
+		status1.concat("Logic OR of the FAULT status register excluding the OTW bit\n");
 	}
 	if ((reply & FAULT_WDFLT) > 0) {
 		status1.concat("Watchdog time-out fault\n");
@@ -801,20 +907,16 @@ void gdfVdsStatus(int which) {
 		ret.concat("Gate drive fault on the low-side FET of half bridge 1\n");
 	}
 	if ((reply & H2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
+		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
 	}
 	if ((reply & L2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
+		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
 	}
 	if ((reply & H1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
+		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
 	}
 	if ((reply & L1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
+		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
 	}
 
 	if (which == 1)
@@ -933,9 +1035,9 @@ String processInput(String input) {
 		preferences.end();
 
 		/*
-		printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
-				password.c_str());
-		*/
+		 printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
+		 password.c_str());
+		 */
 		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
 
 		ret.concat("MLIFT restart.");
@@ -987,17 +1089,14 @@ String processInput(String input) {
 		Serial.print(" target2: ");
 		Serial.println(target2);
 		pidEnabled = true;
-	} else if (input.startsWith("searchtop")
-			|| input.startsWith("searchbottom")) {
+	} else if (input.startsWith("searchtop") || input.startsWith("searchbottom")) {
 		if (getToken(input, ' ', 1).equals(String("start"))) {
 			pidEnabled = false;
 			pwm1 = 0;
 			pwm2 = 0;
 
-			previousPercent_str_1 = String(
-					(int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-			previousPercent_str_2 = String(
-					(int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
+			previousPercent_str_1 = String((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+			previousPercent_str_2 = String((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
 			String percentPower = "70";
 			status = getToken(input, ' ', 0);
 			setOutputPercent(percentPower, 1);
@@ -1037,60 +1136,91 @@ String processInput(String input) {
 	return ret;
 }
 
-void processWsData(char *data, AsyncWebSocketClient* client) {
+void processWsData(char *data) {
 	String input;
 	input.concat(data);
 	printf("received: %s\n", input.c_str());
-	client->text(processInput(input).c_str());
+	ws.broadcastTXT(processInput(input).c_str());
 }
 
+/*
+ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
+ AwsEventType type, void * arg, uint8_t *data, size_t len) {
+ if (type == WS_EVT_CONNECT) {
+ //client connected
+ printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
+ client->printf("Hello Client %u :)", client->id());
+ client->ping();
+ sendPidToClient();
+ } else if (type == WS_EVT_DISCONNECT) {
+ //client disconnected
+ printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
+ client->id());
+ } else if (type == WS_EVT_ERROR) {
+ //error was received from the other end
+ printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
+ client->id(), *((uint16_t*) arg), (char*) data);
+ } else if (type == WS_EVT_PONG) {
+ //pong message was received (in response to a ping request maybe)
+ printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
+ client->id(), len, (len) ? (char*) data : "");
+ } else if (type == WS_EVT_DATA) {
+ //data packet
+ AwsFrameInfo * info = (AwsFrameInfo*) arg;
+ if (info->final && info->index == 0 && info->len == len) {
+ //the whole message is in a single frame and we got all of it's data
+ printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(),
+ client->id(), (info->opcode == WS_TEXT) ? "text" : "binary",
+ info->len);
+ if (info->opcode == WS_TEXT) {
+ data[len] = 0;
+ printf("%s\n", (char*) data);
+ processWsData((char*) data, client);
+ } else {
+ printf("not text\n");
+ for (size_t i = 0; i < info->len; i++) {
+ printf("%02x ", data[i]);
+ }
+ printf("\n");
+ }
+ } else {
+ printf("multi frames\n");
+ //message is comprised of multiple frames or the frame is split into multiple packets
+ if (info->index == 0) {
+ if (info->num == 0)
+ printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(),
+ client->id(),
+ (info->message_opcode == WS_TEXT) ? "text" : "binary");
+ printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(),
+ server->url(), client->id(), info->num, info->len);
+ }
 
-void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-	switch (type) {
-	case WStype_DISCONNECTED:
-		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
-		break;
-	case WStype_CONNECTED: {
-		//IPAddress ip = webSocket.remoteIP(num);
-		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-		Serial.print("connected");
+ printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(),
+ server->url(), client->id(), info->num,
+ (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index,
+ info->index + len);
+ if (info->message_opcode == WS_TEXT) {
+ printf("%s\n", (char*) data);
+ } else {
+ for (size_t i = 0; i < len; i++) {
+ printf("%02x ", data[i]);
+ }
+ printf("\n");
+ }
 
-		// send message to client
-		ws.broadcastTXT("Connected");
-	}
-		break;
-	case WStype_TEXT:
-		Serial.printf("Client: [%u] got Text: %s\n", num, payload);
-		ws.sendTXT(num, processInput((char*) payload).c_str());
-		// send message to client
-		// webSocket.sendTXT(num, "message here");
-
-		// send data to all connected clients
-		// webSocket.broadcastTXT("message here");
-		break;
-	case WStype_BIN:
-		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
-
-		// send message to client
-		// webSocket.sendBIN(num, payload, length);
-		break;
-
-	case WStype_ERROR:
-	case WStype_FRAGMENT_TEXT_START:
-	case WStype_FRAGMENT_BIN_START:
-	case WStype_FRAGMENT:
-	case WStype_FRAGMENT_FIN:
-		break;
-	}
-
-}
-
-
-//String processor(const String& var) {
-//	if (var == "encoder1_value")
-//		return F("Hello world!");
-//	return String();
-//}
+ if ((info->index + len) == info->len) {
+ printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(),
+ client->id(), info->num, info->len);
+ if (info->final) {
+ printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(),
+ client->id(),
+ (info->message_opcode == WS_TEXT) ? "text" : "binary");
+ }
+ }
+ }
+ }
+ }
+ */
 
 bool checkNoApFoundCritical() {
 	if (NO_AP_FOUND_count >= 5) {
@@ -1204,12 +1334,10 @@ extern "C" void esp_draw() {
 	 ESP_ERROR_CHECK( esp_wifi_start() );
 	 */
 	/*Initialize LCD*/
-	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
-			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23, .pin_num_clk = GPIO_NUM_19,
-			.pin_num_cs = GPIO_NUM_22, .pin_num_dc = GPIO_NUM_21, .pin_num_rst =
-					GPIO_NUM_18, .pin_num_bckl = GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
-			.rst_active_level = 0, .bckl_active_level = 0, .spi_host = HSPI_HOST,
-			.init_spi_bus = true, };
+	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso = GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
+			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc = GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18,
+			.pin_num_bckl = GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000, .rst_active_level = 0, .bckl_active_level = 0,
+			.spi_host = HSPI_HOST, .init_spi_bus = true, };
 
 	if (lcd_obj == NULL) {
 		lcd_obj = new CEspLcd(&lcd_pins);
@@ -1276,9 +1404,9 @@ void printEncoderInfo() {
 
 void setup() {
 
-	esp_wifi_set_max_tx_power(-4);
 	Serial.setDebugOutput(true);
-	esp_log_level_set("*", ESP_LOG_WARN);
+	esp_log_level_set("*", ESP_LOG_VERBOSE);
+	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
 //esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
@@ -1333,12 +1461,10 @@ void setup() {
 	if (enableCapSense) {
 		lcd_out("Setting up FDC2212...");
 		Serial.println("Setting up FDC2212...");
-		fdc2212 =
-				FDC2212(
-						[](const CapacityResponse& response) {
-							Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-							return true;
-						});
+		fdc2212 = FDC2212([](const CapacityResponse& response) {
+			Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+			return true;
+		});
 		fdc2212.begin();
 		Serial.println("Setting up FDC2212...Done.");
 		lcd_out("Setting up FDC2212...Done.");
@@ -1382,8 +1508,8 @@ void setup() {
 //ssid = "AsusKZ";
 		password = "Doitman1";
 	}
-	//password = "klemenklemen";
-	//ssid = "SINTEX";
+//password = "klemenklemen";
+//ssid = "SINTEX";
 	lcd_out(String(" ssid:     " + ssid).c_str());
 	lcd_out(String(" pass:     " + password).c_str());
 
@@ -1472,7 +1598,7 @@ void setup() {
 		}
 		else if (n==0)
 		{
-			//ws.broadcastTXT("wifi No networks found.");
+			//ws.textAll("wifi No networks found.");
 			//vTaskResume(reportJsonTask);
 		}
 
@@ -1490,11 +1616,11 @@ void setup() {
 	 */
 	WiFi.mode(WIFI_STA);
 	WiFi.setTxPower(WIFI_POWER_19_5dBm);
-	WiFi.setSleep(false);
 	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setSleep(false);
 
 	waitForIp();
-	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
+//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
 
 	Serial.println("Config ntp time...");
 	configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
@@ -1506,146 +1632,60 @@ void setup() {
 	Serial.println("Config ntp time...DONE.");
 	lcd_out("Config ntp time done.");
 
-//arduinoOTA
-//Send OTA events to the browser
-	ArduinoOTA.onStart([]() {
-		events.send("Update Start", "ota");
-	});
-	ArduinoOTA.onEnd([]() {
-		events.send("Update End", "ota");
-	});
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-		char p[32];
-		sprintf(p, "Progress: %u%%\n", (progress / (total / 100)));
-		events.send(p, "ota");
-	});
-	ArduinoOTA.onError([](ota_error_t error) {
-		if (error == OTA_AUTH_ERROR) events.send("Auth Failed", "ota");
-		else if (error == OTA_BEGIN_ERROR) events.send("Begin Failed", "ota");
-		else if (error == OTA_CONNECT_ERROR) events.send("Connect Failed", "ota");
-		else if (error == OTA_RECEIVE_ERROR) events.send("Recieve Failed", "ota");
-		else if (error == OTA_END_ERROR) events.send("End Failed", "ota");
-	});
-	ArduinoOTA.setHostname(hostName);
-	ArduinoOTA.begin();
+//	/*use mdns for host name resolution*/
+//	if (!MDNS.begin(hostName)) { //http://esp32.local
+//		Serial.println("Error setting up MDNS responder!");
+//		while (1) {
+//			delay(1000);
+//		}
+//	} else {
+//		delay(300);
+//		Serial.println("mDNS responder started");
+//		MDNS.addService("_http", "_tcp", 80);
+//	}
 
-	/*use mdns for host name resolution*/
-	if (!MDNS.begin(hostName)) { //http://esp32.local
-		Serial.println("Error setting up MDNS responder!");
-		while (1) {
-			delay(1000);
+	MDNS.begin(hostName);
+	server.on("/", HTTP_GET, []() {
+		server.sendHeader("Connection", "close");
+		handleFileRead("/index.html");
+		//server.send(200, "text/html", serverIndex);
+		});
+	server.on("/update", HTTP_POST, []() {
+		server.sendHeader("Connection", "close");
+		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+		ESP.restart();
+	}, []() {
+		HTTPUpload& upload = server.upload();
+		if (upload.status == UPLOAD_FILE_START) {
+			Serial.setDebugOutput(true);
+			Serial.printf("Update: %s\n", upload.filename.c_str());
+			if (!Update.begin()) { //start with max available size
+				Update.printError(Serial);
+			}
+		} else if (upload.status == UPLOAD_FILE_WRITE) {
+			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+				Update.printError(Serial);
+			}
+		} else if (upload.status == UPLOAD_FILE_END) {
+			if (Update.end(true)) { //true to set the size to the current progress
+				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+			} else {
+				Update.printError(Serial);
+			}
+			Serial.setDebugOutput(false);
 		}
-	} else {
-		delay(300);
-		Serial.println("mDNS responder started");
-		MDNS.addService("_http", "_tcp", 80);
-	}
-
-	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-		Serial.println("/");
-		Serial.println("redirecting to /index.html");
-		request->redirect("/index.html");
 	});
 
-// Simple Firmware Update Form
-	server.on("/update", HTTP_GET,
-			[](AsyncWebServerRequest *request) {
-				request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-			});
-	server.on("/update", HTTP_POST,
-			[](AsyncWebServerRequest *request) {
-				shouldReboot = !Update.hasError();
-				AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
-				response->addHeader("Connection", "close");
-				request->send(response);
-			},
-			[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-				Serial.printf("Update Started...: index:%d len:%d\n", index, len);
-				if(!index) {
-					Serial.printf("Update Start: %s\n", filename.c_str());
-					//Update.runAsync(true);
-					if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
-						Update.printError(Serial);
-					}
-				}
-				if(!Update.hasError()) {
-					if(Update.write(data, len) != len) {
-						Update.printError(Serial);
-					}
-				}
-				if(final) {
-					if(Update.end(true)) {
-						Serial.printf("Update Success: %uB\n", index+len);
-						esp_restart();
-					} else {
-						Update.printError(Serial);
-					}
-				}
+	server.onNotFound([]() {                     // If the client requests any URI
+				if (!handleFileRead(server.uri()))// send it if it exists
+				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
 			});
 
-	server.onNotFound(
-			[](AsyncWebServerRequest * request) {
-				Serial.printf("NOT_FOUND: ");
-				if (request->method() == HTTP_GET)
-				Serial.printf("GET");
-				else if (request->method() == HTTP_POST)
-				Serial.printf("POST");
-				else if (request->method() == HTTP_DELETE)
-				Serial.printf("DELETE");
-				else if (request->method() == HTTP_PUT)
-				Serial.printf("PUT");
-				else if (request->method() == HTTP_PATCH)
-				Serial.printf("PATCH");
-				else if (request->method() == HTTP_HEAD)
-				Serial.printf("HEAD");
-				else if (request->method() == HTTP_OPTIONS)
-				Serial.printf("OPTIONS");
-				else
-				Serial.printf("UNKNOWN");
-				Serial.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
+	MDNS.addService("http", "tcp", 80);
 
-				if (request->contentLength()) {
-					Serial.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
-					Serial.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
-				}
-
-				int headers = request->headers();
-				int i;
-				for (i = 0; i < headers; i++) {
-					AsyncWebHeader* h = request->getHeader(i);
-					Serial.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
-				}
-
-				int params = request->params();
-				for (i = 0; i < params; i++) {
-					AsyncWebParameter* p = request->getParam(i);
-					if (p->isFile()) {
-						Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
-					} else if (p->isPost()) {
-						Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
-					} else {
-						Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
-					}
-				}
-
-				request->send(404);
-			});
-	server.onFileUpload(
-			[](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
-				if (!index)
-				Serial.printf("UploadStart: %s\n", filename.c_str());
-				Serial.printf("%s", (const char*)data);
-				if (final)
-				Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index + len);
-			});
-	server.onRequestBody(
-			[](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
-				if (!index)
-				Serial.printf("BodyStart: %u\n", total);
-				Serial.printf("%s", (const char*)data);
-				if (index + len == total)
-				Serial.printf("BodyEnd: %u\n", total);
-			});
+	Serial.println("HTTP server started");
+	ws.onEvent(wsEvent);
+	Serial.println("WebsocketServer started");
 
 	if (!SPIFFS.begin(true)) {
 		Serial.println("SPIFFS Mount Failed");
@@ -1655,27 +1695,15 @@ void setup() {
 	listDir(SPIFFS, "/", 0);
 	delay(200);
 
-	//ws.onEvent(onEvent);
-	ws.onEvent(wsEvent);
-	//server.addHandler(&ws);
-
-//	server.serveStatic("/", SPIFFS, "/").setCacheControl("max-age=600").setDefaultFile(
-//			"index.html"); //.setTemplateProcessor(processor);
-//
-	server.serveStatic("/", SPIFFS, "/index.html", "max-age=600");
-	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
-	server.serveStatic("/48px-Gnome-go-bottom.svg", SPIFFS, "/48px-Gnome-go-bottom.svg", "max-age=600");
-	server.serveStatic("/48px-Gnome-go-down.svg", SPIFFS, "/48px-Gnome-go-down.svg", "max-age=600");
-	server.serveStatic("/48px-Gnome-go-top.svg", SPIFFS, "/48px-Gnome-go-top.svg", "max-age=600");
-	server.serveStatic("/48px-Gnome-go-up.svg", SPIFFS, "/48px-Gnome-go-up.svg", "max-age=600");
-	server.serveStatic("/moment.min.js", SPIFFS, "/moment.min.js", "max-age=600");
-	server.serveStatic("/canvasjs.min.js", SPIFFS, "/canvasjs.min.js", "max-age=600");
+	server.serveStatic("/index.html.gz", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
-	server.serveStatic("/script.js", SPIFFS, "/script.js", "max-age=600");
 
+//.setCacheControl("max-age=600").setDefaultFile(
+//		"index.html"); //.setTemplateProcessor(processor);
 
 	server.begin();
 	ws.begin();
+
 	MDNS.addService("http", "tcp", 80);
 
 	rotaryEncoder1.setBoundaries(0, 30000, false);
@@ -1759,16 +1787,14 @@ void setup() {
 //mover.attach_ms(10, move);
 
 	int id1 = 1;
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
-			(void *) id1, &timerCallBack);
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE, (void *) id1, &timerCallBack);
 	if (xTimerStart(tmr, pdMS_TO_TICKS(100)) != pdPASS) {
 		printf("Timer jsonReport start error\n");
 	}
 
 	if (enableCapSense) {
 		int id2 = 2;
-		tmrCapSense = xTimerCreate("MyTimerCapSense",
-				pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
+		tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
 				&timerCapSenseCallBack);
 		if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
 			printf("Timer capsense start error\n");
@@ -1778,7 +1804,7 @@ void setup() {
 	if (enableMover) {
 		int id3 = 3;
 		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
-				pdTRUE, (void *) id3, &moverCallBack);
+		pdTRUE, (void *) id3, &moverCallBack);
 		if (xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS) {
 			printf("Timer capsense start error\n");
 		}
@@ -1808,21 +1834,19 @@ void loop() {
 	log_i("In loop on CORE: %d", xPortGetCoreID());
 //ArduinoOTA.handle();
 	esp_task_wdt_add(NULL);
-	//enableCore0WDT();
+//enableCore0WDT();
 	enableCore1WDT();
 //printEncoderInfo();
 	for (;;) {
 		mySecond = esp_timer_get_time() / 1000000.0;
-		if ((mySecond % 10 == 0 && mySecond != previousSecond)
-				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+		if ((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 			previousHeap = ESP.getFreeHeap();
 			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f", mySecond, ESP.getFreeHeap(), time);
 			previousSecond = mySecond;
 		}
 
-		if (rotaryEncoder1.encoderChanged() != 0
-				&& ((int) target1) == encoder1_value) {
+		if (rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value) {
 //Serial.println("Saving to flash enc1.");
 			encoder1_value = rotaryEncoder1.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -1833,12 +1857,10 @@ void loop() {
 			delta = micros() - start;
 
 			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
-						delta);
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
 
 		}
-		if (rotaryEncoder2.encoderChanged() != 0
-				&& ((int) target2) == encoder2_value) {
+		if (rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value) {
 //Serial.println("Saving to flash enc2.");
 			encoder2_value = rotaryEncoder2.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -1849,25 +1871,26 @@ void loop() {
 			delta = micros() - start;
 
 			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(),
-						delta);
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
 		}
 
 		esp_err_t resetOK = esp_task_wdt_reset();
 		if (resetOK != ESP_OK) {
 			Serial.printf("Failed reset wdt: err %#03x\n", resetOK);
 		}
+
+		server.handleClient();
 		ws.loop();
 	}
 }
 
 int id3 = 4;
 /*
-TimerHandle_t tmr2;
-void loopCallBack(TimerHandle_t xTimer) {
-	loop();
-}
-*/
+ TimerHandle_t tmr2;
+ void loopCallBack(TimerHandle_t xTimer) {
+ loop();
+ }
+ */
 
 extern "C" {
 void app_main();

@@ -13,16 +13,24 @@
 	<script type="text/javascript" src="canvasjs.min.js"></script> 
 	<script type="text/javascript" src="moment.min.js"></script>	
 	<link rel="shortcut icon" href="favicon.ico" />
+	<style>
+		h1 {font-size:12; font-family:Arial}
+		p {font-size:10; font-family:Courier}
+		a {font-size:10; font-family:Courier}
+		#output {font-size:8; font-family:Courier}
+		td {font-size:10; font-family:Courier}
+		input {font-size:10; font-family:Courier}
+	</style>
   </head>
   <body>
 
     <h1>MC</h1>
 	<table border="0">
     <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=15300 target2=15300" style="width:150px" type="text">
-    <input id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
+    <input style="height:100px;width:100px" id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
 	
     <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=15000 target2=15000" style="width:150px" type="text">
-    <input id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>
+    <input style="height:100px;width:100px" id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>
 	
     <tr><td>pid</td><td style="vertical-align:top"><textarea id="pid" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);">p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500</textarea>
     <input id="btn3" value="Send" onMouseDown="doSend(document.getElementById('pid'));" type="button" /></td></tr>
@@ -43,8 +51,8 @@
 	</table>
 	
 <p>
-Capacity sense:      <a style="font-family: monospace" id="cap_reading"></a><br>
-Capacity sense time: <a style="font-family: monospace" id="cap_read_time_ms"></a><br>
+Capacity sense:      <a id="cap_reading"></a><br>
+Capacity sense time: <a id="cap_read_time_ms"></a><br>
 Esp32 free heap [bytes]: <a id="esp32_heap"></a><br>
 Uptime [hour]: <a id="uptime_h"></a><br>
 Encoder actual difference: <a id="actual_diff"></a><br>
