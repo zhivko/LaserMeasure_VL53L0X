@@ -192,7 +192,7 @@ function testWebSocket()
 	if (location.host != "")
 	{
 		//var wsUri = "ws://" + location.host + "/ws";
-		var wsUri = "ws://" + location.host + ":81/";
+		var wsUri = "ws://" + location.host.split(":")[0] + ":82/";
 		websocket = new WebSocket(wsUri);
 		websocket.onopen = function(evt) { onOpen(evt) };
 		websocket.onclose = function(evt) { onClose(evt) };

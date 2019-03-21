@@ -16,7 +16,7 @@
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
- curl -F "image=@build/DoubleLifter.bin" 192.168.1.7/update
+ curl -F "image=@build/DoubleLifter.bin" 192.168.1.7:81/update
  */
 #include <WiFi.h>
 #include <FS.h>
@@ -29,6 +29,9 @@
 
 #include <WebServer.h>
 #include <WebSocketsServer.h>
+//#include <ESPAsyncWebServer.h>
+//#include <AsyncTCP.h>
+
 
 #include <stdint.h>
 #include <esp_int_wdt.h>
@@ -67,6 +70,8 @@ char ptrTaskList[250];
 //AsyncUDP udp;
 //int udp_port = 1234;
 
+WiFiUDP ntpClient;
+
 static CEspLcd* lcd_obj = NULL;
 static int lcd_y_pos = 0;
 
@@ -98,8 +103,8 @@ const char softAP_password[] = "Doitman1";
 
 //AsyncWebServer server(80);
 //AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
-WebServer server(80);
-WebSocketsServer ws = WebSocketsServer(81);
+WebServer server(81);
+WebSocketsServer ws = WebSocketsServer(82);
 
 const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START", "STA_STOP", "STA_CONNECTED",
 		"STA_DISCONNECTED", "STA_AUTHMODE_CHANGE", "STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
@@ -218,6 +223,7 @@ String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100
  */
 
 String processInput(String input);
+void syncTime();
 
 String getContentTypeGz(String filename) {
 	if (server.hasArg("download"))
@@ -1303,9 +1309,12 @@ void waitForIp() {
 
 	Serial.print("status: ");
 	Serial.println(WiFi.status());
-
+	WiFi.enableIpV6();
 	Serial.print("WiFi local IP: ");
 	Serial.println(WiFi.localIP());
+
+	Serial.print("WiFi local IPv6: ");
+	Serial.println(WiFi.localIPv6());
 
 }
 
@@ -1604,6 +1613,105 @@ void setup() {
 
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		Serial.print("WiFi got IPV6");
+        Serial.print("STA IPv6: ");
+        Serial.println(WiFi.localIPv6());
+        Serial.print("AP IPv6: ");
+        Serial.println(WiFi.softAPIPv6());
+
+        //idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
+
+        	/*
+        	Serial.println("Config ntp time...");
+        	configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
+
+        	time(&now);
+        	localtime_r(&now, &info);
+
+        	Serial.println(&info, "%Y-%m-%d %H:%M:%S");
+        	Serial.println("Config ntp time...DONE.");
+        	lcd_out("Config ntp time done.");
+        	*/
+        	syncTime();
+
+        //	/*use mdns for host name resolution*/
+        //	if (!MDNS.begin(hostName)) { //http://esp32.local
+        //		Serial.println("Error setting up MDNS responder!");
+        //		while (1) {
+        //			delay(1000);
+        //		}
+        //	} else {
+        //		delay(300);
+        //		Serial.println("mDNS responder started");
+        //		MDNS.addService("_http", "_tcp", 80);
+        //	}
+
+        	MDNS.begin(hostName);
+        	server.on("/", HTTP_GET, []() {
+        		server.sendHeader("Connection", "close");
+        		handleFileRead("/index.html");
+        		//server.send(200, "text/html", serverIndex);
+        		});
+        	server.on("/update", HTTP_POST, []() {
+        		server.sendHeader("Connection", "close");
+        		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        		ESP.restart();
+        	}, []() {
+        		HTTPUpload& upload = server.upload();
+        		if (upload.status == UPLOAD_FILE_START) {
+        			Serial.setDebugOutput(true);
+        			Serial.printf("Update: %s\n", upload.filename.c_str());
+        			if (!Update.begin()) { //start with max available size
+        				Update.printError(Serial);
+        			}
+        		} else if (upload.status == UPLOAD_FILE_WRITE) {
+        			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        				Update.printError(Serial);
+        			}
+        		} else if (upload.status == UPLOAD_FILE_END) {
+        			if (Update.end(true)) { //true to set the size to the current progress
+        				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        			} else {
+        				Update.printError(Serial);
+        			}
+        			Serial.setDebugOutput(false);
+        		}
+        	});
+
+        	server.onNotFound([]() {                     // If the client requests any URI
+        				if (!handleFileRead(server.uri()))// send it if it exists
+        				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
+        			});
+
+        	MDNS.addService("http", "tcp", 80);
+
+        	Serial.println("HTTP server started");
+        	ws.onEvent(wsEvent);
+        	Serial.println("WebsocketServer started");
+
+        	if (!SPIFFS.begin(true)) {
+        		Serial.println("SPIFFS Mount Failed");
+        	} else {
+        	}
+
+        	listDir(SPIFFS, "/", 0);
+        	delay(200);
+
+        	server.serveStatic("/index.html.gz", SPIFFS, "/index.html", "max-age=600");
+        	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+
+        //.setCacheControl("max-age=600").setDefaultFile(
+        //		"index.html"); //.setTemplateProcessor(processor);
+
+        	server.begin();
+        	ws.begin();
+
+        	MDNS.addService("http", "tcp", 80);
+
+	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
+
+
 	/*
 	 if(!ssid.equals(""))
 	 {
@@ -1620,91 +1728,7 @@ void setup() {
 	WiFi.setSleep(false);
 
 	waitForIp();
-//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
 
-	Serial.println("Config ntp time...");
-	configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
-
-	time(&now);
-	localtime_r(&now, &info);
-
-	Serial.println(&info, "%Y-%m-%d %H:%M:%S");
-	Serial.println("Config ntp time...DONE.");
-	lcd_out("Config ntp time done.");
-
-//	/*use mdns for host name resolution*/
-//	if (!MDNS.begin(hostName)) { //http://esp32.local
-//		Serial.println("Error setting up MDNS responder!");
-//		while (1) {
-//			delay(1000);
-//		}
-//	} else {
-//		delay(300);
-//		Serial.println("mDNS responder started");
-//		MDNS.addService("_http", "_tcp", 80);
-//	}
-
-	MDNS.begin(hostName);
-	server.on("/", HTTP_GET, []() {
-		server.sendHeader("Connection", "close");
-		handleFileRead("/index.html");
-		//server.send(200, "text/html", serverIndex);
-		});
-	server.on("/update", HTTP_POST, []() {
-		server.sendHeader("Connection", "close");
-		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-		ESP.restart();
-	}, []() {
-		HTTPUpload& upload = server.upload();
-		if (upload.status == UPLOAD_FILE_START) {
-			Serial.setDebugOutput(true);
-			Serial.printf("Update: %s\n", upload.filename.c_str());
-			if (!Update.begin()) { //start with max available size
-				Update.printError(Serial);
-			}
-		} else if (upload.status == UPLOAD_FILE_WRITE) {
-			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-				Update.printError(Serial);
-			}
-		} else if (upload.status == UPLOAD_FILE_END) {
-			if (Update.end(true)) { //true to set the size to the current progress
-				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-			} else {
-				Update.printError(Serial);
-			}
-			Serial.setDebugOutput(false);
-		}
-	});
-
-	server.onNotFound([]() {                     // If the client requests any URI
-				if (!handleFileRead(server.uri()))// send it if it exists
-				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
-			});
-
-	MDNS.addService("http", "tcp", 80);
-
-	Serial.println("HTTP server started");
-	ws.onEvent(wsEvent);
-	Serial.println("WebsocketServer started");
-
-	if (!SPIFFS.begin(true)) {
-		Serial.println("SPIFFS Mount Failed");
-	} else {
-	}
-
-	listDir(SPIFFS, "/", 0);
-	delay(200);
-
-	server.serveStatic("/index.html.gz", SPIFFS, "/index.html", "max-age=600");
-	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
-
-//.setCacheControl("max-age=600").setDefaultFile(
-//		"index.html"); //.setTemplateProcessor(processor);
-
-	server.begin();
-	ws.begin();
-
-	MDNS.addService("http", "tcp", 80);
 
 	rotaryEncoder1.setBoundaries(0, 30000, false);
 	rotaryEncoder2.setBoundaries(0, 30000, false);
@@ -1909,4 +1933,46 @@ void app_main() {
 	 */
 
 	loop();
+}
+
+
+void syncTime()
+{
+//lets check the time
+const int NTP_PACKET_SIZE = 48;
+byte ntpPacketBuffer[NTP_PACKET_SIZE];
+
+IPAddress address;
+WiFi.hostByName("time.nist.gov", address);
+memset(ntpPacketBuffer, 0, NTP_PACKET_SIZE);
+ntpPacketBuffer[0] = 0b11100011;   // LI, Version, Mode
+ntpPacketBuffer[1] = 0;     // Stratum, or type of clock
+ntpPacketBuffer[2] = 6;     // Polling Interval
+ntpPacketBuffer[3] = 0xEC;  // Peer Clock Precision
+// 8 bytes of zero for Root Delay & Root Dispersion
+ntpPacketBuffer[12]  = 49;
+ntpPacketBuffer[13]  = 0x4E;
+ntpPacketBuffer[14]  = 49;
+ntpPacketBuffer[15]  = 52;
+ntpClient.beginPacket(address, 123); //NTP requests are to port 123
+ntpClient.write(ntpPacketBuffer, NTP_PACKET_SIZE);
+ntpClient.endPacket();
+
+delay(1000);
+
+int packetLength = ntpClient.parsePacket();
+if (packetLength){
+  if(packetLength >= NTP_PACKET_SIZE){
+    ntpClient.read(ntpPacketBuffer, NTP_PACKET_SIZE);
+  }
+  ntpClient.flush();
+  uint32_t secsSince1900 = (uint32_t)ntpPacketBuffer[40] << 24 | (uint32_t)ntpPacketBuffer[41] << 16 | (uint32_t)ntpPacketBuffer[42] << 8 | ntpPacketBuffer[43];
+  //Serial.printf("Seconds since Jan 1 1900: %u\n", secsSince1900);
+  uint32_t epoch = secsSince1900 - 2208988800UL;
+  //Serial.printf("EPOCH: %u\n", epoch);
+  uint8_t h = (epoch  % 86400L) / 3600;
+  uint8_t m = (epoch  % 3600) / 60;
+  uint8_t s = (epoch % 60);
+  Serial.printf("UTC: %02u:%02u:%02u (GMT)\n", h, m, s);
+}
 }
