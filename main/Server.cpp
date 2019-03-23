@@ -32,7 +32,6 @@
 //#include <ESPAsyncWebServer.h>
 //#include <AsyncTCP.h>
 
-
 #include <stdint.h>
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
@@ -77,9 +76,9 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = true;
-bool enableCapSense = true;
-bool enableLcd = false;
+bool enablePwm = false;
+bool enableCapSense = false;
+bool enableLcd = true;
 bool enableMover = true;
 
 bool enableLed = true;
@@ -106,10 +105,13 @@ const char softAP_password[] = "Doitman1";
 WebServer server(81);
 WebSocketsServer ws = WebSocketsServer(82);
 
-const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START", "STA_STOP", "STA_CONNECTED",
-		"STA_DISCONNECTED", "STA_AUTHMODE_CHANGE", "STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
-		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP", "AP_STACONNECTED", "AP_STADISCONNECTED",
-		"AP_PROBEREQRECVED", "GOT_IP6", "ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED", "ETH_GOT_IP", "MAX" };
+const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
+		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
+		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
+		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP",
+		"AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6",
+		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED",
+		"ETH_GOT_IP", "MAX" };
 
 int NO_AP_FOUND_count = 0;
 
@@ -209,7 +211,8 @@ FDC2212 fdc2212;
 uint32_t cap_reading = 0;
 
 // PID
-String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
+String initialPidStr =
+		"p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -222,8 +225,290 @@ String initialPidStr = "p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100
  }
  */
 
-String processInput(String input);
-void syncTime();
+void testSpi(int which);
+void gdfVdsStatus(int which);
+void clearFault();
+void setPidsFromString(String str1);
+String getToken(String data, char separator, int index);
+void sendPidToClient();
+void static lcd_out(const char * txt);
+IRAM_ATTR String getJsonString();
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
+
+TimerHandle_t tmr;
+void timerCallBack(TimerHandle_t xTimer) {
+	ws.broadcastTXT(getJsonString().c_str());
+}
+
+TimerHandle_t tmrCapSense;
+void timerCapSenseCallBack(TimerHandle_t xTimer) {
+	fdc2212.getReading();
+}
+
+TimerHandle_t tmrMover;
+void moverCallBack(TimerHandle_t xTimer) {
+// MOTOR1
+	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
+		if (pwm1 <= (pwmValueMax - pwmDelta)) {
+			pwm1 = pwm1 + pwmDelta;
+		}
+	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
+		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
+			pwm1 = pwm1 - pwmDelta;
+		}
+	} else if (shouldStopM1 == 1) {
+		if (pwm1 > 0) {
+			if (pwm1 > pwmDelta)
+				pwm1 = pwm1 - pwmDelta;
+			else
+				pwm1 = 0;
+		} else if (pwm1 < 0) {
+			if (pwm1 < -pwmDelta)
+				pwm1 = pwm1 + pwmDelta;
+			else
+				pwm1 = 0;
+		} else
+			shouldStopM1 = 0;
+	}
+
+// MOTOR2
+	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
+		if (pwm2 <= (pwmValueMax - pwmDelta)) {
+			pwm2 = pwm2 + pwmDelta;
+		}
+	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
+		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
+			pwm2 = pwm2 - pwmDelta;
+		}
+	} else if (shouldStopM2 == 1) {
+		if (pwm2 > 0) {
+			if (pwm2 > pwmDelta)
+				pwm2 = pwm2 - pwmDelta;
+			else
+				pwm2 = 0;
+		} else if (pwm2 < 0) {
+			if (pwm2 < -pwmDelta)
+				pwm2 = pwm2 + pwmDelta;
+			else
+				pwm2 = 0;
+		} else
+			shouldStopM2 = 0;
+	}
+}
+
+String processInput(String input) {
+	String ret;
+	if (input.equals(String("status"))) {
+		status1 = " ";
+		status2 = " ";
+		testSpi(1);
+		ret.concat("Statuses: ");
+		ret.concat(status1);
+		testSpi(2);
+		ret.concat(status2);
+
+		char buf[20];
+		sprintf(buf, "motor1_pos %i\n", encoder1_value);
+		ret.concat(buf);
+
+		sprintf(buf, "motor2_pos %i\n", encoder2_value);
+		ret.concat(buf);
+
+		sprintf(buf, "status1: %s\n", status1.c_str());
+		ret.concat(buf);
+
+		sprintf(buf, "status2: %s\n", status2.c_str());
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M1_left: %d\n", shouldPwm_M1_left);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M1_right: %d\n", shouldPwm_M1_right);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldstop_M1: %d\n", shouldStopM1);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M2_left: %d\n", shouldPwm_M2_left);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldPwm_M2_right: %d\n", shouldPwm_M2_right);
+		ret.concat(buf);
+
+		sprintf(buf, "shouldstop_M2: %d\n", shouldStopM2);
+		ret.concat(buf);
+	} else if (input.startsWith("gdfvdsstatus")) {
+		gdfVdsStatus(1);
+		gdfVdsStatus(2);
+
+		char buf[20];
+		sprintf(buf, "gdfvdsstatus1: %s\n", gdfVds1.c_str());
+		ret.concat(buf);
+
+		sprintf(buf, "gdfvdsstatus2: %s\n", gdfVds2.c_str());
+		ret.concat(buf);
+	} else if (input.startsWith("clrflt")) {
+		clearFault();
+		ret.concat("Clear Fault done.");
+	} else if (input.startsWith("pid#")) {
+		String input2 = getToken(input, '#', 1);
+		setPidsFromString(input2);
+		sendPidToClient();
+
+		preferences.begin("settings", false);
+		preferences.putString("pid", input2);
+		preferences.end();
+
+		ret.concat("Parsing pid done.");
+	} else if (input.startsWith("gCodeCmd")) {
+		Serial.printf("Parsing target1=.. target2=... command:%s\n",
+				input.c_str());
+		String input2 = getToken(input, '#', 1);
+		String target1_str = getToken(input2, ' ', 0);
+		String target1_duty = getToken(target1_str, '=', 1);
+		String target2_str = getToken(input2, ' ', 1);
+		String target2_duty = getToken(target2_str, '=', 1);
+
+		target1 = (double) target1_duty.toFloat();
+		target2 = (double) target2_duty.toFloat();
+		ret.concat("target1= ");
+		ret.concat(target1);
+		ret.concat("\n");
+		ret.concat(" target2= ");
+		ret.concat(target2);
+		ret.concat("\n");
+
+	} else if (input.startsWith("enablePid")) {
+		pidEnabled = true;
+	} else if (input.startsWith("maxPercentOutput1")) {
+		String percent_str = getToken(input, '#', 1);
+		setOutputPercent(percent_str, 1);
+		preferences.begin("settings", false);
+		preferences.putInt("outputMin1", pid1.getMinOutput());
+		preferences.putInt("outputMax1", pid1.getMaxOutput());
+		preferences.end();
+	} else if (input.startsWith("maxPercentOutput2")) {
+		String percent_str = getToken(input, '#', 1);
+		setOutputPercent(percent_str, 2);
+		preferences.begin("settings", false);
+		preferences.putInt("outputMin2", pid2.getMinOutput());
+		preferences.putInt("outputMax2", pid2.getMaxOutput());
+		preferences.end();
+	} else if (input.startsWith("disablePid")) {
+		pidEnabled = false;
+	} else if (input.startsWith("wificonnect")) {
+		ssid = getToken(input, ' ', 1);
+		password = getToken(input, ' ', 2);
+
+		preferences.begin("settings", false);
+		preferences.putString("wifi_ssid", ssid);
+		preferences.putString("wifi_password", password);
+		preferences.end();
+
+		/*
+		 printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
+		 password.c_str());
+		 */
+		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
+
+		ret.concat("MLIFT restart.");
+		ws.disconnect();
+
+		Serial.printf("wificonnect ssid: %s\n", ssid.c_str());
+		delay(500);
+
+		esp_restart();
+	} else if (input.startsWith("pwm_m1_left")) {
+		shouldStopM1 = 0;
+		shouldPwm_M1_left = 1;
+		shouldPwm_M1_right = 0;
+	} else if (input.startsWith("pwm_m1_right")) {
+		shouldStopM1 = 0;
+		shouldPwm_M1_left = 0;
+		shouldPwm_M1_right = 1;
+	} else if (input.startsWith("stop pwm_m1")) {
+		shouldStopM1 = 1;
+		shouldPwm_M1_left = 0;
+		shouldPwm_M1_right = 0;
+	} else if (input.startsWith("pwm_m2_left")) {
+		shouldStopM2 = 0;
+		shouldPwm_M2_left = 1;
+		shouldPwm_M2_right = 0;
+	} else if (input.startsWith("pwm_m2_right")) {
+		shouldStopM2 = 0;
+		shouldPwm_M2_left = 0;
+		shouldPwm_M2_right = 1;
+	} else if (input.startsWith("stop pwm_m2")) {
+		shouldStopM2 = 1;
+		shouldPwm_M2_left = 0;
+		shouldPwm_M2_right = 0;
+	} else if (input.startsWith("gotop")) {
+		target1 = stop1_top;
+		target2 = stop1_top;
+		Serial.println();
+		Serial.print(" target1: ");
+		Serial.println(target1);
+		Serial.print(" target2: ");
+		Serial.println(target2);
+		pidEnabled = true;
+	} else if (input.startsWith("gobottom")) {
+		target1 = stop1_bottom;
+		target2 = stop1_bottom;
+		Serial.println();
+		Serial.print(" target1: ");
+		Serial.println(target1);
+		Serial.print(" target2: ");
+		Serial.println(target2);
+		pidEnabled = true;
+	} else if (input.startsWith("searchtop")
+			|| input.startsWith("searchbottom")) {
+		if (getToken(input, ' ', 1).equals(String("start"))) {
+			pidEnabled = false;
+			pwm1 = 0;
+			pwm2 = 0;
+
+			previousPercent_str_1 = String(
+					(int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+			previousPercent_str_2 = String(
+					(int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
+			String percentPower = "70";
+			status = getToken(input, ' ', 0);
+			setOutputPercent(percentPower, 1);
+			setOutputPercent(percentPower, 2);
+
+			if (input.startsWith("searchtop")) {
+				target1 = encoder1_value + deltaSearch;
+				target2 = target1;
+			} else {
+				target1 = encoder1_value - deltaSearch;
+				target2 = target1;
+			}
+			target2 = target1;
+			Serial.println();
+			Serial.print(" target1: ");
+			Serial.println(target1);
+			Serial.print(" target2: ");
+			Serial.println(target2);
+
+			pidEnabled = true;
+			searchTopMilis = millis();
+		} else {
+			status = "";
+			setOutputPercent(previousPercent_str_1, 1);
+			setOutputPercent(previousPercent_str_1, 2);
+		}
+	} else if (input.startsWith("scan")) {
+//vTaskSuspend(reportJsonTask);
+//delay(10);
+		xTimerStop(tmr, 0);
+		Serial.println("scan started.");
+		lcd_out("ScanNetworks...Started.");
+		WiFi.scanDelete();
+		WiFi.scanNetworks(true, true, false, 200);
+	}
+
+	return ret;
+}
 
 String getContentTypeGz(String filename) {
 	if (server.hasArg("download"))
@@ -270,7 +555,7 @@ String getContentType(String filename) { // convert the file extension to the MI
 bool handleFileRead(String path) { // send the right file to the client (if it exists)
 	Serial.println("handleFileRead: " + path);
 	if (path.endsWith("/"))
-		path += "index.html";       // If a folder is requested, send the index file
+		path += "index.html";   // If a folder is requested, send the index file
 	String contentType = getContentType(path);            // Get the MIME type
 	String pathWithGz = path + ".gz";
 	if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)) {
@@ -281,11 +566,11 @@ bool handleFileRead(String path) { // send the right file to the client (if it e
 		File file = SPIFFS.open(path, "r");                 // Open it
 		size_t sent = server.streamFile(file, contentType); // And send it to the client
 		Serial.printf("Sent %d byte to client.", sent);
-		file.close();                                   // Then close the file again
+		file.close();                               // Then close the file again
 		return true;
 	}
 	Serial.println("\tFile Not Found");
-	return false;                       // If the file doesn't exist, return false
+	return false;                     // If the file doesn't exist, return false
 }
 
 void handleNotFound() {
@@ -302,6 +587,48 @@ void handleNotFound() {
 		message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
 	}
 	server.send(404, "text/plain", message);
+}
+
+void syncTime() {
+//lets check the time
+	const int NTP_PACKET_SIZE = 48;
+	byte ntpPacketBuffer[NTP_PACKET_SIZE];
+
+	IPAddress address;
+	WiFi.hostByName("time.nist.gov", address);
+	memset(ntpPacketBuffer, 0, NTP_PACKET_SIZE);
+	ntpPacketBuffer[0] = 0b11100011;   // LI, Version, Mode
+	ntpPacketBuffer[1] = 0;     // Stratum, or type of clock
+	ntpPacketBuffer[2] = 6;     // Polling Interval
+	ntpPacketBuffer[3] = 0xEC;  // Peer Clock Precision
+// 8 bytes of zero for Root Delay & Root Dispersion
+	ntpPacketBuffer[12] = 49;
+	ntpPacketBuffer[13] = 0x4E;
+	ntpPacketBuffer[14] = 49;
+	ntpPacketBuffer[15] = 52;
+	ntpClient.beginPacket(address, 123); //NTP requests are to port 123
+	ntpClient.write(ntpPacketBuffer, NTP_PACKET_SIZE);
+	ntpClient.endPacket();
+
+	delay(1000);
+
+	int packetLength = ntpClient.parsePacket();
+	if (packetLength) {
+		if (packetLength >= NTP_PACKET_SIZE) {
+			ntpClient.read(ntpPacketBuffer, NTP_PACKET_SIZE);
+		}
+		ntpClient.flush();
+		uint32_t secsSince1900 = (uint32_t) ntpPacketBuffer[40] << 24
+				| (uint32_t) ntpPacketBuffer[41] << 16
+				| (uint32_t) ntpPacketBuffer[42] << 8 | ntpPacketBuffer[43];
+		//Serial.printf("Seconds since Jan 1 1900: %u\n", secsSince1900);
+		uint32_t epoch = secsSince1900 - 2208988800UL;
+		//Serial.printf("EPOCH: %u\n", epoch);
+		uint8_t h = (epoch % 86400L) / 3600;
+		uint8_t m = (epoch % 3600) / 60;
+		uint8_t s = (epoch % 60);
+		Serial.printf("UTC: %02u:%02u:%02u (GMT)\n", h, m, s);
+	}
 }
 
 void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -343,6 +670,101 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
 	}
 
 }
+
+void startServer() {
+	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
+
+	/*
+	 Serial.println("Config ntp time...");
+	 configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
+
+	 time(&now);
+	 localtime_r(&now, &info);
+
+	 Serial.println(&info, "%Y-%m-%d %H:%M:%S");
+	 Serial.println("Config ntp time...DONE.");
+	 lcd_out("Config ntp time done.");
+	 */
+	syncTime();
+
+	//	/*use mdns for host name resolution*/
+	//	if (!MDNS.begin(hostName)) { //http://esp32.local
+	//		Serial.println("Error setting up MDNS responder!");
+	//		while (1) {
+	//			delay(1000);
+	//		}
+	//	} else {
+	//		delay(300);
+	//		Serial.println("mDNS responder started");
+	//		MDNS.addService("_http", "_tcp", 80);
+	//	}
+
+	MDNS.begin(hostName);
+	server.on("/", HTTP_GET, []() {
+		server.sendHeader("Connection", "close");
+		handleFileRead("/index.html");
+		//server.send(200, "text/html", serverIndex);
+		});
+	server.on("/update", HTTP_POST, []() {
+		server.sendHeader("Connection", "close");
+		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+		ESP.restart();
+	}, []() {
+		HTTPUpload& upload = server.upload();
+		if (upload.status == UPLOAD_FILE_START) {
+
+			Serial.printf("Update: %s\n", upload.filename.c_str());
+			if (!Update.begin()) { //start with max available size
+				Update.printError(Serial);
+			}
+		} else if (upload.status == UPLOAD_FILE_WRITE) {
+			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+				Update.printError(Serial);
+			}
+		} else if (upload.status == UPLOAD_FILE_END) {
+			if (Update.end(true)) { //true to set the size to the current progress
+				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+			} else {
+				Update.printError(Serial);
+			}
+
+		}
+	});
+
+	server.onNotFound([]() {                   // If the client requests any URI
+				if (!handleFileRead(server.uri()))// send it if it exists
+				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
+				lcd_out(("Cannot find: " + server.uri()).c_str());
+			});
+
+	MDNS.addService("http", "tcp", 80);
+
+	Serial.println("HTTP server started");
+	ws.onEvent(wsEvent);
+	Serial.println("WebsocketServer started");
+
+	if (!SPIFFS.begin(true)) {
+		Serial.println("SPIFFS Mount Failed");
+	} else {
+		listDir(SPIFFS, "/", 0);
+	}
+
+	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
+	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+
+	//.setCacheControl("max-age=600").setDefaultFile(
+	//		"index.html"); //.setTemplateProcessor(processor);
+
+	server.begin();
+	ws.begin();
+
+	lcd_out("Server started.");
+
+	MDNS.addService("http", "tcp", 80);
+}
+
+String processInput(String input);
+void syncTime();
 
 IRAM_ATTR String getJsonString2() {
 	txtToSend = "";
@@ -484,7 +906,8 @@ IRAM_ATTR String getJsonString() {
 	txtToSend.concat(",");
 
 	txtToSend.concat("\"uptime_h\":");
-	txtToSend.concat((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
+	txtToSend.concat(
+			(float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
 	txtToSend.concat(",");
 
 	txtToSend.concat("\"enablePID\":");
@@ -496,67 +919,6 @@ IRAM_ATTR String getJsonString() {
 	txtToSend.concat("}");
 
 	return txtToSend;
-}
-
-TimerHandle_t tmr;
-void timerCallBack(TimerHandle_t xTimer) {
-	ws.broadcastTXT(getJsonString().c_str());
-}
-
-TimerHandle_t tmrCapSense;
-void timerCapSenseCallBack(TimerHandle_t xTimer) {
-	fdc2212.getReading();
-}
-
-TimerHandle_t tmrMover;
-void moverCallBack(TimerHandle_t xTimer) {
-// MOTOR1
-	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
-		if (pwm1 <= (pwmValueMax - pwmDelta)) {
-			pwm1 = pwm1 + pwmDelta;
-		}
-	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
-		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
-			pwm1 = pwm1 - pwmDelta;
-		}
-	} else if (shouldStopM1 == 1) {
-		if (pwm1 > 0) {
-			if (pwm1 > pwmDelta)
-				pwm1 = pwm1 - pwmDelta;
-			else
-				pwm1 = 0;
-		} else if (pwm1 < 0) {
-			if (pwm1 < -pwmDelta)
-				pwm1 = pwm1 + pwmDelta;
-			else
-				pwm1 = 0;
-		} else
-			shouldStopM1 = 0;
-	}
-
-// MOTOR2
-	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
-		if (pwm2 <= (pwmValueMax - pwmDelta)) {
-			pwm2 = pwm2 + pwmDelta;
-		}
-	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
-		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
-			pwm2 = pwm2 - pwmDelta;
-		}
-	} else if (shouldStopM2 == 1) {
-		if (pwm2 > 0) {
-			if (pwm2 > pwmDelta)
-				pwm2 = pwm2 - pwmDelta;
-			else
-				pwm2 = 0;
-		} else if (pwm2 < 0) {
-			if (pwm2 < -pwmDelta)
-				pwm2 = pwm2 + pwmDelta;
-			else
-				pwm2 = 0;
-		} else
-			shouldStopM2 = 0;
-	}
 }
 
 void static lcd_out(const char * txt) {
@@ -629,8 +991,10 @@ void setPidsFromString(String input) {
 		maxIOut_val = "1.0";
 	}
 
-	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
-	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
+	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
+			f_val.toFloat());
+	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
+			f_val.toFloat());
 	pid1.setOutputRampRate(ramp_val.toFloat());
 	pid2.setOutputRampRate(ramp_val.toFloat());
 //pid1.setOutputFilter(0.01);
@@ -754,7 +1118,8 @@ String getfault(uint16_t reply) {
 	uint8_t FAULT_OTSD = B1 << 1; // OTSD R 0b Indicates overtemperature shutdown
 	uint8_t FAULT_OTW = B1 << 0;   // OTW R 0b Indicates overtemperature warning
 	if ((reply & FAULT_FAULT) > 0) {
-		status1.concat("Logic OR of the FAULT status register excluding the OTW bit\n");
+		status1.concat(
+				"Logic OR of the FAULT status register excluding the OTW bit\n");
 	}
 	if ((reply & FAULT_WDFLT) > 0) {
 		status1.concat("Watchdog time-out fault\n");
@@ -913,16 +1278,20 @@ void gdfVdsStatus(int which) {
 		ret.concat("Gate drive fault on the low-side FET of half bridge 1\n");
 	}
 	if ((reply & H2_VDS) > 0) {
-		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
+		ret.concat(
+				"VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
 	}
 	if ((reply & L2_VDS) > 0) {
-		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
+		ret.concat(
+				"VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
 	}
 	if ((reply & H1_VDS) > 0) {
-		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
+		ret.concat(
+				"VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
 	}
 	if ((reply & L1_VDS) > 0) {
-		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
+		ret.concat(
+				"VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
 	}
 
 	if (which == 1)
@@ -930,216 +1299,6 @@ void gdfVdsStatus(int which) {
 	else
 		gdfVds2 = ret;
 
-}
-
-String processInput(String input) {
-	String ret;
-	if (input.equals(String("status"))) {
-		status1 = " ";
-		status2 = " ";
-		testSpi(1);
-		ret.concat("Statuses: ");
-		ret.concat(status1);
-		testSpi(2);
-		ret.concat(status2);
-
-		char buf[20];
-		sprintf(buf, "motor1_pos %i\n", encoder1_value);
-		ret.concat(buf);
-
-		sprintf(buf, "motor2_pos %i\n", encoder2_value);
-		ret.concat(buf);
-
-		sprintf(buf, "status1: %s\n", status1.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "status2: %s\n", status2.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M1_left: %d\n", shouldPwm_M1_left);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M1_right: %d\n", shouldPwm_M1_right);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldstop_M1: %d\n", shouldStopM1);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M2_left: %d\n", shouldPwm_M2_left);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M2_right: %d\n", shouldPwm_M2_right);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldstop_M2: %d\n", shouldStopM2);
-		ret.concat(buf);
-	} else if (input.startsWith("gdfvdsstatus")) {
-		gdfVdsStatus(1);
-		gdfVdsStatus(2);
-
-		char buf[20];
-		sprintf(buf, "gdfvdsstatus1: %s\n", gdfVds1.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "gdfvdsstatus2: %s\n", gdfVds2.c_str());
-		ret.concat(buf);
-	} else if (input.startsWith("clrflt")) {
-		clearFault();
-		ret.concat("Clear Fault done.");
-	} else if (input.startsWith("pid#")) {
-		String input2 = getToken(input, '#', 1);
-		setPidsFromString(input2);
-		sendPidToClient();
-
-		preferences.begin("settings", false);
-		preferences.putString("pid", input2);
-		preferences.end();
-
-		ret.concat("Parsing pid done.");
-	} else if (input.startsWith("gCodeCmd")) {
-		Serial.printf("Parsing target1=.. target2=... command:%s\n", input.c_str());
-		String input2 = getToken(input, '#', 1);
-		String target1_str = getToken(input2, ' ', 0);
-		String target1_duty = getToken(target1_str, '=', 1);
-		String target2_str = getToken(input2, ' ', 1);
-		String target2_duty = getToken(target2_str, '=', 1);
-
-		target1 = (double) target1_duty.toFloat();
-		target2 = (double) target2_duty.toFloat();
-		ret.concat("target1= ");
-		ret.concat(target1);
-		ret.concat("\n");
-		ret.concat(" target2= ");
-		ret.concat(target2);
-		ret.concat("\n");
-
-	} else if (input.startsWith("enablePid")) {
-		pidEnabled = true;
-	} else if (input.startsWith("maxPercentOutput1")) {
-		String percent_str = getToken(input, '#', 1);
-		setOutputPercent(percent_str, 1);
-		preferences.begin("settings", false);
-		preferences.putInt("outputMin1", pid1.getMinOutput());
-		preferences.putInt("outputMax1", pid1.getMaxOutput());
-		preferences.end();
-	} else if (input.startsWith("maxPercentOutput2")) {
-		String percent_str = getToken(input, '#', 1);
-		setOutputPercent(percent_str, 2);
-		preferences.begin("settings", false);
-		preferences.putInt("outputMin2", pid2.getMinOutput());
-		preferences.putInt("outputMax2", pid2.getMaxOutput());
-		preferences.end();
-	} else if (input.startsWith("disablePid")) {
-		pidEnabled = false;
-	} else if (input.startsWith("wificonnect")) {
-		ssid = getToken(input, ' ', 1);
-		password = getToken(input, ' ', 2);
-
-		preferences.begin("settings", false);
-		preferences.putString("wifi_ssid", ssid);
-		preferences.putString("wifi_password", password);
-		preferences.end();
-
-		/*
-		 printf("wificonnect ssid: %s, password: %s\n", ssid.c_str(),
-		 password.c_str());
-		 */
-		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
-
-		ret.concat("MLIFT restart.");
-		ws.disconnect();
-
-		Serial.printf("wificonnect ssid: %s\n", ssid.c_str());
-		delay(500);
-
-		esp_restart();
-	} else if (input.startsWith("pwm_m1_left")) {
-		shouldStopM1 = 0;
-		shouldPwm_M1_left = 1;
-		shouldPwm_M1_right = 0;
-	} else if (input.startsWith("pwm_m1_right")) {
-		shouldStopM1 = 0;
-		shouldPwm_M1_left = 0;
-		shouldPwm_M1_right = 1;
-	} else if (input.startsWith("stop pwm_m1")) {
-		shouldStopM1 = 1;
-		shouldPwm_M1_left = 0;
-		shouldPwm_M1_right = 0;
-	} else if (input.startsWith("pwm_m2_left")) {
-		shouldStopM2 = 0;
-		shouldPwm_M2_left = 1;
-		shouldPwm_M2_right = 0;
-	} else if (input.startsWith("pwm_m2_right")) {
-		shouldStopM2 = 0;
-		shouldPwm_M2_left = 0;
-		shouldPwm_M2_right = 1;
-	} else if (input.startsWith("stop pwm_m2")) {
-		shouldStopM2 = 1;
-		shouldPwm_M2_left = 0;
-		shouldPwm_M2_right = 0;
-	} else if (input.startsWith("gotop")) {
-		target1 = stop1_top;
-		target2 = stop1_top;
-		Serial.println();
-		Serial.print(" target1: ");
-		Serial.println(target1);
-		Serial.print(" target2: ");
-		Serial.println(target2);
-		pidEnabled = true;
-	} else if (input.startsWith("gobottom")) {
-		target1 = stop1_bottom;
-		target2 = stop1_bottom;
-		Serial.println();
-		Serial.print(" target1: ");
-		Serial.println(target1);
-		Serial.print(" target2: ");
-		Serial.println(target2);
-		pidEnabled = true;
-	} else if (input.startsWith("searchtop") || input.startsWith("searchbottom")) {
-		if (getToken(input, ' ', 1).equals(String("start"))) {
-			pidEnabled = false;
-			pwm1 = 0;
-			pwm2 = 0;
-
-			previousPercent_str_1 = String((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-			previousPercent_str_2 = String((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
-			String percentPower = "70";
-			status = getToken(input, ' ', 0);
-			setOutputPercent(percentPower, 1);
-			setOutputPercent(percentPower, 2);
-
-			if (input.startsWith("searchtop")) {
-				target1 = encoder1_value + deltaSearch;
-				target2 = target1;
-			} else {
-				target1 = encoder1_value - deltaSearch;
-				target2 = target1;
-			}
-			target2 = target1;
-			Serial.println();
-			Serial.print(" target1: ");
-			Serial.println(target1);
-			Serial.print(" target2: ");
-			Serial.println(target2);
-
-			pidEnabled = true;
-			searchTopMilis = millis();
-		} else {
-			status = "";
-			setOutputPercent(previousPercent_str_1, 1);
-			setOutputPercent(previousPercent_str_1, 2);
-		}
-	} else if (input.startsWith("scan")) {
-//vTaskSuspend(reportJsonTask);
-//delay(10);
-		xTimerStop(tmr, 0);
-		Serial.println("scan started.");
-		lcd_out("ScanNetworks...Started.");
-		WiFi.scanDelete();
-		WiFi.scanNetworks(true, true, false, 200);
-	}
-
-	return ret;
 }
 
 void processWsData(char *data) {
@@ -1291,7 +1450,8 @@ void waitForIp() {
 
 			tcpip_adapter_ip_info_t ip_info;
 			char* str2;
-			ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
+			ESP_ERROR_CHECK(
+					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
 			str2 = inet_ntoa(ip_info);
 			String buf("WiFi AP IP: ");
 			buf.concat(str2);
@@ -1300,7 +1460,8 @@ void waitForIp() {
 	} else {
 		tcpip_adapter_ip_info_t ip_info;
 		char* str2;
-		ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+		ESP_ERROR_CHECK(
+				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 		str2 = inet_ntoa(ip_info);
 		String buf("WiFi STA IP: ");
 		buf.concat(str2);
@@ -1343,9 +1504,12 @@ extern "C" void esp_draw() {
 	 ESP_ERROR_CHECK( esp_wifi_start() );
 	 */
 	/*Initialize LCD*/
-	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso = GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
-			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc = GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18,
-			.pin_num_bckl = GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000, .rst_active_level = 0, .bckl_active_level = 0,
+	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
+			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
+			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc =
+					GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl =
+					GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
+			.rst_active_level = 0, .bckl_active_level = 0,
 			.spi_host = HSPI_HOST, .init_spi_bus = true, };
 
 	if (lcd_obj == NULL) {
@@ -1412,7 +1576,6 @@ void printEncoderInfo() {
  */
 
 void setup() {
-
 	Serial.setDebugOutput(true);
 	esp_log_level_set("*", ESP_LOG_VERBOSE);
 	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
@@ -1470,10 +1633,12 @@ void setup() {
 	if (enableCapSense) {
 		lcd_out("Setting up FDC2212...");
 		Serial.println("Setting up FDC2212...");
-		fdc2212 = FDC2212([](const CapacityResponse& response) {
-			Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-			return true;
-		});
+		fdc2212 =
+				FDC2212(
+						[](const CapacityResponse& response) {
+							Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+							return true;
+						});
 		fdc2212.begin();
 		Serial.println("Setting up FDC2212...Done.");
 		lcd_out("Setting up FDC2212...Done.");
@@ -1615,102 +1780,14 @@ void setup() {
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		Serial.print("WiFi got IPV6");
-        Serial.print("STA IPv6: ");
-        Serial.println(WiFi.localIPv6());
-        Serial.print("AP IPv6: ");
-        Serial.println(WiFi.softAPIPv6());
+		Serial.print("STA IPv6: ");
+		Serial.println(WiFi.localIPv6());
+		Serial.print("AP IPv6: ");
+		Serial.println(WiFi.softAPIPv6());
 
-        //idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
-
-        	/*
-        	Serial.println("Config ntp time...");
-        	configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
-
-        	time(&now);
-        	localtime_r(&now, &info);
-
-        	Serial.println(&info, "%Y-%m-%d %H:%M:%S");
-        	Serial.println("Config ntp time...DONE.");
-        	lcd_out("Config ntp time done.");
-        	*/
-        	syncTime();
-
-        //	/*use mdns for host name resolution*/
-        //	if (!MDNS.begin(hostName)) { //http://esp32.local
-        //		Serial.println("Error setting up MDNS responder!");
-        //		while (1) {
-        //			delay(1000);
-        //		}
-        //	} else {
-        //		delay(300);
-        //		Serial.println("mDNS responder started");
-        //		MDNS.addService("_http", "_tcp", 80);
-        //	}
-
-        	MDNS.begin(hostName);
-        	server.on("/", HTTP_GET, []() {
-        		server.sendHeader("Connection", "close");
-        		handleFileRead("/index.html");
-        		//server.send(200, "text/html", serverIndex);
-        		});
-        	server.on("/update", HTTP_POST, []() {
-        		server.sendHeader("Connection", "close");
-        		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-        		ESP.restart();
-        	}, []() {
-        		HTTPUpload& upload = server.upload();
-        		if (upload.status == UPLOAD_FILE_START) {
-        			Serial.setDebugOutput(true);
-        			Serial.printf("Update: %s\n", upload.filename.c_str());
-        			if (!Update.begin()) { //start with max available size
-        				Update.printError(Serial);
-        			}
-        		} else if (upload.status == UPLOAD_FILE_WRITE) {
-        			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        				Update.printError(Serial);
-        			}
-        		} else if (upload.status == UPLOAD_FILE_END) {
-        			if (Update.end(true)) { //true to set the size to the current progress
-        				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-        			} else {
-        				Update.printError(Serial);
-        			}
-        			Serial.setDebugOutput(false);
-        		}
-        	});
-
-        	server.onNotFound([]() {                     // If the client requests any URI
-        				if (!handleFileRead(server.uri()))// send it if it exists
-        				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
-        			});
-
-        	MDNS.addService("http", "tcp", 80);
-
-        	Serial.println("HTTP server started");
-        	ws.onEvent(wsEvent);
-        	Serial.println("WebsocketServer started");
-
-        	if (!SPIFFS.begin(true)) {
-        		Serial.println("SPIFFS Mount Failed");
-        	} else {
-        	}
-
-        	listDir(SPIFFS, "/", 0);
-        	delay(200);
-
-        	server.serveStatic("/index.html.gz", SPIFFS, "/index.html", "max-age=600");
-        	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
-
-        //.setCacheControl("max-age=600").setDefaultFile(
-        //		"index.html"); //.setTemplateProcessor(processor);
-
-        	server.begin();
-        	ws.begin();
-
-        	MDNS.addService("http", "tcp", 80);
+		startServer();
 
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
-
 
 	/*
 	 if(!ssid.equals(""))
@@ -1728,7 +1805,9 @@ void setup() {
 	WiFi.setSleep(false);
 
 	waitForIp();
-
+	wifi_mode_t mode = WiFi.getMode();
+	if (mode == WIFI_MODE_AP)
+		startServer();
 
 	rotaryEncoder1.setBoundaries(0, 30000, false);
 	rotaryEncoder2.setBoundaries(0, 30000, false);
@@ -1811,14 +1890,16 @@ void setup() {
 //mover.attach_ms(10, move);
 
 	int id1 = 1;
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE, (void *) id1, &timerCallBack);
+	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
+			(void *) id1, &timerCallBack);
 	if (xTimerStart(tmr, pdMS_TO_TICKS(100)) != pdPASS) {
 		printf("Timer jsonReport start error\n");
 	}
 
 	if (enableCapSense) {
 		int id2 = 2;
-		tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
+		tmrCapSense = xTimerCreate("MyTimerCapSense",
+				pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
 				&timerCapSenseCallBack);
 		if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
 			printf("Timer capsense start error\n");
@@ -1863,14 +1944,17 @@ void loop() {
 //printEncoderInfo();
 	for (;;) {
 		mySecond = esp_timer_get_time() / 1000000.0;
-		if ((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+		if ((mySecond % 10 == 0 && mySecond != previousSecond)
+				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 			previousHeap = ESP.getFreeHeap();
-			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+			float time = (float) (esp_timer_get_time()
+					/ (1000000.0 * 60.0 * 60.0));
 			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f", mySecond, ESP.getFreeHeap(), time);
 			previousSecond = mySecond;
 		}
 
-		if (rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value) {
+		if (rotaryEncoder1.encoderChanged() != 0
+				&& ((int) target1) == encoder1_value) {
 //Serial.println("Saving to flash enc1.");
 			encoder1_value = rotaryEncoder1.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -1881,10 +1965,12 @@ void loop() {
 			delta = micros() - start;
 
 			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
+				Serial.printf("%lu Preferences save completed in %lu us.\n",
+						micros(), delta);
 
 		}
-		if (rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value) {
+		if (rotaryEncoder2.encoderChanged() != 0
+				&& ((int) target2) == encoder2_value) {
 //Serial.println("Saving to flash enc2.");
 			encoder2_value = rotaryEncoder2.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -1895,7 +1981,8 @@ void loop() {
 			delta = micros() - start;
 
 			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
+				Serial.printf("%lu Preferences save completed in %lu us.\n",
+						micros(), delta);
 		}
 
 		esp_err_t resetOK = esp_task_wdt_reset();
@@ -1933,46 +2020,4 @@ void app_main() {
 	 */
 
 	loop();
-}
-
-
-void syncTime()
-{
-//lets check the time
-const int NTP_PACKET_SIZE = 48;
-byte ntpPacketBuffer[NTP_PACKET_SIZE];
-
-IPAddress address;
-WiFi.hostByName("time.nist.gov", address);
-memset(ntpPacketBuffer, 0, NTP_PACKET_SIZE);
-ntpPacketBuffer[0] = 0b11100011;   // LI, Version, Mode
-ntpPacketBuffer[1] = 0;     // Stratum, or type of clock
-ntpPacketBuffer[2] = 6;     // Polling Interval
-ntpPacketBuffer[3] = 0xEC;  // Peer Clock Precision
-// 8 bytes of zero for Root Delay & Root Dispersion
-ntpPacketBuffer[12]  = 49;
-ntpPacketBuffer[13]  = 0x4E;
-ntpPacketBuffer[14]  = 49;
-ntpPacketBuffer[15]  = 52;
-ntpClient.beginPacket(address, 123); //NTP requests are to port 123
-ntpClient.write(ntpPacketBuffer, NTP_PACKET_SIZE);
-ntpClient.endPacket();
-
-delay(1000);
-
-int packetLength = ntpClient.parsePacket();
-if (packetLength){
-  if(packetLength >= NTP_PACKET_SIZE){
-    ntpClient.read(ntpPacketBuffer, NTP_PACKET_SIZE);
-  }
-  ntpClient.flush();
-  uint32_t secsSince1900 = (uint32_t)ntpPacketBuffer[40] << 24 | (uint32_t)ntpPacketBuffer[41] << 16 | (uint32_t)ntpPacketBuffer[42] << 8 | ntpPacketBuffer[43];
-  //Serial.printf("Seconds since Jan 1 1900: %u\n", secsSince1900);
-  uint32_t epoch = secsSince1900 - 2208988800UL;
-  //Serial.printf("EPOCH: %u\n", epoch);
-  uint8_t h = (epoch  % 86400L) / 3600;
-  uint8_t m = (epoch  % 3600) / 60;
-  uint8_t s = (epoch % 60);
-  Serial.printf("UTC: %02u:%02u:%02u (GMT)\n", h, m, s);
-}
 }
