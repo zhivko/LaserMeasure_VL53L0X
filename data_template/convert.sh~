@@ -1,0 +1,4 @@
+python3.7 -m htmlark -o ../data/index.html index.htm
+gzip -f ../data/index.html
+rm ../data/index.html
+
