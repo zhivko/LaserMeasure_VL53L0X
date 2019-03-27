@@ -1,11 +1,7 @@
+<!DOCTYPE html>
 <html><head>
     <title>MC</title>
 	<meta charset="UTF-8">
-	<meta http-equiv="cache-control" content="max-age=0">
-	<meta http-equiv="cache-control" content="no-cache">
-	<meta http-equiv="expires" content="0">
-	<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT">
-	<meta http-equiv="pragma" content="no-cache">
 	<script type="text/javascript" src="script.js"></script>
 	
 <!--<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>						  -->
@@ -25,29 +21,23 @@
   <body>
 
     <h1>MC</h1>
-	<table border="0">
-    <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=15300 target2=15300" style="width:150px" type="text">
-    <input style="height:100px;width:100px" id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
-	
-    <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=15000 target2=15000" style="width:150px" type="text">
-    <input style="height:100px;width:100px" id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>
-	
-    <tr><td>pid</td><td style="vertical-align:top"><textarea id="pid" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);">p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500</textarea>
-    <input id="btn3" value="Send" onMouseDown="doSend(document.getElementById('pid'));" type="button" /></td></tr>
-
+	<table>
+    <tr><td>cmd</td><td><input id="gCodeCmd1" onkeypress="return keyPress(event);" value="target1=15300 target2=15300" style="width:150px" type="text"><input style="height:100px;width:100px" id="btn1" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd1'));" type="button" /></td></tr>
+    <tr><td>cmd</td><td><input id="gCodeCmd2" onkeypress="return keyPress(event);" value="target1=15000 target2=15000" style="width:150px" type="text"><input style="height:100px;width:100px" id="btn2" value="Send" onMouseDown="doSend(document.getElementById('gCodeCmd2'));" type="button" /></td></tr>	
+    <tr><td>pid</td><td style="vertical-align:top"><textarea id="pid" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);">p=70.0 i=40.0 d=10.0 f=0 syn=1 synErr=4 ramp=25 maxIout=500</textarea><input id="btn3" value="Send" onMouseDown="doSend(document.getElementById('pid'));" type="button" /></td></tr>
 	</table>
 	
 	<table border="1">
-	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search top</td><td align="center"><a id='stop1_top'></a><br /><img id="gotop 1" src="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></svg></td><td></td><td align="center"><a id='stop2_top'></a><br><img id="gotop 2" src="48px-Gnome-go-top.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
-	<tr><td></td><td><img id="pwm_m1_left" src="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></img></td><td></td><td><img id="pwm_m2_left" src="48px-Gnome-go-up.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
+	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search top</td><td align="center"><a id='stop1_top'></a><br /><img id="gotop_1" src="48px-Gnome-go-top.svg" /></td><td></td><td align="center"><a id='stop2_top'></a><br><img id="gotop_2" src="48px-Gnome-go-top.svg"/></td></tr>
+	<tr><td></td><td><img id="pwm_m1_left" src="48px-Gnome-go-up.svg" /></td><td></td><td><img id="pwm_m2_left" src="48px-Gnome-go-up.svg"></img></td></tr>
 	<tr><td>encoder</td><td id='encoder1_value'></td><td></td><td id='encoder2_value'></td></tr>
 	<tr><td>target</td><td id='target1'></td><td></td><td id='target2'></td></tr>
 	<tr><td>output</td><td id='output1'></td><td></td><td id='output2'></td></tr>
 	<tr><td>pwm</td><td id='pwm1'></td><td></td><td id='pwm2'></td></tr>
 	<tr><td>current</td><td id='an1'></td><td></td><td id='an2'></td></tr>
 	<tr><td>out %</td><td><input id="maxPercentOutput1" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td><td></td><td><input id="maxPercentOutput2" onkeypress="return keyPress(event);" value="100" style="width:30px" type="text"></td></tr>
-	<tr><td></td><td><img id="pwm_m1_right" src="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></img></td><td></td><td><img id="pwm_m2_right" src="48px-Gnome-go-down.svg" type="image/svg+xml" id="roseSvg"></img></td></tr>
-	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><img id="gobottom 1" src="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></img><br><a id='stop1_bottom'/></td><td></td><td align="center"><img id="gobottom 2" src="48px-Gnome-go-bottom.svg" type="image/svg+xml" id="roseSvg"></img><br><a id='stop2_bottom'/></td></tr>
+	<tr><td></td><td><img id="pwm_m1_right" src="48px-Gnome-go-down.svg" /></td><td></td><td><img id="pwm_m2_right" src="48px-Gnome-go-down.svg" /></td></tr>
+	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><img id="gobottom 1" src="48px-Gnome-go-bottom.svg" id="roseSvg" /><br><a id='stop1_bottom'/></td><td></td><td align="center"><img id="gobottom 2" src="48px-Gnome-go-bottom.svg" id="roseSvg"></img><br><a id='stop2_bottom'/></td></tr>
 	</table>
 	
 <p>

@@ -27,10 +27,15 @@
 #include <ESPmDNS.h>
 #include <SPI.h>
 
-#include <WebServer.h>
-#include <WebSocketsServer.h>
-//#include <ESPAsyncWebServer.h>
-//#include <AsyncTCP.h>
+//#define arduinoWebserver
+#ifdef arduinoWebserver
+	#include <WebServer.h>
+	#include <WebSocketsServer.h>
+#endif
+#ifndef arduinoWebserver
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
+#endif
 
 #include <stdint.h>
 #include <esp_int_wdt.h>
@@ -63,6 +68,7 @@
 #include "lwip/dns.h"
 
 char ptrTaskList[250];
+const char* TAG = "DoubleLifter";
 
 //IRAM_ATTR String getJsonString();
 
@@ -76,9 +82,9 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = false;
-bool enableCapSense = false;
-bool enableLcd = true;
+bool enablePwm = true;
+bool enableCapSense = true;
+bool enableLcd = false;
 bool enableMover = true;
 
 bool enableLed = true;
@@ -89,6 +95,7 @@ int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
 static int taskCore = 0;
+bool restartNow = false;
 
 String ssid;
 String password;
@@ -100,10 +107,14 @@ String coredumpStr = "";
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
 
-//AsyncWebServer server(80);
-//AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
-WebServer server(81);
-WebSocketsServer ws = WebSocketsServer(82);
+#ifndef arduinoWebserver
+AsyncWebServer server(81);
+AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+#endif
+#ifdef arduinoWebserver
+	WebServer server(80);
+	WebSocketsServer ws = WebSocketsServer(80);
+#endif
 
 const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
 		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
@@ -212,7 +223,7 @@ uint32_t cap_reading = 0;
 
 // PID
 String initialPidStr =
-		"p=70.00 i=1.00 d=10.00 f=0.00 syn=1 synErr=0.00 ramp=100.00 maxIout=2048.00";
+		"p=70.00 i=3.00 d=10.00 f=0.00 syn=1 synErr=4.00 ramp=70.00 maxIout=600.00";
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -234,15 +245,33 @@ void sendPidToClient();
 void static lcd_out(const char * txt);
 IRAM_ATTR String getJsonString();
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
+String processInput(String input);
 
-TimerHandle_t tmr;
+TimerHandle_t tmrWs;
 void timerCallBack(TimerHandle_t xTimer) {
+#ifdef arduinoWebserver
 	ws.broadcastTXT(getJsonString().c_str());
+#endif
+#ifndef arduinoWebserver
+	ws.textAll(getJsonString().c_str());
+#endif
 }
 
 TimerHandle_t tmrCapSense;
 void timerCapSenseCallBack(TimerHandle_t xTimer) {
 	fdc2212.getReading();
+}
+
+void processWsData(char *data) {
+	String input;
+	input.concat(data);
+	printf("received: %s\n", input.c_str());
+#ifdef arduinoWebserver
+	ws.broadcastTXT(processInput(input).c_str());
+#endif
+#ifndef arduinoWebserver
+	ws.textAll(processInput(input).c_str());
+#endif
 }
 
 TimerHandle_t tmrMover;
@@ -412,7 +441,12 @@ String processInput(String input) {
 		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
 
 		ret.concat("MLIFT restart.");
+#ifdef arduinoWebserver
 		ws.disconnect();
+#endif
+#ifndef arduinoWebserver
+		ws.enable(false);
+#endif
 
 		Serial.printf("wificonnect ssid: %s\n", ssid.c_str());
 		delay(500);
@@ -500,14 +534,56 @@ String processInput(String input) {
 	} else if (input.startsWith("scan")) {
 //vTaskSuspend(reportJsonTask);
 //delay(10);
-		xTimerStop(tmr, 0);
+		xTimerStop(tmrWs, 0);
 		Serial.println("scan started.");
-		lcd_out("ScanNetworks...Started.");
+		lcd_out("ScanNetworks...Started.\n");
 		WiFi.scanDelete();
 		WiFi.scanNetworks(true, true, false, 200);
 	}
 
 	return ret;
+}
+#ifdef arduinoWebserver
+
+void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+	switch (type) {
+	case WStype_DISCONNECTED:
+		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
+		break;
+	case WStype_CONNECTED: {
+		//IPAddress ip = webSocket.remoteIP(num);
+		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+		Serial.print("connected");
+
+		// send message to client
+		ws.broadcastTXT("Connected");
+		sendPidToClient();
+	}
+		break;
+	case WStype_TEXT:
+		Serial.printf("Client: [%u] got Text: %s\n", num, payload);
+		ws.sendTXT(num, processInput((char*) payload).c_str());
+		// send message to client
+		// webSocket.sendTXT(num, "message here");
+
+		// send data to all connected clients
+		// webSocket.broadcastTXT("message here");
+		break;
+	case WStype_BIN:
+		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
+
+		// send message to client
+		// webSocket.sendBIN(num, payload, length);
+		break;
+
+	case WStype_ERROR:
+	case WStype_FRAGMENT_TEXT_START:
+	case WStype_FRAGMENT_BIN_START:
+	case WStype_FRAGMENT:
+	case WStype_FRAGMENT_FIN:
+		break;
+	}
+
 }
 
 String getContentTypeGz(String filename) {
@@ -588,6 +664,89 @@ void handleNotFound() {
 	}
 	server.send(404, "text/plain", message);
 }
+#endif
+#ifndef arduinoWebserver
+void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
+		AwsEventType type, void * arg, uint8_t *data, size_t len) {
+	if (type == WS_EVT_CONNECT) {
+//client connected
+		printf("%lu ws[%s][%u] connect\n", millis(), server->url(),
+				client->id());
+		client->printf("Hello Client %u :)", client->id());
+		client->ping();
+		sendPidToClient();
+	} else if (type == WS_EVT_DISCONNECT) {
+//client disconnected
+		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
+				client->id());
+	} else if (type == WS_EVT_ERROR) {
+//error was received from the other end
+		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
+				client->id(), *((uint16_t*) arg), (char*) data);
+	} else if (type == WS_EVT_PONG) {
+//pong message was received (in response to a ping request maybe)
+		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
+				client->id(), len, (len) ? (char*) data : "");
+	} else if (type == WS_EVT_DATA) {
+//data packet
+		AwsFrameInfo * info = (AwsFrameInfo*) arg;
+		if (info->final && info->index == 0 && info->len == len) {
+//the whole message is in a single frame and we got all of it's data
+			printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(),
+					client->id(), (info->opcode == WS_TEXT) ? "text" : "binary",
+					info->len);
+			if (info->opcode == WS_TEXT) {
+				data[len] = 0;
+				printf("%s\n", (char*) data);
+				processWsData((char*) data);
+			} else {
+				printf("not text\n");
+				for (size_t i = 0; i < info->len; i++) {
+					printf("%02x ", data[i]);
+				}
+				printf("\n");
+			}
+		} else {
+			printf("multi frames\n");
+//message is comprised of multiple frames or the frame is split into multiple packets
+			if (info->index == 0) {
+				if (info->num == 0)
+					printf("%lu ws[%s][%u] %s-message start\n", millis(),
+							server->url(), client->id(),
+							(info->message_opcode == WS_TEXT) ?
+									"text" : "binary");
+				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(),
+						server->url(), client->id(), info->num, info->len);
+			}
+
+			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(),
+					server->url(), client->id(), info->num,
+					(info->message_opcode == WS_TEXT) ? "text" : "binary",
+					info->index, info->index + len);
+			if (info->message_opcode == WS_TEXT) {
+				printf("%s\n", (char*) data);
+			} else {
+				for (size_t i = 0; i < len; i++) {
+					printf("%02x ", data[i]);
+				}
+				printf("\n");
+			}
+
+			if ((info->index + len) == info->len) {
+				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(),
+						server->url(), client->id(), info->num, info->len);
+				if (info->final) {
+					printf("%lu ws[%s][%u] %s-message end\n", millis(),
+							server->url(), client->id(),
+							(info->message_opcode == WS_TEXT) ?
+									"text" : "binary");
+				}
+			}
+		}
+	}
+}
+
+#endif
 
 void syncTime() {
 //lets check the time
@@ -631,80 +790,43 @@ void syncTime() {
 	}
 }
 
-void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-	switch (type) {
-	case WStype_DISCONNECTED:
-		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
-		break;
-	case WStype_CONNECTED: {
-		//IPAddress ip = webSocket.remoteIP(num);
-		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-		Serial.print("connected");
+#ifndef arduinoWebserver
 
-		// send message to client
-		ws.broadcastTXT("Connected");
+void handle_update_progress_cb(AsyncWebServerRequest *request,
+		String filename, size_t index, uint8_t *data, size_t len, bool final) {
+	uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+	if (!index) {
+		Serial.println("Update");
+		if (!Update.begin(free_space)) {
+			Update.printError(Serial);
+		}
 	}
-		break;
-	case WStype_TEXT:
-		Serial.printf("Client: [%u] got Text: %s\n", num, payload);
-		ws.sendTXT(num, processInput((char*) payload).c_str());
-		// send message to client
-		// webSocket.sendTXT(num, "message here");
-
-		// send data to all connected clients
-		// webSocket.broadcastTXT("message here");
-		break;
-	case WStype_BIN:
-		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
-
-		// send message to client
-		// webSocket.sendBIN(num, payload, length);
-		break;
-
-	case WStype_ERROR:
-	case WStype_FRAGMENT_TEXT_START:
-	case WStype_FRAGMENT_BIN_START:
-	case WStype_FRAGMENT:
-	case WStype_FRAGMENT_FIN:
-		break;
+	if (Update.write(data, len) != len) {
+		Update.printError(Serial);
 	}
-
+	if (final) {
+		if (!Update.end(true)) {
+			Update.printError(Serial);
+		} else {
+			restartNow = true; //Set flag so main loop can issue restart call
+			Serial.println("Update complete");
+		}
+	}
 }
 
+#endif // arduinoWebserver
+
 void startServer() {
-	//idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
-
-	/*
-	 Serial.println("Config ntp time...");
-	 configTzTime(TZ_INFO2, NTP_SERVER0, NTP_SERVER1, NTP_SERVER2);
-
-	 time(&now);
-	 localtime_r(&now, &info);
-
-	 Serial.println(&info, "%Y-%m-%d %H:%M:%S");
-	 Serial.println("Config ntp time...DONE.");
-	 lcd_out("Config ntp time done.");
-	 */
 	syncTime();
-
-	//	/*use mdns for host name resolution*/
-	//	if (!MDNS.begin(hostName)) { //http://esp32.local
-	//		Serial.println("Error setting up MDNS responder!");
-	//		while (1) {
-	//			delay(1000);
-	//		}
-	//	} else {
-	//		delay(300);
-	//		Serial.println("mDNS responder started");
-	//		MDNS.addService("_http", "_tcp", 80);
-	//	}
-
 	MDNS.begin(hostName);
-	server.on("/", HTTP_GET, []() {
-		server.sendHeader("Connection", "close");
-		handleFileRead("/index.html");
-		//server.send(200, "text/html", serverIndex);
-		});
+
+	if (!SPIFFS.begin(true)) {
+		Serial.println("SPIFFS Mount Failed");
+	} else {
+		listDir(SPIFFS, "/", 0);
+	}
+
+#ifdef arduinoWebserver
 	server.on("/update", HTTP_POST, []() {
 		server.sendHeader("Connection", "close");
 		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
@@ -712,7 +834,7 @@ void startServer() {
 	}, []() {
 		HTTPUpload& upload = server.upload();
 		if (upload.status == UPLOAD_FILE_START) {
-
+			xTimerStop(tmrWs, 0);
 			Serial.printf("Update: %s\n", upload.filename.c_str());
 			if (!Update.begin()) { //start with max available size
 				Update.printError(Serial);
@@ -726,39 +848,59 @@ void startServer() {
 				Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
 			} else {
 				Update.printError(Serial);
+				xTimerStart(tmrWs, 0);
 			}
-
 		}
 	});
 
 	server.onNotFound([]() {                   // If the client requests any URI
 				if (!handleFileRead(server.uri()))// send it if it exists
 				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
-				lcd_out(("Cannot find: " + server.uri()).c_str());
+				lcd_out(("Cannot find: " + server.uri()).c_str() + "\n");
 			});
 
-	MDNS.addService("http", "tcp", 80);
+	ws.begin();
+	lcd_out("WebsocketServer started\n");
+#endif
 
-	Serial.println("HTTP server started");
-	ws.onEvent(wsEvent);
-	Serial.println("WebsocketServer started");
+#ifndef arduinoWebserver
+	// handler for the /update form POST (once file upload finishes)
+	server.onFileUpload(
+			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+				if(0 == index) {
+					Serial.printf("UploadStart: %s\n", filename.c_str());
+					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
+				}
+				if(Update.write(data, len) != len) {
+					Update.printError(Serial);
+				} else {Serial.printf("Write: %d bytes\n", len);}
+				if(final) {
+					Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+					if (Update.end(true)) {
+						Serial.println("Update succesful!");
+					} else {
+						Update.printError(Serial);
+					}
+				}
+			});
 
-	if (!SPIFFS.begin(true)) {
-		Serial.println("SPIFFS Mount Failed");
-	} else {
-		listDir(SPIFFS, "/", 0);
-	}
+	server.onNotFound([](AsyncWebServerRequest *request) {
+		request->send(404);
+	});
+	server.addHandler(&ws);
+	ws.enable(true);
+	lcd_out("WebsocketServer started.\n");
+
+#endif
 
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 
-	//.setCacheControl("max-age=600").setDefaultFile(
-	//		"index.html"); //.setTemplateProcessor(processor);
-
+	ws.onEvent(wsEvent);
 	server.begin();
-	ws.begin();
-
-	lcd_out("Server started.");
+	lcd_out("Server started.\n");
 
 	MDNS.addService("http", "tcp", 80);
 }
@@ -930,6 +1072,8 @@ void static lcd_out(const char * txt) {
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
 	}
+	esp_log_write(ESP_LOG_INFO, TAG, txt);
+
 //delay(300);
 }
 
@@ -1041,7 +1185,13 @@ void sendPidToClient() {
 	txtToSend.concat("\"maxPercentOutput\":");
 	txtToSend.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
 	txtToSend.concat("}");
+
+#ifdef arduinoWebserver
 	ws.broadcastTXT(txtToSend.c_str());
+#endif // arduinoWebserver
+#ifndef arduinoWebserver
+	ws.textAll(txtToSend.c_str());
+#endif
 
 }
 
@@ -1301,13 +1451,6 @@ void gdfVdsStatus(int which) {
 
 }
 
-void processWsData(char *data) {
-	String input;
-	input.concat(data);
-	printf("received: %s\n", input.c_str());
-	ws.broadcastTXT(processInput(input).c_str());
-}
-
 /*
  void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
  AwsEventType type, void * arg, uint8_t *data, size_t len) {
@@ -1418,7 +1561,7 @@ void waitForIp() {
 	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 10) {
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
-		lcd_out("WaitForIp delay 1s.");
+		lcd_out("WaitForIp delay 1s.\n");
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		Serial.print("SSID: ");
 		Serial.print(ssid);
@@ -1434,7 +1577,7 @@ void waitForIp() {
 		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
 	}
 	if (WiFi.status() != WL_CONNECTED) {
-		lcd_out("Could not connect... Entering in AP mode.");
+		lcd_out("Could not connect... Entering in AP mode.\n");
 		WiFi.mode(WIFI_AP);
 		if (WiFi.softAP(softAP_ssid, softAP_password)) {
 			Serial.println("Wait 100 ms for AP_START...");
@@ -1443,7 +1586,7 @@ void waitForIp() {
 			//IPAddress NMask(255, 255, 255, 0);
 			//WiFi.softAPConfig(Ip, Ip, NMask);
 			IPAddress myIP = WiFi.softAPIP();
-			lcd_out("MLIFT is running.");
+			lcd_out("MLIFT is running.\n");
 			Serial.println("Network " + String(softAP_ssid) + " is running.");
 			Serial.print("AP IP address: ");
 			Serial.println(myIP);
@@ -1579,6 +1722,7 @@ void setup() {
 	Serial.setDebugOutput(true);
 	esp_log_level_set("*", ESP_LOG_VERBOSE);
 	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
+	esp_log_level_set(TAG, ESP_LOG_VERBOSE);
 //esp_log_level_set("phy_init", ESP_LOG_INFO);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
@@ -1765,9 +1909,15 @@ void setup() {
 				lcd_out(wifiData.c_str());
 				ret.concat("\n");
 			}
+
+#ifdef arduinoWebserver
 			ws.broadcastTXT(ret);
+#endif
+#ifndef arduinoWebserver
+			ws.textAll(ret);
+#endif
 			lcd_out("Resume reportJsonTask");
-			xTimerStart( tmr, 0 );
+			xTimerStart( tmrWs, 0 );
 			//vTaskResume(reportJsonTask);
 		}
 		else if (n==0)
@@ -1779,14 +1929,10 @@ void setup() {
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		Serial.print("WiFi got IPV6");
-		Serial.print("STA IPv6: ");
-		Serial.println(WiFi.localIPv6());
-		Serial.print("AP IPv6: ");
-		Serial.println(WiFi.softAPIPv6());
-
+		lcd_out("SYSTEM_EVENT_AP_STA_GOT_IP6");
+		lcd_out(WiFi.localIPv6().toString().c_str());
+		lcd_out(WiFi.softAPIPv6().toString().c_str());
 		startServer();
-
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
 
 	/*
@@ -1806,8 +1952,10 @@ void setup() {
 
 	waitForIp();
 	wifi_mode_t mode = WiFi.getMode();
-	if (mode == WIFI_MODE_AP)
+	if (mode == WIFI_MODE_AP) {
+		lcd_out("WIFI_MODE_AP");
 		startServer();
+	}
 
 	rotaryEncoder1.setBoundaries(0, 30000, false);
 	rotaryEncoder2.setBoundaries(0, 30000, false);
@@ -1890,9 +2038,9 @@ void setup() {
 //mover.attach_ms(10, move);
 
 	int id1 = 1;
-	tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
+	tmrWs = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
 			(void *) id1, &timerCallBack);
-	if (xTimerStart(tmr, pdMS_TO_TICKS(100)) != pdPASS) {
+	if (xTimerStart(tmrWs, pdMS_TO_TICKS(100)) != pdPASS) {
 		printf("Timer jsonReport start error\n");
 	}
 
@@ -1902,7 +2050,9 @@ void setup() {
 				pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
 				&timerCapSenseCallBack);
 		if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
-			printf("Timer capsense start error\n");
+			esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
+		} else {
+			esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
 		}
 	}
 
@@ -1911,21 +2061,14 @@ void setup() {
 		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
 		pdTRUE, (void *) id3, &moverCallBack);
 		if (xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS) {
-			printf("Timer capsense start error\n");
+			esp_log_write(ESP_LOG_ERROR, TAG, "Timer mover start error");
+		} else {
+			esp_log_write(ESP_LOG_INFO, TAG, "Timer mover start.");
 		}
 	}
 
-	/*
-	 idf_wmonitor_opts_t opts = {
-	 .wifi = { .ssid=ssid, .password=password, .mode=IDF_WMONITOR_WIFI_AUTO},
-	 .flags = IDF_WMONITOR_WAIT_FOR_CLIENT_IF_COREDUMP
-	 };
-	 idf_wmonitor_start_task(TCPIP_ADAPTER_IF_STA);
-	 */
-
 	blink(5);
 	lcd_out("Setup Done.");
-	Serial.println("Setup done.");
 
 //printEncoderInfo();
 }
@@ -1990,8 +2133,15 @@ void loop() {
 			Serial.printf("Failed reset wdt: err %#03x\n", resetOK);
 		}
 
+#ifdef arduinoWebserver
 		server.handleClient();
 		ws.loop();
+#endif
+
+		if (restartNow) {
+			Serial.println("Restart");
+			ESP.restart();
+		}
 	}
 }
 
