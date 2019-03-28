@@ -899,10 +899,12 @@ void startServer() {
 				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 				if(0 == index) {
 					Serial.printf("UploadStart: %s\n", filename.c_str());
+					xTimerStop(tmrWs, 0);
 					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
 				}
 				if(Update.write(data, len) != len) {
 					Update.printError(Serial);
+					xTimerStart(tmrWs, 0);
 				} else {Serial.printf("Write: %d bytes\n", len);}
 				if(final) {
 					Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
@@ -974,9 +976,9 @@ IRAM_ATTR String getJsonString() {
 	ret.replace("%capfast%", String(fdc2212.capFast));
 	ret.replace("%capslow%", String(fdc2212.capSlow));
 	ret.replace("%uptime_h%", String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
-	ret.replace("%enablePID%", String(pidEnabled));
+	ret.replace("%enablePID%", String(pidEnabled == true ? "1": "0"));
 	ret.replace("%esp32_heap%", String(ESP.getFreeHeap()));
-	//@formatter:on
+		//@formatter:on
 
 	return ret;
 }
