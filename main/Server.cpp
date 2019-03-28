@@ -82,10 +82,10 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = false;
+bool enablePwm = true;
 bool enableCapSense = true;
 bool enableLcd = false;
-bool enableMover = false;
+bool enableMover = true;
 
 bool enableLed = true;
 bool shouldReboot = false;
@@ -186,6 +186,7 @@ volatile int32_t encoder2_value;
 //Ticker mover;
 //Ticker jsonReporter;
 TaskHandle_t TaskA;
+TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
 //TaskHandle_t i2cTask;
 
@@ -281,8 +282,7 @@ void timerCallBack(TimerHandle_t xTimer) {
 	ws.broadcastTXT(getJsonString().c_str());
 #endif
 #ifndef arduinoWebserver
-	if (ws.count() > 0)
-		ws.textAll(getJsonString().c_str());
+	ws.textAll(getJsonString().c_str());
 #endif
 }
 
@@ -980,7 +980,7 @@ IRAM_ATTR String getJsonString() {
 			String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
 	ret.replace("%enablePID%", String(pidEnabled == true ? "1" : "0"));
 	ret.replace("%esp32_heap%", String(ESP.getFreeHeap()));
-	//@formatter:on
+							//@formatter:on
 
 	return ret;
 }
@@ -1856,13 +1856,6 @@ void setup() {
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-
-	WiFi.mode(WIFI_STA);
-	WiFi.enableIpV6();
-	WiFi.setTxPower(WIFI_POWER_19_5dBm);
-	WiFi.begin(ssid.c_str(), password.c_str());
-	WiFi.setSleep(false);
-
 	//waitForIp();
 //	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
@@ -1951,15 +1944,17 @@ void setup() {
 
 //mover.attach_ms(10, move);
 
-	int id1 = 1;
-	tmrWs = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
-			(void *) id1, &timerCallBack);
-	if (xTimerStart(tmrWs, pdMS_TO_TICKS(100)) != pdPASS) {
-		lcd_out("Timer jsonReport start error.\n");
-	} else {
-		lcd_out("Timer jsonReport started.\n");
-	}
-
+	/*
+	 int id1 = 1;
+	 tmrWs = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
+	 (void *) id1, &timerCallBack);
+	 if (xTimerStart(tmrWs, pdMS_TO_TICKS(100)) != pdPASS) {
+	 lcd_out("Timer jsonReport start error.\n");
+	 } else {
+	 lcd_out("Timer jsonReport started.\n");
+	 }
+	 Serial.flush();
+	 */
 	if (enableCapSense) {
 		int id2 = 2;
 		tmrCapSense = xTimerCreate("MyTimerCapSense",
@@ -1982,6 +1977,13 @@ void setup() {
 			esp_log_write(ESP_LOG_INFO, TAG, "Timer mover start.");
 		}
 	}
+	Serial.flush();
+	delay(10);
+	WiFi.mode(WIFI_STA);
+	WiFi.enableIpV6();
+	WiFi.setTxPower(WIFI_POWER_19_5dBm);
+	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setSleep(false);
 
 	blink(5);
 	lcd_out("Setup Done.\n");
@@ -1994,13 +1996,14 @@ uint64_t mySecond = 0;
 uint64_t previousSecond = 0;
 long delta;
 long start;
-void loop() {
-	log_i("In loop on CORE: %d", xPortGetCoreID());
+
+void myLoop() {
 //ArduinoOTA.handle();
 	enableCore0WDT();
 	esp_task_wdt_add(NULL);
 	//enableCore1WDT();
 //printEncoderInfo();
+	long previousMs = 0;
 	for (;;) {
 		mySecond = esp_timer_get_time() / 1000000.0;
 		if ((mySecond % 10 == 0 && mySecond != previousSecond)
@@ -2008,45 +2011,43 @@ void loop() {
 			previousHeap = ESP.getFreeHeap();
 			float time = (float) (esp_timer_get_time()
 					/ (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f", mySecond, ESP.getFreeHeap(), time);
+			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID());
 			previousSecond = mySecond;
 		}
 
-		/*
-		 if (rotaryEncoder1.encoderChanged() != 0
-		 && ((int) target1) == encoder1_value) {
-		 //Serial.println("Saving to flash enc1.");
-		 encoder1_value = rotaryEncoder1.readEncoder();
-		 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-		 preferences.begin("settings", false);
-		 preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-		 preferences.putInt("target1", (int) target1);
-		 preferences.end();
-		 delta = micros() - start;
+		if (rotaryEncoder1.encoderChanged() != 0
+				&& ((int) target1) == encoder1_value) {
+			//Serial.println("Saving to flash enc1.");
+			encoder1_value = rotaryEncoder1.readEncoder();
+			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+			preferences.begin("settings", false);
+			preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+			preferences.putInt("target1", (int) target1);
+			preferences.end();
+			delta = micros() - start;
 
-		 if (delta > 1000)
-		 Serial.printf("%lu Preferences save completed in %lu us.\n",
-		 micros(), delta);
+			if (delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n",
+						micros(), delta);
 
-		 }
+		}
 
+		if (rotaryEncoder2.encoderChanged() != 0
+				&& ((int) target2) == encoder2_value) {
+			//Serial.println("Saving to flash enc2.");
+			encoder2_value = rotaryEncoder2.readEncoder();
+			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
+			preferences.begin("settings", false);
+			preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+			preferences.putInt("target2", (int) target2);
+			preferences.end();
+			delta = micros() - start;
 
-		 if (rotaryEncoder2.encoderChanged() != 0
-		 && ((int) target2) == encoder2_value) {
-		 //Serial.println("Saving to flash enc2.");
-		 encoder2_value = rotaryEncoder2.readEncoder();
-		 start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
-		 preferences.begin("settings", false);
-		 preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-		 preferences.putInt("target2", (int) target2);
-		 preferences.end();
-		 delta = micros() - start;
+			if (delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n",
+						micros(), delta);
+		}
 
-		 if (delta > 1000)
-		 Serial.printf("%lu Preferences save completed in %lu us.\n",
-		 micros(), delta);
-		 }
-		 */
 		esp_err_t resetOK = esp_task_wdt_reset();
 		if (resetOK != ESP_OK) {
 			Serial.printf("Failed reset wdt: err %#03x\n", resetOK);
@@ -2061,16 +2062,29 @@ void loop() {
 			Serial.println("Restart");
 			ESP.restart();
 		}
+
+		if (millis() > (previousMs + 100)) {
+			ws.textAll(getJsonString().c_str());
+			previousMs = millis();
+		}
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+
 	}
 }
 
+void loop() {
+
+}
+
+void Loop(void * parameter) {
+	myLoop();
+}
+
 int id3 = 4;
-/*
- TimerHandle_t tmr2;
- void loopCallBack(TimerHandle_t xTimer) {
- loop();
- }
- */
+TimerHandle_t tmr2;
+void loopCallBack(TimerHandle_t xTimer) {
+	loop();
+}
 
 extern "C" {
 void app_main();
@@ -2080,13 +2094,26 @@ void app_main() {
 		esp_draw();
 	setup();
 
-	/*
-	 tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
-	 (void *) id3, &loopCallBack);
-	 if (xTimerStart(tmr2, 10) != pdPASS) {
-	 printf("Timer loop start error");
-	 }
-	 */
+	lcd_out("Starting LoopTask...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(Loop,  // pvTaskCode
+			"Workload2",            // pcName
+			12028,                   // usStackDepth
+			NULL,                   // pvParameters
+			16,                      // uxPriority
+			&TaskLoop,                 // pxCreatedTask
+			taskCore);                     // xCoreID
+	esp_task_wdt_add(TaskLoop);
 
-	loop();
+	digitalWrite(GATEDRIVER_PIN, HIGH);  //enable gate drivers
+	lcd_out("Starting LoopTask...Done.\n");
+	Serial.flush();
+
+	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
+			(void *) id3, &loopCallBack);
+	if (xTimerStart(tmr2, 10) != pdPASS) {
+		printf("Timer loop start error");
+	}
+
+	//loop();
 }

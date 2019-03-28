@@ -239,9 +239,8 @@ void Task1(void * parameter) {
 	Serial.println("Configuring adc end.");
 	printEncoderInfo();
 
-	enableCore1WDT();
 	esp_task_wdt_add(NULL);
-	log_i("In loop on CORE: %d", xPortGetCoreID());
+	log_i("Task0 in loop on CORE: %d", xPortGetCoreID());
 
 	for (;;) {
 		//an1 = analogRead( ADC1_CHANNEL_6_GPIO_NUM  );
@@ -335,6 +334,6 @@ void Task1(void * parameter) {
 			log_e("Failed to feed WDT! Error: %d", err);
 		}
 
-		//vTaskDelay(10 / portTICK_PERIOD_MS);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
 	}
 }
