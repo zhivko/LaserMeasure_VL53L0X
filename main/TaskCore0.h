@@ -239,8 +239,8 @@ void Task1(void * parameter) {
 	Serial.println("Configuring adc end.");
 	printEncoderInfo();
 
-	esp_task_wdt_add(NULL);
 	enableCore1WDT();
+	esp_task_wdt_add(NULL);
 	log_i("In loop on CORE: %d", xPortGetCoreID());
 
 	for (;;) {
