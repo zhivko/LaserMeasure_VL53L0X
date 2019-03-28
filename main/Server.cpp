@@ -94,7 +94,7 @@ int jsonReportIntervalMs = 100;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
-static int taskCore = 0;
+static int taskCore = 1;
 bool restartNow = false;
 
 String ssid;
@@ -202,7 +202,34 @@ ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
 MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
 
-static String txtToSend;
+//@formatter:off
+static String jsonTemplateStr = "{"
+		"\"encoder1_value\":%encoder1_value%,"
+		"\"encoder2_value\":%encoder2_value%,"
+		"\"pwm1\":%pwm1%,"
+		"\"pwm2\":%pwm2%,"
+		"\"target1\":%target1%,"
+		"\"target2\":%target2%,"
+		"\"output1\":%output1%,"
+		"\"output2\":%output2%,"
+		"\"an1\":%an1%,"
+		"\"an2\":%an2%,"
+		"\"actual_diff\":%actual_diff%,"
+		"\"PID1output\":\"%PID1output%\","
+		"\"PID2output\":\"%PID2output%\","
+		"\"stop1_top\":%stop1_top%,"
+		"\"stop1_bottom\":%stop1_bottom%,"
+		"\"stop2_top\":%stop2_top%,"
+		"\"stop2_bottom\":%stop2_bottom%,"
+		"\"cap_reading\":%cap_reading%,"
+		"\"cap_read_time_ms\":%cap_read_time_ms%,"
+		"\"capfast\":%capfast%,"
+		"\"capslow\":%capslow%,"
+		"\"uptime_h\":%uptime_h%,"
+		"\"enablePID\":1,"
+		"\"esp32_heap\":%esp32_heap%"
+		"}";
+//@formatter:on
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -222,8 +249,9 @@ FDC2212 fdc2212;
 uint32_t cap_reading = 0;
 
 // PID
-String initialPidStr =
+static String initialPidStr =
 		"p=70.00 i=3.00 d=10.00 f=0.00 syn=1 synErr=4.00 ramp=70.00 maxIout=600.00";
+static String pid_str;
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -792,8 +820,8 @@ void syncTime() {
 
 #ifndef arduinoWebserver
 
-void handle_update_progress_cb(AsyncWebServerRequest *request,
-		String filename, size_t index, uint8_t *data, size_t len, bool final) {
+void handle_update_progress_cb(AsyncWebServerRequest *request, String filename,
+		size_t index, uint8_t *data, size_t len, bool final) {
 	uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 	if (!index) {
 		Serial.println("Update");
@@ -900,7 +928,7 @@ void startServer() {
 
 	ws.onEvent(wsEvent);
 	server.begin();
-	lcd_out("Server started.\n");
+	lcd_out("WebServer started.\n");
 
 	MDNS.addService("http", "tcp", 80);
 }
@@ -909,158 +937,48 @@ String processInput(String input);
 void syncTime();
 
 IRAM_ATTR String getJsonString2() {
-	txtToSend = "";
-	txtToSend.concat("{");
-	txtToSend.concat("\"esp32_heap\":");
-	txtToSend.concat(ESP.getFreeHeap());
-	txtToSend.concat("}");
-	return txtToSend;
+	jsonTemplateStr = "";
+	jsonTemplateStr.concat("{");
+	jsonTemplateStr.concat("\"esp32_heap\":");
+	jsonTemplateStr.concat(ESP.getFreeHeap());
+	jsonTemplateStr.concat("}");
+	return jsonTemplateStr;
 }
 
 IRAM_ATTR String getJsonString() {
 //Serial.println("reportjson");
 //reportingJson = true;reportJson
-	txtToSend = "";
-	txtToSend.concat("{");
 
-	txtToSend.concat("\"encoder1_value\":");
-	txtToSend.concat(encoder1_value);
-	txtToSend.concat(",");
+	String ret = String(jsonTemplateStr);
+	//@formatter:off
+	ret.replace("%encoder1_value%", String(encoder1_value));
+	ret.replace("%encoder2_value%", String(encoder2_value));
+	ret.replace("%pwm1%", String(pwm1));
+	ret.replace("%pwm2%", String(pwm2));
+	ret.replace("%target1%", String(target1));
+	ret.replace("%target2%", String(target2));
+	ret.replace("%output1%", String(output1));
+	ret.replace("%output2%", String(output2));
+	ret.replace("%an1%", String(an1));
+	ret.replace("%an2%", String(an2));
+	ret.replace("%actual_diff%", String(pid1.getActual() - pid2.getActual()));
 
-	txtToSend.concat("\"encoder2_value\":");
-	txtToSend.concat(encoder2_value);
-	txtToSend.concat(",");
+	ret.replace("%PID1output%", String(""));
+	ret.replace("%PID2output%", String(""));
+	ret.replace("%stop1_top%", String(stop1_top));
+	ret.replace("%stop1_bottom%", String(stop1_bottom));
+	ret.replace("%stop2_top%", String(stop2_top));
+	ret.replace("%stop2_bottom%", String(stop2_bottom));
+	ret.replace("%cap_reading%", String(cap_reading));
+	ret.replace("%cap_read_time_ms%", String(fdc2212.readTimeMs));
+	ret.replace("%capfast%", String(fdc2212.capFast));
+	ret.replace("%capslow%", String(fdc2212.capSlow));
+	ret.replace("%uptime_h%", String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
+	ret.replace("%enablePID%", String(pidEnabled));
+	ret.replace("%esp32_heap%", String(ESP.getFreeHeap()));
+	//@formatter:on
 
-	txtToSend.concat("\"pwm1\":");
-	txtToSend.concat(pwm1);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"pwm2\":");
-	txtToSend.concat(pwm2);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"target1\":");
-	txtToSend.concat(target1);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"target2\":");
-	txtToSend.concat(target2);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"output1\":");
-	txtToSend.concat(output1);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"output2\":");
-	txtToSend.concat(output2);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"an1\":");
-	txtToSend.concat(an1_slow);
-	txtToSend.concat(",");
-	txtToSend.concat("\"an2\":");
-	txtToSend.concat(an2_slow);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"actual_diff\":");
-	txtToSend.concat(pid1.getActual() - pid2.getActual());
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"PID1output\":");
-	txtToSend.concat("\"Pout=");
-	txtToSend.concat(pid1.getPoutput());
-	txtToSend.concat("<br>Iout=");
-	txtToSend.concat(pid1.getIoutput());
-	txtToSend.concat("<br>Dout=");
-	txtToSend.concat(pid1.getDoutput());
-	txtToSend.concat("<br>Fout=");
-	txtToSend.concat(pid1.getFoutput());
-	txtToSend.concat("<br>POSout=");
-	txtToSend.concat(pid1.getPOSoutput());
-	txtToSend.concat("<br>POSoutF=");
-	txtToSend.concat(pid1.getPOSoutputFiltered());
-	txtToSend.concat("<br>setpoint=");
-	txtToSend.concat(pid1.getSetpoint());
-	txtToSend.concat("<br>actual=");
-	txtToSend.concat(pid1.getActual());
-	txtToSend.concat("<br>error=");
-	txtToSend.concat(pid1.getError());
-	txtToSend.concat("<br>errorSum=");
-	txtToSend.concat(pid1.getErrorSum());
-	txtToSend.concat("<br>maxIOutput=");
-	txtToSend.concat(pid1.getMaxIOutput());
-	txtToSend.concat("<br>maxError=");
-	txtToSend.concat(pid1.getMaxError());
-	txtToSend.concat("\",");
-
-	txtToSend.concat("\"PID2output\":");
-	txtToSend.concat("\"Pout=");
-	txtToSend.concat(pid2.getPoutput());
-	txtToSend.concat("<br>Iout=");
-	txtToSend.concat(pid2.getIoutput());
-	txtToSend.concat("<br>Dout=");
-	txtToSend.concat(pid2.getDoutput());
-	txtToSend.concat("<br>Fout=");
-	txtToSend.concat(pid2.getFoutput());
-	txtToSend.concat("<br>POSout=");
-	txtToSend.concat(pid2.getPOSoutput());
-	txtToSend.concat("<br>POSoutF=");
-	txtToSend.concat(pid2.getPOSoutputFiltered());
-	txtToSend.concat("<br>setpoint=");
-	txtToSend.concat(pid2.getSetpoint());
-	txtToSend.concat("<br>actual=");
-	txtToSend.concat(pid2.getActual());
-	txtToSend.concat("<br>error=");
-	txtToSend.concat(pid2.getError());
-	txtToSend.concat("<br>errorSum=");
-	txtToSend.concat(pid2.getErrorSum());
-	txtToSend.concat("<br>maxIOutput=");
-	txtToSend.concat(pid2.getMaxIOutput());
-	txtToSend.concat("<br>maxError=");
-	txtToSend.concat(pid2.getMaxError());
-	txtToSend.concat("\",");
-
-	txtToSend.concat("\"stop1_top\":");
-	txtToSend.concat(stop1_top);
-	txtToSend.concat(",");
-	txtToSend.concat("\"stop1_bottom\":");
-	txtToSend.concat(stop1_bottom);
-	txtToSend.concat(",");
-	txtToSend.concat("\"stop2_top\":");
-	txtToSend.concat(stop2_top);
-	txtToSend.concat(",");
-	txtToSend.concat("\"stop2_bottom\":");
-	txtToSend.concat(stop2_bottom);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"cap_reading\":");
-	txtToSend.concat(fdc2212.reading);
-	txtToSend.concat(",");
-	txtToSend.concat("\"cap_read_time_ms\":");
-	txtToSend.concat(fdc2212.readTimeMs);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"capfast\":");
-	txtToSend.concat(fdc2212.capFast);
-	txtToSend.concat(",");
-	txtToSend.concat("\"capslow\":");
-	txtToSend.concat(fdc2212.capSlow);
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"uptime_h\":");
-	txtToSend.concat(
-			(float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)));
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"enablePID\":");
-	txtToSend.concat(pidEnabled ? "1" : "0");
-	txtToSend.concat(",");
-
-	txtToSend.concat("\"esp32_heap\":");
-	txtToSend.concat(ESP.getFreeHeap());
-	txtToSend.concat("}");
-
-	return txtToSend;
+	return ret;
 }
 
 void static lcd_out(const char * txt) {
@@ -1162,35 +1080,35 @@ void setPidsFromString(String input) {
 }
 
 void sendPidToClient() {
-	String txtToSend = "";
-	txtToSend.concat("{");
-	txtToSend.concat("\"pid\":");
-	txtToSend.concat("\"p=");
-	txtToSend.concat(pid1.getP());
-	txtToSend.concat(" i=");
-	txtToSend.concat(pid1.getI());
-	txtToSend.concat(" d=");
-	txtToSend.concat(pid1.getD());
-	txtToSend.concat(" f=");
-	txtToSend.concat(pid1.getF());
-	txtToSend.concat(" syn=");
-	txtToSend.concat(pid1.getSynchronize() ? "1" : "0");
-	txtToSend.concat(" synErr=");
-	txtToSend.concat(pid1.getSyncDisabledForErrorSmallerThen());
-	txtToSend.concat(" ramp=");
-	txtToSend.concat(pid1.getRampRate());
-	txtToSend.concat(" maxIout=");
-	txtToSend.concat(pid1.getMaxIOutput());
-	txtToSend.concat("\",");
-	txtToSend.concat("\"maxPercentOutput\":");
-	txtToSend.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-	txtToSend.concat("}");
+	pid_str = String("");
+	pid_str.concat("{");
+	pid_str.concat("\"pid\":");
+	pid_str.concat("\"p=");
+	pid_str.concat(pid1.getP());
+	pid_str.concat(" i=");
+	pid_str.concat(pid1.getI());
+	pid_str.concat(" d=");
+	pid_str.concat(pid1.getD());
+	pid_str.concat(" f=");
+	pid_str.concat(pid1.getF());
+	pid_str.concat(" syn=");
+	pid_str.concat(pid1.getSynchronize() ? "1" : "0");
+	pid_str.concat(" synErr=");
+	pid_str.concat(pid1.getSyncDisabledForErrorSmallerThen());
+	pid_str.concat(" ramp=");
+	pid_str.concat(pid1.getRampRate());
+	pid_str.concat(" maxIout=");
+	pid_str.concat(pid1.getMaxIOutput());
+	pid_str.concat("\",");
+	pid_str.concat("\"maxPercentOutput\":");
+	pid_str.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+	pid_str.concat("}");
 
 #ifdef arduinoWebserver
-	ws.broadcastTXT(txtToSend.c_str());
+	ws.broadcastTXT(pid_str.c_str());
 #endif // arduinoWebserver
 #ifndef arduinoWebserver
-	ws.textAll(txtToSend.c_str());
+	ws.textAll(pid_str.c_str());
 #endif
 
 }
@@ -1598,6 +1516,7 @@ void waitForIp() {
 			str2 = inet_ntoa(ip_info);
 			String buf("WiFi AP IP: ");
 			buf.concat(str2);
+			buf.concat("\n");
 			lcd_out(buf.c_str());
 		}
 	} else {
@@ -1608,6 +1527,7 @@ void waitForIp() {
 		str2 = inet_ntoa(ip_info);
 		String buf("WiFi STA IP: ");
 		buf.concat(str2);
+		buf.concat("\n");
 		lcd_out(buf.c_str());
 	}
 
@@ -1729,54 +1649,52 @@ void setup() {
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
 
-	lcd_out("Flash INIT");
+	lcd_out("Flash INIT\n");
 	if (nvs_flash_init() != ESP_OK) {
-		Serial.println("Flash init FAILED!");
+		lcd_out("Flash init FAILED!\n");
 		nvs_flash_init_partition("nvs");
 		nvs_flash_init();
 	} else
-		Serial.println("Flash init OK.");
+		lcd_out("Flash init OK.\n");
 
-	lcd_out("LED INIT");
+	lcd_out("LED INIT\n");
 	if (enableLed)
 		pinMode(LED_PIN, OUTPUT);
 	pinMode(SS1, OUTPUT);     // Slave select first gate driver
 	pinMode(SS2, OUTPUT);     // Slave select second gate driver
 
 	vTaskDelay(3 / portTICK_PERIOD_MS);
-	lcd_out("Blinking");
+	lcd_out("Blinking.\n");
 	blink(2);
 
 	digitalWrite(SS1, HIGH);   // deselect gate driver 1 - CS to HIGH
 	digitalWrite(SS2, HIGH);   // deselect gate driver 2 - CS to HIGH
 
 	if (enablePwm) {
-		lcd_out("Gate driving enable");
+		lcd_out("Gate driving enable.\n");
 		pinMode(GATEDRIVER_PIN, OUTPUT); //
 		digitalWrite(GATEDRIVER_PIN, LOW);  //disable gate drivers
 
 //initialise vspi with default pins
-		Serial.println("initialise vspi with default pins 1...");
-		lcd_out("VSPI");
+		lcd_out("initialise vspi with default pins 1...\n");
 
 		vspi = new SPIClass(VSPI);
 // VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
 // begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
 
-		lcd_out("encoders");
+		lcd_out("encoders\n");
 		pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
-		lcd_out("encoders 1");
+		lcd_out("encoders 1\n");
 		pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
-		lcd_out("encoders 2");
+		lcd_out("encoders 2\n");
 		pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
-		lcd_out("encoders 3");
+		lcd_out("encoders 3\n");
 		pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
-		lcd_out("encoders 4");
+		lcd_out("encoders 4\n");
 	}
 
 	if (enableCapSense) {
-		lcd_out("Setting up FDC2212...");
-		Serial.println("Setting up FDC2212...");
+		lcd_out("Setting up FDC2212...\n");
 		fdc2212 =
 				FDC2212(
 						[](const CapacityResponse& response) {
@@ -1784,15 +1702,14 @@ void setup() {
 							return true;
 						});
 		fdc2212.begin();
-		Serial.println("Setting up FDC2212...Done.");
-		lcd_out("Setting up FDC2212...Done.");
+		lcd_out("Setting up FDC2212...Done.\n");
 	}
 
 	pinMode(19, INPUT_PULLUP);
 	pinMode(18, OUTPUT);
 	pinMode(23, OUTPUT);
 
-	lcd_out("VSPI?");
+	lcd_out("VSPI?\n");
 	if (vspi != NULL) {
 		Serial.println("initialise vspi with default pins 3...");
 		vspi->begin(18, 19, 23, -1);
@@ -1813,9 +1730,7 @@ void setup() {
 		ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	}
 
-	lcd_out("Loading WIFI setting");
-
-	Serial.println("load saved wifi settings...");
+	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
 	ssid = preferences.getString("wifi_ssid", "null");
 //ssid = "null";
@@ -1828,10 +1743,10 @@ void setup() {
 	}
 //password = "klemenklemen";
 //ssid = "SINTEX";
-	lcd_out(String(" ssid:     " + ssid).c_str());
-	lcd_out(String(" pass:     " + password).c_str());
+	lcd_out(String(" ssid:     " + ssid + "\n").c_str());
+	lcd_out(String(" pass:     " + password + "\n").c_str());
 
-	String pid_str = preferences.getString("pid", "null");
+	pid_str = preferences.getString("pid", "null");
 	if (!pid_str.equals("null")) {
 		Serial.printf("PID from flash: %s\n", pid_str.c_str());
 		setPidsFromString(pid_str);
@@ -1839,6 +1754,7 @@ void setup() {
 		Serial.printf("no PID from flash.\n");
 		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
 		setPidsFromString(initialPidStr);
+		pid_str = initialPidStr;
 	}
 
 	int32_t outputMin_ = preferences.getInt("outputMin1", -100000);
@@ -1875,13 +1791,11 @@ void setup() {
 	preferences.end();
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		lcd_out("Wifi lost connection.");
-		Serial.print("WiFi lost connection. Reason: ");
-		Serial.println(info.disconnected.reason);
+		lcd_out("Wifi lost connection.\n");
 
 		String msg="";
 		msg.concat(info.disconnected.reason);
-		Serial.printf("Reason: %s",msg.c_str());
+		lcd_out(String("Reason: " + msg + "\n").c_str());
 		if(msg.indexOf("201")>=0) {
 			NO_AP_FOUND_count=NO_AP_FOUND_count+1;
 			checkNoApFoundCritical();
@@ -1889,7 +1803,6 @@ void setup() {
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		Serial.print("WiFi scan complete");
 		lcd_out("SYSTEM_EVENT_SCAN_DONE");
 		int n = WiFi.scanComplete();
 		if(n>0)
@@ -1906,8 +1819,8 @@ void setup() {
 						(WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ?
 						"OPEN" : "PASS");
 				ret.concat(wifiData);
-				lcd_out(wifiData.c_str());
 				ret.concat("\n");
+				lcd_out(String(wifiData + "\n").c_str());
 			}
 
 #ifdef arduinoWebserver
@@ -1916,7 +1829,7 @@ void setup() {
 #ifndef arduinoWebserver
 			ws.textAll(ret);
 #endif
-			lcd_out("Resume reportJsonTask");
+			lcd_out("Resume reportJsonTask\n");
 			xTimerStart( tmrWs, 0 );
 			//vTaskResume(reportJsonTask);
 		}
@@ -1929,22 +1842,15 @@ void setup() {
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		lcd_out("SYSTEM_EVENT_AP_STA_GOT_IP6");
-		lcd_out(WiFi.localIPv6().toString().c_str());
-		lcd_out(WiFi.softAPIPv6().toString().c_str());
+		lcd_out("SYSTEM_EVENT_AP_STA_GOT_IP6\n");
+		lcd_out(String(WiFi.localIPv6().toString()+ "\n").c_str());
+		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		WiFi.begin();
+	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-	/*
-	 if(!ssid.equals(""))
-	 {
-	 WiFi.mode(WIFI_AP_STA);
-	 }
-	 else
-	 {
-	 WiFi.mode(WIFI_AP);
-	 }
-	 */
 	WiFi.mode(WIFI_STA);
 	WiFi.setTxPower(WIFI_POWER_19_5dBm);
 	WiFi.begin(ssid.c_str(), password.c_str());
@@ -2068,7 +1974,7 @@ void setup() {
 	}
 
 	blink(5);
-	lcd_out("Setup Done.");
+	lcd_out("Setup Done.\n");
 
 //printEncoderInfo();
 }
@@ -2082,8 +1988,8 @@ void loop() {
 	log_i("In loop on CORE: %d", xPortGetCoreID());
 //ArduinoOTA.handle();
 	esp_task_wdt_add(NULL);
-//enableCore0WDT();
-	enableCore1WDT();
+	enableCore0WDT();
+	//enableCore1WDT();
 //printEncoderInfo();
 	for (;;) {
 		mySecond = esp_timer_get_time() / 1000000.0;
