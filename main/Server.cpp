@@ -119,12 +119,9 @@ WebServer server(80);
 WebSocketsServer ws = WebSocketsServer(80);
 #endif
 
-const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
-		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
-		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
-		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP",
-		"AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6",
-		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED",
+const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START", "STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED",
+		"STA_AUTHMODE_CHANGE", "STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED", "STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START",
+		"AP_STOP", "AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6", "ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED",
 		"ETH_GOT_IP", "MAX" };
 
 int NO_AP_FOUND_count = 0;
@@ -253,8 +250,7 @@ FDC2212 fdc2212;
 uint32_t cap_reading = 0;
 
 // PID
-static String initialPidStr =
-		"p=70.00 i=3.00 d=10.00 f=0.00 syn=1 synErr=4.00 ramp=70.00 maxIout=600.00";
+static String initialPidStr = "p=70.00 i=3.00 d=10.00 f=0.00 syn=1 synErr=4.00 ramp=70.00 maxIout=600.00";
 static String pid_str;
 
 //AsyncPing myPing;
@@ -309,57 +305,57 @@ void processWsData(char *data) {
 TimerHandle_t tmrMover;
 void moverCallBack(TimerHandle_t xTimer) {
 // MOTOR1
-	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
-		if (pwm1 <= (pwmValueMax - pwmDelta)) {
+	if(shouldPwm_M1_left == 1 && shouldStopM1 != 1){
+		if(pwm1 <= (pwmValueMax - pwmDelta)){
 			pwm1 = pwm1 + pwmDelta;
 		}
-	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
-		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
+	}else if(shouldPwm_M1_right == 1 && shouldStopM1 != 1){
+		if(pwm1 >= (-pwmValueMax + pwmDelta)){
 			pwm1 = pwm1 - pwmDelta;
 		}
-	} else if (shouldStopM1 == 1) {
-		if (pwm1 > 0) {
-			if (pwm1 > pwmDelta)
+	}else if(shouldStopM1 == 1){
+		if(pwm1 > 0){
+			if(pwm1 > pwmDelta)
 				pwm1 = pwm1 - pwmDelta;
 			else
 				pwm1 = 0;
-		} else if (pwm1 < 0) {
-			if (pwm1 < -pwmDelta)
+		}else if(pwm1 < 0){
+			if(pwm1 < -pwmDelta)
 				pwm1 = pwm1 + pwmDelta;
 			else
 				pwm1 = 0;
-		} else
+		}else
 			shouldStopM1 = 0;
 	}
 
 // MOTOR2
-	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
-		if (pwm2 <= (pwmValueMax - pwmDelta)) {
+	if(shouldPwm_M2_left == 1 && shouldStopM2 != 1){
+		if(pwm2 <= (pwmValueMax - pwmDelta)){
 			pwm2 = pwm2 + pwmDelta;
 		}
-	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
-		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
+	}else if(shouldPwm_M2_right == 1 && shouldStopM2 != 1){
+		if(pwm2 >= (-pwmValueMax + pwmDelta)){
 			pwm2 = pwm2 - pwmDelta;
 		}
-	} else if (shouldStopM2 == 1) {
-		if (pwm2 > 0) {
-			if (pwm2 > pwmDelta)
+	}else if(shouldStopM2 == 1){
+		if(pwm2 > 0){
+			if(pwm2 > pwmDelta)
 				pwm2 = pwm2 - pwmDelta;
 			else
 				pwm2 = 0;
-		} else if (pwm2 < 0) {
-			if (pwm2 < -pwmDelta)
+		}else if(pwm2 < 0){
+			if(pwm2 < -pwmDelta)
 				pwm2 = pwm2 + pwmDelta;
 			else
 				pwm2 = 0;
-		} else
+		}else
 			shouldStopM2 = 0;
 	}
 }
 
 String processInput(String input) {
 	String ret;
-	if (input.equals(String("status"))) {
+	if(input.equals(String("status"))){
 		status1 = " ";
 		status2 = " ";
 		testSpi(1);
@@ -398,7 +394,7 @@ String processInput(String input) {
 
 		sprintf(buf, "shouldstop_M2: %d\n", shouldStopM2);
 		ret.concat(buf);
-	} else if (input.startsWith("gdfvdsstatus")) {
+	}else if(input.startsWith("gdfvdsstatus")){
 		gdfVdsStatus(1);
 		gdfVdsStatus(2);
 
@@ -408,10 +404,10 @@ String processInput(String input) {
 
 		sprintf(buf, "gdfvdsstatus2: %s\n", gdfVds2.c_str());
 		ret.concat(buf);
-	} else if (input.startsWith("clrflt")) {
+	}else if(input.startsWith("clrflt")){
 		clearFault();
 		ret.concat("Clear Fault done.");
-	} else if (input.startsWith("pid#")) {
+	}else if(input.startsWith("pid#")){
 		String input2 = getToken(input, '#', 1);
 		setPidsFromString(input2);
 		sendPidToClient();
@@ -421,9 +417,8 @@ String processInput(String input) {
 		preferences.end();
 
 		ret.concat("Parsing pid done.");
-	} else if (input.startsWith("gCodeCmd")) {
-		Serial.printf("Parsing target1=.. target2=... command:%s\n",
-				input.c_str());
+	}else if(input.startsWith("gCodeCmd")){
+		Serial.printf("Parsing target1=.. target2=... command:%s\n", input.c_str());
 		String input2 = getToken(input, '#', 1);
 		String target1_str = getToken(input2, ' ', 0);
 		String target1_duty = getToken(target1_str, '=', 1);
@@ -439,25 +434,25 @@ String processInput(String input) {
 		ret.concat(target2);
 		ret.concat("\n");
 
-	} else if (input.startsWith("enablePid")) {
+	}else if(input.startsWith("enablePid")){
 		pidEnabled = true;
-	} else if (input.startsWith("maxPercentOutput1")) {
+	}else if(input.startsWith("maxPercentOutput1")){
 		String percent_str = getToken(input, '#', 1);
 		setOutputPercent(percent_str, 1);
 		preferences.begin("settings", false);
 		preferences.putInt("outputMin1", pid1.getMinOutput());
 		preferences.putInt("outputMax1", pid1.getMaxOutput());
 		preferences.end();
-	} else if (input.startsWith("maxPercentOutput2")) {
+	}else if(input.startsWith("maxPercentOutput2")){
 		String percent_str = getToken(input, '#', 1);
 		setOutputPercent(percent_str, 2);
 		preferences.begin("settings", false);
 		preferences.putInt("outputMin2", pid2.getMinOutput());
 		preferences.putInt("outputMax2", pid2.getMaxOutput());
 		preferences.end();
-	} else if (input.startsWith("disablePid")) {
+	}else if(input.startsWith("disablePid")){
 		pidEnabled = false;
-	} else if (input.startsWith("wificonnect")) {
+	}else if(input.startsWith("wificonnect")){
 		ssid = getToken(input, ' ', 1);
 		password = getToken(input, ' ', 2);
 
@@ -484,31 +479,31 @@ String processInput(String input) {
 		delay(500);
 
 		esp_restart();
-	} else if (input.startsWith("pwm_m1_left")) {
+	}else if(input.startsWith("pwm_m1_left")){
 		shouldStopM1 = 0;
 		shouldPwm_M1_left = 1;
 		shouldPwm_M1_right = 0;
-	} else if (input.startsWith("pwm_m1_right")) {
+	}else if(input.startsWith("pwm_m1_right")){
 		shouldStopM1 = 0;
 		shouldPwm_M1_left = 0;
 		shouldPwm_M1_right = 1;
-	} else if (input.startsWith("stop pwm_m1")) {
+	}else if(input.startsWith("stop pwm_m1")){
 		shouldStopM1 = 1;
 		shouldPwm_M1_left = 0;
 		shouldPwm_M1_right = 0;
-	} else if (input.startsWith("pwm_m2_left")) {
+	}else if(input.startsWith("pwm_m2_left")){
 		shouldStopM2 = 0;
 		shouldPwm_M2_left = 1;
 		shouldPwm_M2_right = 0;
-	} else if (input.startsWith("pwm_m2_right")) {
+	}else if(input.startsWith("pwm_m2_right")){
 		shouldStopM2 = 0;
 		shouldPwm_M2_left = 0;
 		shouldPwm_M2_right = 1;
-	} else if (input.startsWith("stop pwm_m2")) {
+	}else if(input.startsWith("stop pwm_m2")){
 		shouldStopM2 = 1;
 		shouldPwm_M2_left = 0;
 		shouldPwm_M2_right = 0;
-	} else if (input.startsWith("gotop")) {
+	}else if(input.startsWith("gotop")){
 		target1 = stop1_top;
 		target2 = stop1_top;
 		Serial.println();
@@ -517,7 +512,7 @@ String processInput(String input) {
 		Serial.print(" target2: ");
 		Serial.println(target2);
 		pidEnabled = true;
-	} else if (input.startsWith("gobottom")) {
+	}else if(input.startsWith("gobottom")){
 		target1 = stop1_bottom;
 		target2 = stop1_bottom;
 		Serial.println();
@@ -526,26 +521,23 @@ String processInput(String input) {
 		Serial.print(" target2: ");
 		Serial.println(target2);
 		pidEnabled = true;
-	} else if (input.startsWith("searchtop")
-			|| input.startsWith("searchbottom")) {
-		if (getToken(input, ' ', 1).equals(String("start"))) {
+	}else if(input.startsWith("searchtop") || input.startsWith("searchbottom")){
+		if(getToken(input, ' ', 1).equals(String("start"))){
 			pidEnabled = false;
 			pwm1 = 0;
 			pwm2 = 0;
 
-			previousPercent_str_1 = String(
-					(int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-			previousPercent_str_2 = String(
-					(int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
+			previousPercent_str_1 = String((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+			previousPercent_str_2 = String((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
 			String percentPower = "70";
 			status = getToken(input, ' ', 0);
 			setOutputPercent(percentPower, 1);
 			setOutputPercent(percentPower, 2);
 
-			if (input.startsWith("searchtop")) {
+			if(input.startsWith("searchtop")){
 				target1 = encoder1_value + deltaSearch;
 				target2 = target1;
-			} else {
+			}else{
 				target1 = encoder1_value - deltaSearch;
 				target2 = target1;
 			}
@@ -558,12 +550,12 @@ String processInput(String input) {
 
 			pidEnabled = true;
 			searchTopMilis = millis();
-		} else {
+		}else{
 			status = "";
 			setOutputPercent(previousPercent_str_1, 1);
 			setOutputPercent(previousPercent_str_1, 2);
 		}
-	} else if (input.startsWith("scan")) {
+	}else if(input.startsWith("scan")){
 //vTaskSuspend(reportJsonTask);
 //delay(10);
 		xTimerStop(tmrWs, 0);
@@ -698,80 +690,63 @@ void handleNotFound() {
 }
 #endif
 #ifndef arduinoWebserver
-void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
-		AwsEventType type, void * arg, uint8_t *data, size_t len) {
-	if (type == WS_EVT_CONNECT) {
+void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
+	if(type == WS_EVT_CONNECT){
 //client connected
-		printf("%lu ws[%s][%u] connect\n", millis(), server->url(),
-				client->id());
+		printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
 		client->printf("Hello Client %u :)", client->id());
 		client->ping();
 		sendPidToClient();
-	} else if (type == WS_EVT_DISCONNECT) {
+	}else if(type == WS_EVT_DISCONNECT){
 //client disconnected
-		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
-				client->id());
-	} else if (type == WS_EVT_ERROR) {
+		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(), client->id());
+	}else if(type == WS_EVT_ERROR){
 //error was received from the other end
-		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
-				client->id(), *((uint16_t*) arg), (char*) data);
-	} else if (type == WS_EVT_PONG) {
+		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(), client->id(), *((uint16_t*) arg), (char*) data);
+	}else if(type == WS_EVT_PONG){
 //pong message was received (in response to a ping request maybe)
-		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
-				client->id(), len, (len) ? (char*) data : "");
-	} else if (type == WS_EVT_DATA) {
+		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(), client->id(), len, (len) ? (char*) data : "");
+	}else if(type == WS_EVT_DATA){
 //data packet
 		AwsFrameInfo * info = (AwsFrameInfo*) arg;
-		if (info->final && info->index == 0 && info->len == len) {
+		if(info->final && info->index == 0 && info->len == len){
 //the whole message is in a single frame and we got all of it's data
-			printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(),
-					client->id(), (info->opcode == WS_TEXT) ? "text" : "binary",
-					info->len);
-			if (info->opcode == WS_TEXT) {
+			printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+			if(info->opcode == WS_TEXT){
 				data[len] = 0;
 				printf("%s\n", (char*) data);
 				processWsData((char*) data);
-			} else {
+			}else{
 				printf("not text\n");
-				for (size_t i = 0; i < info->len; i++) {
+				for(size_t i = 0; i < info->len; i++){
 					printf("%02x ", data[i]);
 				}
 				printf("\n");
 			}
-		} else {
+		}else{
 			printf("multi frames\n");
 //message is comprised of multiple frames or the frame is split into multiple packets
-			if (info->index == 0) {
-				if (info->num == 0)
-					printf("%lu ws[%s][%u] %s-message start\n", millis(),
-							server->url(), client->id(),
-							(info->message_opcode == WS_TEXT) ?
-									"text" : "binary");
-				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(),
-						server->url(), client->id(), info->num, info->len);
+			if(info->index == 0){
+				if(info->num == 0)
+					printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
 			}
 
-			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(),
-					server->url(), client->id(), info->num,
-					(info->message_opcode == WS_TEXT) ? "text" : "binary",
-					info->index, info->index + len);
-			if (info->message_opcode == WS_TEXT) {
+			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(), server->url(), client->id(), info->num,
+					(info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+			if(info->message_opcode == WS_TEXT){
 				printf("%s\n", (char*) data);
-			} else {
-				for (size_t i = 0; i < len; i++) {
+			}else{
+				for(size_t i = 0; i < len; i++){
 					printf("%02x ", data[i]);
 				}
 				printf("\n");
 			}
 
-			if ((info->index + len) == info->len) {
-				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(),
-						server->url(), client->id(), info->num, info->len);
-				if (info->final) {
-					printf("%lu ws[%s][%u] %s-message end\n", millis(),
-							server->url(), client->id(),
-							(info->message_opcode == WS_TEXT) ?
-									"text" : "binary");
+			if((info->index + len) == info->len){
+				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
+				if(info->final){
+					printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
 				}
 			}
 		}
@@ -804,14 +779,13 @@ void syncTime() {
 	delay(1000);
 
 	int packetLength = ntpClient.parsePacket();
-	if (packetLength) {
-		if (packetLength >= NTP_PACKET_SIZE) {
+	if(packetLength){
+		if(packetLength >= NTP_PACKET_SIZE){
 			ntpClient.read(ntpPacketBuffer, NTP_PACKET_SIZE);
 		}
 		ntpClient.flush();
-		uint32_t secsSince1900 = (uint32_t) ntpPacketBuffer[40] << 24
-				| (uint32_t) ntpPacketBuffer[41] << 16
-				| (uint32_t) ntpPacketBuffer[42] << 8 | ntpPacketBuffer[43];
+		uint32_t secsSince1900 = (uint32_t) ntpPacketBuffer[40] << 24 | (uint32_t) ntpPacketBuffer[41] << 16 | (uint32_t) ntpPacketBuffer[42] << 8
+				| ntpPacketBuffer[43];
 		//Serial.printf("Seconds since Jan 1 1900: %u\n", secsSince1900);
 		uint32_t epoch = secsSince1900 - 2208988800UL;
 		//Serial.printf("EPOCH: %u\n", epoch);
@@ -824,22 +798,21 @@ void syncTime() {
 
 #ifndef arduinoWebserver
 
-void handle_update_progress_cb(AsyncWebServerRequest *request, String filename,
-		size_t index, uint8_t *data, size_t len, bool final) {
+void handle_update_progress_cb(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
 	uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-	if (!index) {
+	if(!index){
 		Serial.println("Update");
-		if (!Update.begin(free_space)) {
+		if(!Update.begin(free_space)){
 			Update.printError(Serial);
 		}
 	}
-	if (Update.write(data, len) != len) {
+	if(Update.write(data, len) != len){
 		Update.printError(Serial);
 	}
-	if (final) {
-		if (!Update.end(true)) {
+	if(final){
+		if(!Update.end(true)){
 			Update.printError(Serial);
-		} else {
+		}else{
 			restartNow = true; //Set flag so main loop can issue restart call
 			Serial.println("Update complete");
 		}
@@ -852,9 +825,9 @@ void startServer() {
 	syncTime();
 	MDNS.begin(hostName);
 
-	if (!SPIFFS.begin(true)) {
+	if(!SPIFFS.begin(true)){
 		Serial.println("SPIFFS Mount Failed");
-	} else {
+	}else{
 		listDir(SPIFFS, "/", 0);
 	}
 
@@ -897,30 +870,29 @@ void startServer() {
 
 #ifndef arduinoWebserver
 	// handler for the /update form POST (once file upload finishes)
-	server.onFileUpload(
-			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
-				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-				if(0 == index) {
-					Serial.printf("UploadStart: %s\n", filename.c_str());
-					xTimerStop(tmrWs, 0);
-					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
-				}
-				if(Update.write(data, len) != len) {
-					Update.printError(Serial);
-					//xTimerStart(tmrWs, 0);
-				} else {Serial.printf("Write: %d bytes\n", len);}
-				if(final) {
-					Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
-					if (Update.end(true)) {
-						Serial.println("Update succesful!");
-					} else {
-						Update.printError(Serial);
-					}
-				}
-			});
+	server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
+		Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+		uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+		if(0 == index){
+			Serial.printf("UploadStart: %s\n", filename.c_str());
+			xTimerStop(tmrWs, 0);
+			if(!Update.begin(maxSketchSpace)){Serial.println("Update begin failure!");}
+		}
+		if(Update.write(data, len) != len){
+			Update.printError(Serial);
+			//xTimerStart(tmrWs, 0);
+		} else{Serial.printf("Write: %d bytes\n", len);}
+		if(final){
+			Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+			if (Update.end(true)){
+				Serial.println("Update succesful!");
+			} else{
+				Update.printError(Serial);
+			}
+		}
+	});
 
-	server.onNotFound([](AsyncWebServerRequest *request) {
+	server.onNotFound([](AsyncWebServerRequest *request){
 		request->send(404);
 	});
 	server.addHandler(&ws);
@@ -976,23 +948,20 @@ IRAM_ATTR String getJsonString() {
 	ret.replace("%stop2_bottom%", String(stop2_bottom));
 	ret.replace("%cap_reading%", String(cap_reading));
 	ret.replace("%cap_read_time_ms%", String(fdc2212.readTimeMs));
-	if (enableCapSense) {
-		ret.replace("%capfast%", String(fdc2212.capFast));
-		ret.replace("%capslow%", String(fdc2212.capSlow));
-	}
-	ret.replace("%uptime_h%",
-			String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
+	ret.replace("%capfast%", String(fdc2212.capFast));
+	ret.replace("%capslow%", String(fdc2212.capSlow));
+	ret.replace("%uptime_h%", String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
 	ret.replace("%enablePID%", String(pidEnabled == true ? "1" : "0"));
-	ret.replace("%esp32_heap%", String(ESP.getFreeHeap()));
+	ret.replace("%esp32_heap%", String(freeheap));
 
 	return ret;
 }
 
 void static lcd_out(const char * txt) {
-	if (enableLcd) {
+	if(enableLcd){
 		lcd_obj->drawString(txt, 3, lcd_y_pos);
 		lcd_y_pos = lcd_y_pos + 10;
-		if (lcd_y_pos > 250) {
+		if(lcd_y_pos > 250){
 			lcd_y_pos = 0;
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
@@ -1007,8 +976,8 @@ String getToken(String data, char separator, int index) {
 	int strIndex[] = { 0, -1 };
 	int maxIndex = data.length() - 1;
 
-	for (int i = 0; i <= maxIndex && found <= index; i++) {
-		if (data.charAt(i) == separator || i == maxIndex) {
+	for(int i = 0; i <= maxIndex && found <= index; i++){
+		if(data.charAt(i) == separator || i == maxIndex){
 			found++;
 			strIndex[0] = strIndex[1] + 1;
 			strIndex[1] = (i == maxIndex) ? i + 1 : i;
@@ -1016,7 +985,7 @@ String getToken(String data, char separator, int index) {
 	}
 
 	String ret("");
-	if (found > index) {
+	if(found > index){
 		ret = data.substring(strIndex[0], strIndex[1]);
 	}
 	return ret;
@@ -1038,7 +1007,7 @@ void setPidsFromString(String input) {
 
 	String f_str = getToken(input, ' ', 3);
 	String f_val = getToken(f_str, '=', 1);
-	if (f_val.equals("")) {
+	if(f_val.equals("")){
 		f_val = "0.0";
 	}
 
@@ -1050,20 +1019,18 @@ void setPidsFromString(String input) {
 
 	String ramp_str = getToken(input, ' ', 6);
 	String ramp_val = getToken(ramp_str, '=', 1);
-	if (ramp_val.equals("")) {
+	if(ramp_val.equals("")){
 		ramp_val = "1.0";
 	}
 
 	String maxIOut_str = getToken(input, ' ', 7);
 	String maxIOut_val = getToken(maxIOut_str, '=', 1);
-	if (maxIOut_val.equals("")) {
+	if(maxIOut_val.equals("")){
 		maxIOut_val = "1.0";
 	}
 
-	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
-	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
+	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
+	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(), f_val.toFloat());
 	pid1.setOutputRampRate(ramp_val.toFloat());
 	pid2.setOutputRampRate(ramp_val.toFloat());
 //pid1.setOutputFilter(0.01);
@@ -1077,10 +1044,10 @@ void setPidsFromString(String input) {
 	pid1.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
 	pid2.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
 
-	if (syn_val.equals("1")) {
+	if(syn_val.equals("1")){
 		pid1.setSynchronize(true);
 		pid2.setSynchronize(true);
-	} else {
+	}else{
 		pid1.setSynchronize(false);
 		pid2.setSynchronize(false);
 	}
@@ -1124,9 +1091,9 @@ void setOutputPercent(String percent_str, int i) {
 	int outputMin = -(int) (pwmValueMax * percent_str.toFloat() / 100.0);
 	int outputMax = (int) (pwmValueMax * percent_str.toFloat() / 100.0);
 	Serial.printf("outputMin=%d outputMax=%d\n", outputMin, outputMax);
-	if (i == 1) {
+	if(i == 1){
 		pid1.setOutputLimits(outputMin, outputMax);
-	} else {
+	}else{
 		pid2.setOutputLimits(outputMin, outputMax);
 	}
 }
@@ -1135,24 +1102,24 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels) {
 	Serial.printf("Listing directory: %s\r\n", dirname);
 
 	File root = fs.open(dirname);
-	if (!root) {
+	if(!root){
 		Serial.println("- failed to open directory");
 		return;
 	}
-	if (!root.isDirectory()) {
+	if(!root.isDirectory()){
 		Serial.println(" - not a directory");
 		return;
 	}
 
 	File file = root.openNextFile();
-	while (file) {
-		if (file.isDirectory()) {
+	while(file){
+		if(file.isDirectory()){
 			Serial.print("  DIR : ");
 			Serial.println(file.name());
-			if (levels) {
+			if(levels){
 				listDir(fs, file.name(), levels - 1);
 			}
-		} else {
+		}else{
 			Serial.print("  FILE: ");
 			Serial.print(file.name());
 			Serial.print("\tSIZE: ");
@@ -1192,29 +1159,28 @@ String getfault(uint16_t reply) {
 	uint8_t FAULT_VCP_UVFL = B1 << 2; // VCP_UVFL R 0b Indicates charge-pump undervoltage fault condition
 	uint8_t FAULT_OTSD = B1 << 1; // OTSD R 0b Indicates overtemperature shutdown
 	uint8_t FAULT_OTW = B1 << 0;   // OTW R 0b Indicates overtemperature warning
-	if ((reply & FAULT_FAULT) > 0) {
-		status1.concat(
-				"Logic OR of the FAULT status register excluding the OTW bit\n");
+	if((reply & FAULT_FAULT) > 0){
+		status1.concat("Logic OR of the FAULT status register excluding the OTW bit\n");
 	}
-	if ((reply & FAULT_WDFLT) > 0) {
+	if((reply & FAULT_WDFLT) > 0){
 		status1.concat("Watchdog time-out fault\n");
 	}
-	if ((reply & FAULT_GDF) > 0) {
+	if((reply & FAULT_GDF) > 0){
 		status1.concat("Gate drive fault\n");
 	}
-	if ((reply & FAULT_OCP) > 0) {
+	if((reply & FAULT_OCP) > 0){
 		status1.concat("VDS monitor overcurrent fault\n");
 	}
-	if ((reply & FAULT_VM_UVFL) > 0) {
+	if((reply & FAULT_VM_UVFL) > 0){
 		status1.concat("VM undervoltage lockout fault\n");
 	}
-	if ((reply & FAULT_VCP_UVFL) > 0) {
+	if((reply & FAULT_VCP_UVFL) > 0){
 		status1.concat("Charge-pump undervoltage fault\n");
 	}
-	if ((reply & FAULT_OTSD) > 0) {
+	if((reply & FAULT_OTSD) > 0){
 		status1.concat("Overtemperature shutdown\n");
 	}
-	if ((reply & FAULT_OTW) > 0) {
+	if((reply & FAULT_OTW) > 0){
 		status1.concat("Overtemperature warning\n ");
 	}
 	return status1;
@@ -1222,7 +1188,7 @@ String getfault(uint16_t reply) {
 
 void testSpi(int which) {
 	usleep(1);
-	if (which == 1)
+	if(which == 1)
 		digitalWrite(SS1, LOW);
 	else
 		digitalWrite(SS2, LOW);
@@ -1242,9 +1208,9 @@ void testSpi(int which) {
 	vspi->endTransaction();
 
 	usleep(1);
-	if (reply == B00011000) {
+	if(reply == B00011000){
 		Serial.println("YES it is ON!");
-		if (which == 1)
+		if(which == 1)
 			status1.concat("DRV8703Q is ON (Not locked)\n");
 		else
 			status2.concat("DRV8703Q is ON (Not locked)\n");
@@ -1267,7 +1233,7 @@ void testSpi(int which) {
 
 		reply = vspi->transfer16(data_int);  // should return 0x18
 		vspi->endTransaction();
-		if (which == 1)
+		if(which == 1)
 			digitalWrite(SS1, HIGH);
 		else
 			digitalWrite(SS2, HIGH);
@@ -1275,7 +1241,7 @@ void testSpi(int which) {
 		Serial.print("SPI reply: ");
 		Serial.println(reply, BIN);
 
-		if (which == 1)
+		if(which == 1)
 			status1.concat(getfault(reply));
 		else
 			status2.concat(getfault(reply));
@@ -1284,8 +1250,8 @@ void testSpi(int which) {
 		Serial.println(status1);
 		Serial.println(status2);
 		Serial.println("----");
-	} else {
-		if (which == 1)
+	}else{
+		if(which == 1)
 			status1.concat("DRV8703Q is NOT ON\n");
 		else
 			status2.concat("DRV8703Q is NOT ON\n");
@@ -1295,7 +1261,7 @@ void testSpi(int which) {
 
 void gdfVdsStatus(int which) {
 	usleep(1);
-	if (which == 1)
+	if(which == 1)
 		digitalWrite(SS1, LOW);
 	else
 		digitalWrite(SS2, LOW);
@@ -1314,7 +1280,7 @@ void gdfVdsStatus(int which) {
 
 	uint16_t reply = vspi->transfer16(data_int); // should return GDF and VDS statuses
 	vspi->endTransaction();
-	if (which == 1)
+	if(which == 1)
 		digitalWrite(SS1, HIGH);
 	else
 		digitalWrite(SS2, HIGH);
@@ -1331,7 +1297,7 @@ void gdfVdsStatus(int which) {
 	uint8_t H1_VDS = B1 << 1; // VDS monitor overcurrent fault on the high-side FET of half bridge 1
 	uint8_t L1_VDS = B1 << 0; // VDS monitor overcurrent fault on the low-side FET of half bridge 1
 
-	if (which == 1)
+	if(which == 1)
 		digitalWrite(SS1, HIGH);
 	else
 		digitalWrite(SS2, HIGH);
@@ -1340,36 +1306,32 @@ void gdfVdsStatus(int which) {
 	Serial.print("SPI reply: ");
 	Serial.println(reply, BIN);
 
-	if ((reply & H2_GDF) > 0) {
+	if((reply & H2_GDF) > 0){
 		ret.concat(" Gate drive fault on the high-side FET of half bridge 2\n");
 	}
-	if ((reply & L2_GDF) > 0) {
+	if((reply & L2_GDF) > 0){
 		ret.concat("Gate drive fault on the low-side FET of half bridge 2\n");
 	}
-	if ((reply & H1_GDF) > 0) {
+	if((reply & H1_GDF) > 0){
 		ret.concat("Gate drive fault on the high-side FET of half bridge 1\n");
 	}
-	if ((reply & L1_GDF) > 0) {
+	if((reply & L1_GDF) > 0){
 		ret.concat("Gate drive fault on the low-side FET of half bridge 1\n");
 	}
-	if ((reply & H2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
+	if((reply & H2_VDS) > 0){
+		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
 	}
-	if ((reply & L2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
+	if((reply & L2_VDS) > 0){
+		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
 	}
-	if ((reply & H1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
+	if((reply & H1_VDS) > 0){
+		ret.concat("VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
 	}
-	if ((reply & L1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
+	if((reply & L1_VDS) > 0){
+		ret.concat("VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
 	}
 
-	if (which == 1)
+	if(which == 1)
 		gdfVds1 = ret;
 	else
 		gdfVds2 = ret;
@@ -1456,9 +1418,9 @@ void gdfVdsStatus(int which) {
  */
 
 bool checkNoApFoundCritical() {
-	if (NO_AP_FOUND_count >= 5) {
+	if(NO_AP_FOUND_count >= 5){
 		WiFi.mode(WIFI_AP);
-		if (WiFi.softAP(softAP_ssid, softAP_password)) {
+		if(WiFi.softAP(softAP_ssid, softAP_password)){
 			Serial.println("Wait 100 ms for AP_START...");
 			delay(100);
 			Serial.println("");
@@ -1483,7 +1445,7 @@ void IRAM_ATTR handleIntCapSense() {
 void waitForIp() {
 	NO_AP_FOUND_count = 0;
 
-	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 10) {
+	while((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 10){
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
 		lcd_out("WaitForIp delay 1s.\n");
@@ -1501,10 +1463,10 @@ void waitForIp() {
 //  break;
 		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
 	}
-	if (WiFi.status() != WL_CONNECTED) {
+	if(WiFi.status() != WL_CONNECTED){
 		lcd_out("Could not connect... Entering in AP mode.\n");
 		WiFi.mode(WIFI_AP);
-		if (WiFi.softAP(softAP_ssid, softAP_password)) {
+		if(WiFi.softAP(softAP_ssid, softAP_password)){
 			Serial.println("Wait 100 ms for AP_START...");
 			delay(200);
 			//IPAddress Ip(192, 168, 1, 8);
@@ -1518,19 +1480,17 @@ void waitForIp() {
 
 			tcpip_adapter_ip_info_t ip_info;
 			char* str2;
-			ESP_ERROR_CHECK(
-					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
+			ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
 			str2 = inet_ntoa(ip_info);
 			String buf("WiFi AP IP: ");
 			buf.concat(str2);
 			buf.concat("\n");
 			lcd_out(buf.c_str());
 		}
-	} else {
+	}else{
 		tcpip_adapter_ip_info_t ip_info;
 		char* str2;
-		ESP_ERROR_CHECK(
-				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+		ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 		str2 = inet_ntoa(ip_info);
 		String buf("WiFi STA IP: ");
 		buf.concat(str2);
@@ -1549,8 +1509,8 @@ void waitForIp() {
 }
 
 void blink(int i) {
-	if (enableLed) {
-		for (int j = 0; j < i; j++) {
+	if(enableLed){
+		for(int j = 0; j < i; j++){
 			digitalWrite(LED_PIN, HIGH);
 			vTaskDelay(50 / portTICK_PERIOD_MS);
 			digitalWrite(LED_PIN, LOW);
@@ -1573,15 +1533,11 @@ extern "C" void esp_draw() {
 	 ESP_ERROR_CHECK( esp_wifi_start() );
 	 */
 	/*Initialize LCD*/
-	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
-			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
-			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc =
-					GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl =
-					GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
-			.rst_active_level = 0, .bckl_active_level = 0,
-			.spi_host = HSPI_HOST, .init_spi_bus = true, };
+	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso = GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23, .pin_num_clk = GPIO_NUM_19,
+			.pin_num_cs = GPIO_NUM_22, .pin_num_dc = GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl = GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
+			.rst_active_level = 0, .bckl_active_level = 0, .spi_host = HSPI_HOST, .init_spi_bus = true, };
 
-	if (lcd_obj == NULL) {
+	if(lcd_obj == NULL){
 		lcd_obj = new CEspLcd(&lcd_pins);
 	}
 	printf("lcd id: 0x%08x\n", lcd_obj->id.id);
@@ -1656,15 +1612,15 @@ void setup() {
 	Serial.println(ESP.getFlashChipSize());
 
 	lcd_out("Flash INIT\n");
-	if (nvs_flash_init() != ESP_OK) {
+	if(nvs_flash_init() != ESP_OK){
 		lcd_out("Flash init FAILED!\n");
 		nvs_flash_init_partition("nvs");
 		nvs_flash_init();
-	} else
+	}else
 		lcd_out("Flash init OK.\n");
 
 	lcd_out("LED INIT\n");
-	if (enableLed)
+	if(enableLed)
 		pinMode(LED_PIN, OUTPUT);
 	pinMode(SS1, OUTPUT);     // Slave select first gate driver
 	pinMode(SS2, OUTPUT);     // Slave select second gate driver
@@ -1676,7 +1632,7 @@ void setup() {
 	digitalWrite(SS1, HIGH);   // deselect gate driver 1 - CS to HIGH
 	digitalWrite(SS2, HIGH);   // deselect gate driver 2 - CS to HIGH
 
-	if (enablePwm) {
+	if(enablePwm){
 		lcd_out("Gate driving enable.\n");
 		pinMode(GATEDRIVER_PIN, OUTPUT); //
 		digitalWrite(GATEDRIVER_PIN, LOW);  //disable gate drivers
@@ -1699,14 +1655,12 @@ void setup() {
 		lcd_out("encoders 4\n");
 	}
 
-	if (enableCapSense) {
+	if(enableCapSense){
 		lcd_out("Setting up FDC2212...\n");
-		fdc2212 =
-				FDC2212(
-						[](const CapacityResponse& response) {
-							Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-							return true;
-						});
+		fdc2212 = FDC2212([](const CapacityResponse& response){
+			Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+			return true;
+		});
 		fdc2212.begin();
 		lcd_out("Setting up FDC2212...Done.\n");
 	}
@@ -1716,14 +1670,14 @@ void setup() {
 	pinMode(23, OUTPUT);
 
 	lcd_out("VSPI?\n");
-	if (vspi != NULL) {
+	if(vspi != NULL){
 		Serial.println("initialise vspi with default pins 3...");
 		vspi->begin(18, 19, 23, -1);
 		vspi->setDataMode(SPI_MODE1);
 		vspi->setHwCs(false);
 	}
 
-	if (enablePwm) {
+	if(enablePwm){
 		delay(10);
 		Serial.println("initialise ledc...");
 		ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
@@ -1742,7 +1696,7 @@ void setup() {
 //ssid = "null";
 	password = preferences.getString("wifi_password", "null");
 //password = "null";
-	if (ssid.equals("null")) {
+	if(ssid.equals("null")){
 		ssid = "AndroidAP";
 //ssid = "AsusKZ";
 		password = "Doitman1";
@@ -1753,10 +1707,10 @@ void setup() {
 	lcd_out(String(" pass:     " + password + "\n").c_str());
 
 	pid_str = preferences.getString("pid", "null");
-	if (!pid_str.equals("null")) {
+	if(!pid_str.equals("null")){
 		Serial.printf("PID from flash: %s\n", pid_str.c_str());
 		setPidsFromString(pid_str);
-	} else {
+	}else{
 		Serial.printf("no PID from flash.\n");
 		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
 		setPidsFromString(initialPidStr);
@@ -1765,56 +1719,56 @@ void setup() {
 
 	int32_t outputMin_ = preferences.getInt("outputMin1", -100000);
 	int32_t outputMax_ = preferences.getInt("outputMax1", -100000);
-	if (outputMin_ != -100000 && outputMax_ != -100000) {
+	if(outputMin_ != -100000 && outputMax_ != -100000){
 		pid1.setOutputLimits(outputMin_, outputMax_);
 		Serial.println("Load changed outputmin1 & outputmax1 settings.");
-	} else {
+	}else{
 		pid1.setOutputLimits(-pwmValueMax, pwmValueMax);
 		Serial.println("Missing outputmin1 & outputmax1 settings from flash.");
 	}
 
 	outputMin_ = preferences.getInt("outputMin2", -100000);
 	outputMax_ = preferences.getInt("outputMax2", -100000);
-	if (outputMin_ != -100000 && outputMax_ != -100000) {
+	if(outputMin_ != -100000 && outputMax_ != -100000){
 		pid2.setOutputLimits(outputMin_, outputMax_);
 		Serial.println("Load changed outputmin1 & outputmax1 settings.");
-	} else {
+	}else{
 		pid2.setOutputLimits(-pwmValueMax, pwmValueMax);
 		Serial.println("Missing outputmin1 & outputmax1 settings from flash.");
 	}
 
 	int32_t stop1_top_ = preferences.getInt("stop1_top", -100000);
 	int32_t stop1_bottom_ = preferences.getInt("stop1_bottom", -100000);
-	if (stop1_top_ != -100000) {
+	if(stop1_top_ != -100000){
 		stop1_top = stop1_top_;
 		stop2_top = stop1_top;
 	}
-	if (stop1_bottom_ != -100000) {
+	if(stop1_bottom_ != -100000){
 		stop1_bottom = stop1_bottom_;
 		stop2_bottom = stop1_bottom;
 	}
 	Serial.println("load saved wifi settings...Done.");
 	preferences.end();
 
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		lcd_out("Wifi lost connection.\n");
 
 		String msg="";
 		msg.concat(info.disconnected.reason);
 		lcd_out(String("Reason: " + msg + "\n").c_str());
-		if(msg.indexOf("201")>=0) {
+		if(msg.indexOf("201")>=0){
 			NO_AP_FOUND_count=NO_AP_FOUND_count+1;
 			checkNoApFoundCritical();
 		}
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		lcd_out("SYSTEM_EVENT_SCAN_DONE");
 		int n = WiFi.scanComplete();
 		if(n>0)
 		{
 			String ret;
-			for (int i = 0; i < n; ++i) {
+			for (int i = 0; i < n; ++i){
 				ret.concat("wifi ");
 				String wifiData="";
 				wifiData.concat(WiFi.SSID(i));
@@ -1847,15 +1801,15 @@ void setup() {
 
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		lcd_out("SYSTEM_EVENT_AP_STA_GOT_IP6\n");
 		lcd_out(String(WiFi.localIPv6().toString()+ "\n").c_str());
 		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
@@ -1876,9 +1830,9 @@ void setup() {
 	Serial.println(encoder1_value);
 
 	rotaryEncoder1.disable();
-	if (encoder1_value != -32000)
+	if(encoder1_value != -32000)
 		rotaryEncoder1.reset(encoder1_value);
-	else {
+	else{
 		encoder1_value = 15000;
 		Serial.printf("Resetting encoder1 to: %d\n", encoder1_value);
 		rotaryEncoder1.reset(encoder1_value);
@@ -1891,9 +1845,9 @@ void setup() {
 	Serial.print("read encoder2_value: ");
 	Serial.println(encoder2_value);
 	rotaryEncoder2.disable();
-	if (encoder2_value != -32000)
+	if(encoder2_value != -32000)
 		rotaryEncoder2.reset(encoder2_value);
-	else {
+	else{
 		encoder2_value = 15000;
 		Serial.printf("Resetting encoder2 to: %d\n", encoder2_value);
 		rotaryEncoder2.reset(encoder2_value);
@@ -1908,26 +1862,26 @@ void setup() {
 	target2_read = (double) preferences.getInt("target2", -15000);
 	preferences.end();
 
-	if (target1_read == -15000) {
+	if(target1_read == -15000){
 		target1 = rotaryEncoder1.readEncoder();
-	} else {
+	}else{
 		target1 = target1_read;
 	}
 
-	if (target2_read == -15000) {
+	if(target2_read == -15000){
 		target2 = rotaryEncoder2.readEncoder();
-	} else {
+	}else{
 		target2 = target2_read;
 	}
 
 	printEncoderInfo();
 	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
-	if (errWdtInit != ESP_OK) {
+	if(errWdtInit != ESP_OK){
 		log_e("Failed to init WDT! Error: %d", errWdtInit);
 	}
 
-	if (enablePwm) {
+	if(enablePwm){
 		Serial.println("DVA");
 		lcd_out("Starting GateDriverTask...");
 		Serial.flush();
@@ -1958,25 +1912,23 @@ void setup() {
 	 }
 	 Serial.flush();
 	 */
-	if (enableCapSense) {
+	if(enableCapSense){
 		int id2 = 2;
-		tmrCapSense = xTimerCreate("MyTimerCapSense",
-				pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
-				&timerCapSenseCallBack);
-		if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
+		tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2, &timerCapSenseCallBack);
+		if(xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS){
 			esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
-		} else {
+		}else{
 			esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
 		}
 	}
 
-	if (enableMover) {
+	if(enableMover){
 		int id3 = 3;
 		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
 		pdTRUE, (void *) id3, &moverCallBack);
-		if (xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS) {
+		if(xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS){
 			esp_log_write(ESP_LOG_ERROR, TAG, "Timer mover start error");
-		} else {
+		}else{
 			esp_log_write(ESP_LOG_INFO, TAG, "Timer mover start.");
 		}
 	}
@@ -2007,20 +1959,17 @@ void myLoop() {
 	//enableCore1WDT();
 //printEncoderInfo();
 	long previousMs = 0;
-	for (;;) {
+	for(;;){
 		mySecond = esp_timer_get_time() / 1000000.0;
-		if ((mySecond % 10 == 0 && mySecond != previousSecond)
-				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+		if((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)){
 			previousHeap = ESP.getFreeHeap();
-			float time = (float) (esp_timer_get_time()
-					/ (1000000.0 * 60.0 * 60.0));
+			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, maxsize: %ul", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
 			heap_caps_check_integrity_all(true);
 			previousSecond = mySecond;
 		}
 
-		if (rotaryEncoder1.encoderChanged() != 0
-				&& ((int) target1) == encoder1_value) {
+		if(rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value){
 			//Serial.println("Saving to flash enc1.");
 			encoder1_value = rotaryEncoder1.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -2030,14 +1979,12 @@ void myLoop() {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n",
-						micros(), delta);
+			if(delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
 
 		}
 
-		if (rotaryEncoder2.encoderChanged() != 0
-				&& ((int) target2) == encoder2_value) {
+		if(rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value){
 			//Serial.println("Saving to flash enc2.");
 			encoder2_value = rotaryEncoder2.readEncoder();
 			start = micros(); // ref: https://github.com/espressif/arduino-esp32/issues/384
@@ -2047,13 +1994,12 @@ void myLoop() {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000)
-				Serial.printf("%lu Preferences save completed in %lu us.\n",
-						micros(), delta);
+			if(delta > 1000)
+				Serial.printf("%lu Preferences save completed in %lu us.\n", micros(), delta);
 		}
 
 		esp_err_t resetOK = esp_task_wdt_reset();
-		if (resetOK != ESP_OK) {
+		if(resetOK != ESP_OK){
 			Serial.printf("Failed reset wdt: err %#03x\n", resetOK);
 		}
 
@@ -2062,12 +2008,12 @@ void myLoop() {
 		ws.loop();
 #endif
 
-		if (restartNow) {
+		if(restartNow){
 			Serial.println("Restart");
 			ESP.restart();
 		}
 
-		if (millis() > (previousMs + 100)) {
+		if(millis() > (previousMs + 100)){
 			ws.textAll(getJsonString().c_str());
 			previousMs = millis();
 		}
@@ -2094,7 +2040,7 @@ extern "C" {
 void app_main();
 }
 void app_main() {
-	if (enableLcd == true)
+	if(enableLcd == true)
 		esp_draw();
 	setup();
 
@@ -2113,9 +2059,8 @@ void app_main() {
 	lcd_out("Starting LoopTask...Done.\n");
 	Serial.flush();
 
-	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE,
-			(void *) id3, &loopCallBack);
-	if (xTimerStart(tmr2, 10) != pdPASS) {
+	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE, (void *) id3, &loopCallBack);
+	if(xTimerStart(tmr2, 10) != pdPASS){
 		printf("Timer loop start error");
 	}
 
