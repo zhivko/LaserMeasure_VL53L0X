@@ -18,6 +18,7 @@
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
  curl -F "image=@build/DoubleLifter.bin" 192.168.1.7:81/update
  */
+#include <esp_heap_caps.h>
 #include <WiFi.h>
 #include <FS.h>
 
@@ -67,6 +68,8 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
 
+#define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
+
 char ptrTaskList[250];
 const char* TAG = "DoubleLifter";
 
@@ -82,9 +85,9 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = true;
-bool enableCapSense = true;
-bool enableLcd = false;
+bool enablePwm = false;
+bool enableCapSense = false;
+bool enableLcd = true;
 bool enableMover = true;
 
 bool enableLed = true;
@@ -953,7 +956,6 @@ IRAM_ATTR String getJsonString() {
 //reportingJson = true;reportJson
 
 	String ret = String(jsonTemplateStr);
-	//@formatter:off
 	ret.replace("%encoder1_value%", String(encoder1_value));
 	ret.replace("%encoder2_value%", String(encoder2_value));
 	ret.replace("%pwm1%", String(pwm1));
@@ -974,13 +976,14 @@ IRAM_ATTR String getJsonString() {
 	ret.replace("%stop2_bottom%", String(stop2_bottom));
 	ret.replace("%cap_reading%", String(cap_reading));
 	ret.replace("%cap_read_time_ms%", String(fdc2212.readTimeMs));
-	ret.replace("%capfast%", String(fdc2212.capFast));
-	ret.replace("%capslow%", String(fdc2212.capSlow));
+	if (enableCapSense) {
+		ret.replace("%capfast%", String(fdc2212.capFast));
+		ret.replace("%capslow%", String(fdc2212.capSlow));
+	}
 	ret.replace("%uptime_h%",
 			String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
 	ret.replace("%enablePID%", String(pidEnabled == true ? "1" : "0"));
 	ret.replace("%esp32_heap%", String(ESP.getFreeHeap()));
-							//@formatter:on
 
 	return ret;
 }
@@ -2011,7 +2014,8 @@ void myLoop() {
 			previousHeap = ESP.getFreeHeap();
 			float time = (float) (esp_timer_get_time()
 					/ (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID());
+			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, maxsize: %ul", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
+			heap_caps_check_integrity_all(true);
 			previousSecond = mySecond;
 		}
 
@@ -2073,7 +2077,7 @@ void myLoop() {
 }
 
 void loop() {
-
+	vTaskSuspend(NULL);
 }
 
 void Loop(void * parameter) {
@@ -2098,7 +2102,7 @@ void app_main() {
 	Serial.flush();
 	xTaskCreatePinnedToCore(Loop,  // pvTaskCode
 			"Workload2",            // pcName
-			12028,                   // usStackDepth
+			6480,                   // usStackDepth
 			NULL,                   // pvParameters
 			16,                      // uxPriority
 			&TaskLoop,                 // pxCreatedTask
