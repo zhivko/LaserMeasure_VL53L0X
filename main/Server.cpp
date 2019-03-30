@@ -19,6 +19,7 @@
  curl -F "image=@build/DoubleLifter.bin" 192.168.1.7:81/update
  */
 #include <esp_heap_caps.h>
+#include "esp_heap_trace.h"
 #include <WiFi.h>
 #include <FS.h>
 
@@ -61,7 +62,7 @@
 #include "image.h"
 
 #include "FreeSans9pt7b.h"
-#include "unity.h"
+//#include "unity.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "lwip/inet.h"
@@ -69,10 +70,12 @@
 #include "lwip/dns.h"
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
+#define NUM_RECORDS 100
+static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
 
 char ptrTaskList[250];
 const char* TAG = "DoubleLifter";
-
+bool shouldSendJson = false;
 //IRAM_ATTR String getJsonString();
 
 //AsyncUDP udp;
@@ -87,7 +90,7 @@ static int lcd_y_pos = 0;
 
 bool enablePwm = false;
 bool enableCapSense = false;
-bool enableLcd = true;
+bool enableLcd = false;
 bool enableMover = true;
 
 bool enableLed = true;
@@ -205,32 +208,53 @@ MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
 
 //@formatter:off
 static String jsonTemplateStr = "{"
-		"\"encoder1_value\":%encoder1_value%,"
-		"\"encoder2_value\":%encoder2_value%,"
-		"\"pwm1\":%pwm1%,"
-		"\"pwm2\":%pwm2%,"
-		"\"target1\":%target1%,"
-		"\"target2\":%target2%,"
-		"\"output1\":%output1%,"
-		"\"output2\":%output2%,"
-		"\"an1\":%an1%,"
-		"\"an2\":%an2%,"
-		"\"actual_diff\":%actual_diff%,"
-		"\"PID1output\":\"%PID1output%\","
-		"\"PID2output\":\"%PID2output%\","
-		"\"stop1_top\":%stop1_top%,"
-		"\"stop1_bottom\":%stop1_bottom%,"
-		"\"stop2_top\":%stop2_top%,"
-		"\"stop2_bottom\":%stop2_bottom%,"
-		"\"cap_reading\":%cap_reading%,"
-		"\"cap_read_time_ms\":%cap_read_time_ms%,"
-		"\"capfast\":%capfast%,"
-		"\"capslow\":%capslow%,"
-		"\"uptime_h\":%uptime_h%,"
-		"\"enablePID\":1,"
-		"\"esp32_heap\":%esp32_heap%"
-		"}";
+		"\"encoder1_value\":%d,"
+		"\"encoder2_value\":%d,"
+		"\"pwm1\":%d,"
+		"\"pwm2\":%d,"
+		"\"target1\":%d,"
+		"\"target2\":%d,"
+		"\"output1\":%.2f,"
+		"\"output2\":%.2f,"
+		"\"an1\":%d,"
+		"\"an2\":%d,"
+		"\"actual_diff\":%d,"
+		"\"PID1output\":\"p1out=%.2f<br>"
+		                  "i1out=%.2f<br>"
+											"d1out=%.2f<br>"
+											"f1out=%.2f<br>"
+											"pos1out=%.2f<br>"
+											"setpoint1=%.2f<br>"
+											"actual1=%.2f<br>"
+											"error1=%.2f<br>"
+											"errorSum1=%.2f<br>"
+											"maxIOut1=%.2f<br>"
+											"maxErr1=%.2f\","
+		"\"PID2output\":\"p2out=%.2f<br>"
+											"i2out=%.2f<br>"
+											"d2out=%.2f<br>"
+											"f2out=%.2f<br>"
+											"pos2out=%.2f<br>"
+											"setpoint2=%.2f<br>"
+											"actual2=%.2f<br>"
+											"error2=%.2f<br>"
+											"errorSum2=%.2f<br>"
+											"maxIOut2=%.2f<br>"
+											"maxErr2=%.2f\","
+		"\"stop1_top\":%d,"
+		"\"stop1_bottom\":%d,"
+		"\"stop2_top\":%d,"
+		"\"stop2_bottom\":%d,"
+		"\"cap_reading\":%lu,"
+		"\"cap_read_time_ms\":%lu,"
+		"\"capfast\":%.2f,"
+		"\"capslow\":%.2f,"
+		"\"uptime_h\":%.2f,"
+		"\"enablePID\":%d,"
+		"\"esp32_heap\":%lu"
+		"}\0";
 //@formatter:on
+static char txtToSend[900] = "";
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -270,18 +294,20 @@ void clearFault();
 void setPidsFromString(String str1);
 String getToken(String data, char separator, int index);
 void sendPidToClient();
-void static lcd_out(const char * txt);
-IRAM_ATTR String getJsonString();
+void lcd_out(const char *format, ...);
+IRAM_ATTR void setJsonString();
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(String input);
 
 TimerHandle_t tmrWs;
 void timerCallBack(TimerHandle_t xTimer) {
 #ifdef arduinoWebserver
-	ws.broadcastTXT(getJsonString().c_str());
+	setJsonString();
+	ws.broadcastTXT(txtToSend);
 #endif
 #ifndef arduinoWebserver
-	ws.textAll(getJsonString().c_str());
+	setJsonString();
+	ws.textAll(txtToSend);
 #endif
 }
 
@@ -693,66 +719,72 @@ void handleNotFound() {
 void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
 	if(type == WS_EVT_CONNECT){
 //client connected
-		printf("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
+		lcd_out("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
 		client->printf("Hello Client %u :)", client->id());
+		delay(100);
 		client->ping();
+		delay(100);
 		sendPidToClient();
+		delay(100);
+		shouldSendJson = true;
+
 	}else if(type == WS_EVT_DISCONNECT){
 //client disconnected
-		printf("%lu ws[%s][%u] disconnect\n", millis(), server->url(), client->id());
+		lcd_out("%lu ws[%s][%u] disconnect\n", millis(), server->url(), client->id());
 	}else if(type == WS_EVT_ERROR){
 //error was received from the other end
-		printf("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(), client->id(), *((uint16_t*) arg), (char*) data);
+		lcd_out("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(), client->id(), *((uint16_t*) arg), (char*) data);
 	}else if(type == WS_EVT_PONG){
 //pong message was received (in response to a ping request maybe)
-		printf("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(), client->id(), len, (len) ? (char*) data : "");
+		lcd_out("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(), client->id(), len, (len) ? (char*) data : "");
 	}else if(type == WS_EVT_DATA){
 //data packet
 		AwsFrameInfo * info = (AwsFrameInfo*) arg;
 		if(info->final && info->index == 0 && info->len == len){
 //the whole message is in a single frame and we got all of it's data
-			printf("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+			lcd_out("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
 			if(info->opcode == WS_TEXT){
 				data[len] = 0;
-				printf("%s\n", (char*) data);
+				Serial.printf("%s\n", (char*) data);
 				processWsData((char*) data);
 			}else{
-				printf("not text\n");
+				Serial.printf("not text\n");
 				for(size_t i = 0; i < info->len; i++){
-					printf("%02x ", data[i]);
+					Serial.printf("%02x ", data[i]);
 				}
-				printf("\n");
+				Serial.printf("\n");
 			}
 		}else{
-			printf("multi frames\n");
+			lcd_out("multi frames\n");
 //message is comprised of multiple frames or the frame is split into multiple packets
 			if(info->index == 0){
 				if(info->num == 0)
-					printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
-				printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
+					Serial.printf("%lu ws[%s][%u] %s-message start\n", millis(), server->url(), client->id(),
+							(info->message_opcode == WS_TEXT) ? "text" : "binary");
+				Serial.printf("%lu ws[%s][%u] frame[%u] start[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
 			}
 
-			printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(), server->url(), client->id(), info->num,
+			Serial.printf("%lu ws[%s][%u] frame[%u] %s[%llu - %llu]: ", millis(), server->url(), client->id(), info->num,
 					(info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
 			if(info->message_opcode == WS_TEXT){
-				printf("%s\n", (char*) data);
+				Serial.printf("%s\n", (char*) data);
 			}else{
 				for(size_t i = 0; i < len; i++){
-					printf("%02x ", data[i]);
+					Serial.printf("%02x ", data[i]);
 				}
-				printf("\n");
+				Serial.printf("\n");
 			}
 
 			if((info->index + len) == info->len){
-				printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
+				Serial.printf("%lu ws[%s][%u] frame[%u] end[%llu]\n", millis(), server->url(), client->id(), info->num, info->len);
 				if(info->final){
-					printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+					Serial.printf("%lu ws[%s][%u] %s-message end\n", millis(), server->url(), client->id(),
+							(info->message_opcode == WS_TEXT) ? "text" : "binary");
 				}
 			}
 		}
 	}
 }
-
 #endif
 
 void syncTime() {
@@ -801,7 +833,7 @@ void syncTime() {
 void handle_update_progress_cb(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
 	uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 	if(!index){
-		Serial.println("Update");
+		lcd_out("Update\n");
 		if(!Update.begin(free_space)){
 			Update.printError(Serial);
 		}
@@ -814,11 +846,10 @@ void handle_update_progress_cb(AsyncWebServerRequest *request, String filename, 
 			Update.printError(Serial);
 		}else{
 			restartNow = true; //Set flag so main loop can issue restart call
-			Serial.println("Update complete");
+			lcd_out("Update complete\n");
 		}
 	}
 }
-
 #endif // arduinoWebserver
 
 void startServer() {
@@ -826,7 +857,7 @@ void startServer() {
 	MDNS.begin(hostName);
 
 	if(!SPIFFS.begin(true)){
-		Serial.println("SPIFFS Mount Failed");
+		lcd_out("SPIFFS Mount Failed");
 	}else{
 		listDir(SPIFFS, "/", 0);
 	}
@@ -871,10 +902,10 @@ void startServer() {
 #ifndef arduinoWebserver
 	// handler for the /update form POST (once file upload finishes)
 	server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
-		Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+		lcd_out("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
 		uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 		if(0 == index){
-			Serial.printf("UploadStart: %s\n", filename.c_str());
+			lcd_out("UploadStart: %s\n", filename.c_str());
 			xTimerStop(tmrWs, 0);
 			if(!Update.begin(maxSketchSpace)){Serial.println("Update begin failure!");}
 		}
@@ -883,9 +914,9 @@ void startServer() {
 			//xTimerStart(tmrWs, 0);
 		} else{Serial.printf("Write: %d bytes\n", len);}
 		if(final){
-			Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+			lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
 			if (Update.end(true)){
-				Serial.println("Update succesful!");
+				lcd_out("Update succesful!");
 			} else{
 				Update.printError(Serial);
 			}
@@ -896,17 +927,21 @@ void startServer() {
 		request->send(404);
 	});
 	server.addHandler(&ws);
-	ws.enable(true);
-	lcd_out("WebsocketServer started.\n");
 
 #endif
 
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+	server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
-	ws.onEvent(wsEvent);
 	server.begin();
 	lcd_out("WebServer started.\n");
+
+	ws.enable(true);
+	ws.onEvent(wsEvent);
+	lcd_out("WebsocketServer started.\n");
+
+	delay(200);
 
 	MDNS.addService("http", "tcp", 80);
 }
@@ -923,52 +958,94 @@ IRAM_ATTR String getJsonString2() {
 	return jsonTemplateStr;
 }
 
-IRAM_ATTR String getJsonString() {
+IRAM_ATTR void setJsonString() {
 //Serial.println("reportjson");
 //reportingJson = true;reportJson
 
-	String ret = String(jsonTemplateStr);
-	ret.replace("%encoder1_value%", String(encoder1_value));
-	ret.replace("%encoder2_value%", String(encoder2_value));
-	ret.replace("%pwm1%", String(pwm1));
-	ret.replace("%pwm2%", String(pwm2));
-	ret.replace("%target1%", String(target1));
-	ret.replace("%target2%", String(target2));
-	ret.replace("%output1%", String(output1));
-	ret.replace("%output2%", String(output2));
-	ret.replace("%an1%", String(an1));
-	ret.replace("%an2%", String(an2));
-	ret.replace("%actual_diff%", String(pid1.getActual() - pid2.getActual()));
+	unsigned long size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
 
-	ret.replace("%PID1output%", String(""));
-	ret.replace("%PID2output%", String(""));
-	ret.replace("%stop1_top%", String(stop1_top));
-	ret.replace("%stop1_bottom%", String(stop1_bottom));
-	ret.replace("%stop2_top%", String(stop2_top));
-	ret.replace("%stop2_bottom%", String(stop2_bottom));
-	ret.replace("%cap_reading%", String(cap_reading));
-	ret.replace("%cap_read_time_ms%", String(fdc2212.readTimeMs));
-	ret.replace("%capfast%", String(fdc2212.capFast));
-	ret.replace("%capslow%", String(fdc2212.capSlow));
-	ret.replace("%uptime_h%", String((float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0))));
-	ret.replace("%enablePID%", String(pidEnabled == true ? "1" : "0"));
-	ret.replace("%esp32_heap%", String(freeheap));
+	//@formatter:on
+	sprintf(txtToSend, jsonTemplateStr.c_str(),
+			encoder1_value,
+			encoder2_value,
+			pwm1,
+			pwm2,
+			target1,
+			target2,
+			output1,
+			output2,
+			an1,
+			an2,
+			(pid1.getActual() - pid2.getActual()),
+			pid1.getPoutput(),
+			pid1.getIoutput(),
+			pid1.getDoutput(),
+			pid1.getPOSoutput(),
+			pid1.getSetpoint(),
+			pid1.getActual(),
+			pid1.getError(),
+			pid1.getErrorSum(),
+			pid1.getMaxIOutput(),
+			pid1.getMaxError(),
+			pid2.getPoutput(),
+			pid2.getIoutput(),
+			pid2.getDoutput(),
+			pid2.getPOSoutput(),
+			pid2.getSetpoint(),
+			pid2.getActual(),
+			pid2.getError(),
+			pid2.getErrorSum(),
+			pid2.getMaxIOutput(),
+			pid2.getMaxError(),
+			stop1_top,
+			stop1_bottom,
+			stop2_top,
+			stop2_bottom,
+			cap_reading,
+			fdc2212.readTimeMs,
+			fdc2212.capFast,
+			fdc2212.capSlow,
+			(float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0)),
+			(pidEnabled == true ? "1" : "0"),
+			size
+			);
+	//@formatter:off
 
-	return ret;
 }
 
-void static lcd_out(const char * txt) {
+void lcd_out(const char *format, ...) {
+	char loc_buf[64];
+	char * temp = loc_buf;
+	va_list arg;
+	va_list copy;
+	va_start(arg, format);
+	va_copy(copy, arg);
+	size_t len = vsnprintf(NULL, 0, format, arg);
+	va_end(copy);
+	if(len >= sizeof(loc_buf)){
+		temp = new char[len + 1];
+		if(temp == NULL){
+			//lcd_out(loc_buf);
+			return;
+		}
+	}
+	len = vsnprintf(temp, len + 1, format, arg);
+
 	if(enableLcd){
-		lcd_obj->drawString(txt, 3, lcd_y_pos);
+		lcd_obj->drawString(loc_buf, 3, lcd_y_pos);
 		lcd_y_pos = lcd_y_pos + 10;
 		if(lcd_y_pos > 250){
 			lcd_y_pos = 0;
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
 	}
-	esp_log_write(ESP_LOG_INFO, TAG, txt);
+	esp_log_write(ESP_LOG_INFO, TAG, loc_buf);
 
-//delay(300);
+	va_end(arg);
+	if(len >= sizeof(loc_buf)){
+		delete[] temp;
+	}
+
 }
 
 String getToken(String data, char separator, int index) {
@@ -1445,7 +1522,13 @@ void IRAM_ATTR handleIntCapSense() {
 void waitForIp() {
 	NO_AP_FOUND_count = 0;
 
-	while((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 10){
+	WiFi.mode(WIFI_STA);
+	WiFi.enableIpV6();
+	WiFi.setTxPower(WIFI_POWER_19_5dBm);
+	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setSleep(false);
+
+	while((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 4){
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
 		lcd_out("WaitForIp delay 1s.\n");
@@ -1473,8 +1556,8 @@ void waitForIp() {
 			//IPAddress NMask(255, 255, 255, 0);
 			//WiFi.softAPConfig(Ip, Ip, NMask);
 			IPAddress myIP = WiFi.softAPIP();
-			lcd_out("MLIFT is running.\n");
-			Serial.println("Network " + String(softAP_ssid) + " is running.");
+			lcd_out((String(softAP_ssid) + " is running.\n").c_str());
+			lcd_out((myIP.toString() + "\n").c_str());
 			Serial.print("AP IP address: ");
 			Serial.println(myIP);
 
@@ -1486,6 +1569,8 @@ void waitForIp() {
 			buf.concat(str2);
 			buf.concat("\n");
 			lcd_out(buf.c_str());
+
+			startServer();
 		}
 	}else{
 		tcpip_adapter_ip_info_t ip_info;
@@ -1605,7 +1690,8 @@ void setup() {
 	esp_log_level_set("*", ESP_LOG_VERBOSE);
 	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
 	esp_log_level_set(TAG, ESP_LOG_VERBOSE);
-//esp_log_level_set("phy_init", ESP_LOG_INFO);
+	//esp_log_level_set("phy_init", ESP_LOG_INFO);
+	lcd_out("DoubeLifter START %d", 1);
 	Serial.print("Baud rate: 115200");
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
@@ -1807,13 +1893,18 @@ void setup() {
 		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
+		//startServer();
+		}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
+		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
 		startServer();
-	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+	}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
+
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-	//waitForIp();
+	waitForIp();
 //	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
 //		lcd_out("WIFI_MODE_AP");
@@ -1932,13 +2023,6 @@ void setup() {
 			esp_log_write(ESP_LOG_INFO, TAG, "Timer mover start.");
 		}
 	}
-	Serial.flush();
-	delay(10);
-	WiFi.mode(WIFI_STA);
-	WiFi.enableIpV6();
-	WiFi.setTxPower(WIFI_POWER_19_5dBm);
-	WiFi.begin(ssid.c_str(), password.c_str());
-	WiFi.setSleep(false);
 
 	blink(5);
 	lcd_out("Setup Done.\n");
@@ -1964,7 +2048,7 @@ void myLoop() {
 		if((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)){
 			previousHeap = ESP.getFreeHeap();
 			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, maxsize: %ul", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
+			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, freeHeap: %ul", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
 			heap_caps_check_integrity_all(true);
 			previousSecond = mySecond;
 		}
@@ -2013,11 +2097,16 @@ void myLoop() {
 			ESP.restart();
 		}
 
-		if(millis() > (previousMs + 100)){
-			ws.textAll(getJsonString().c_str());
+		if((millis() > (previousMs + jsonReportIntervalMs)) && shouldSendJson){
+			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+			setJsonString();
+			ws.textAll(txtToSend);
+			//Serial.printf("texted all: %s\n", txtToSend);
+			//ESP_ERROR_CHECK(heap_trace_stop());
+			//heap_trace_dump();
 			previousMs = millis();
 		}
-		vTaskDelay(10 / portTICK_PERIOD_MS);
+		vTaskDelay(100 / portTICK_PERIOD_MS);
 
 	}
 }
@@ -2040,6 +2129,8 @@ extern "C" {
 void app_main();
 }
 void app_main() {
+	ESP_ERROR_CHECK(heap_trace_init_standalone(trace_record, NUM_RECORDS));
+
 	if(enableLcd == true)
 		esp_draw();
 	setup();

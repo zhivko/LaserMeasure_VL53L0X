@@ -4,5 +4,4 @@ COMPONENT_LDFLAGS += -L$(BUILD_DIR_BASE)/esp_event -lesp_event
 COMPONENT_LINKER_DEPS += 
 COMPONENT_SUBMODULES += 
 COMPONENT_LIBRARIES += esp_event
-COMPONENT_LDFRAGMENTS += 
 component-esp_event-build: 

@@ -3,15 +3,12 @@ deps_config := \
 	/home/klemen/esp/esp-idf/components/aws_iot/Kconfig \
 	/home/klemen/esp/esp-idf/components/bt/Kconfig \
 	/home/klemen/esp/esp-idf/components/driver/Kconfig \
-	/home/klemen/esp/esp-idf/components/efuse/Kconfig \
 	/home/klemen/esp/esp-idf/components/esp32/Kconfig \
 	/home/klemen/esp/DoubleLifter/components/esp32-I2Cbus/Kconfig \
 	/home/klemen/esp/esp-idf/components/esp_adc_cal/Kconfig \
 	/home/klemen/esp/esp-idf/components/esp_event/Kconfig \
 	/home/klemen/esp/esp-idf/components/esp_http_client/Kconfig \
 	/home/klemen/esp/esp-idf/components/esp_http_server/Kconfig \
-	/home/klemen/esp/esp-idf/components/esp_https_ota/Kconfig \
-	/home/klemen/esp/esp-idf/components/espcoredump/Kconfig \
 	/home/klemen/esp/esp-idf/components/ethernet/Kconfig \
 	/home/klemen/esp/esp-idf/components/fatfs/Kconfig \
 	/home/klemen/esp/esp-idf/components/freemodbus/Kconfig \
@@ -29,10 +26,8 @@ deps_config := \
 	/home/klemen/esp/esp-idf/components/spi_flash/Kconfig \
 	/home/klemen/esp/esp-idf/components/spiffs/Kconfig \
 	/home/klemen/esp/esp-idf/components/tcpip_adapter/Kconfig \
-	/home/klemen/esp/esp-idf/components/unity/Kconfig \
 	/home/klemen/esp/esp-idf/components/vfs/Kconfig \
 	/home/klemen/esp/esp-idf/components/wear_levelling/Kconfig \
-	/home/klemen/esp/esp-idf/components/app_update/Kconfig.projbuild \
 	/home/klemen/esp/DoubleLifter/components/arduino/Kconfig.projbuild \
 	/home/klemen/esp/esp-idf/components/bootloader/Kconfig.projbuild \
 	/home/klemen/esp/esp-idf/components/esptool_py/Kconfig.projbuild \
@@ -42,9 +37,6 @@ deps_config := \
 include/config/auto.conf: \
 	$(deps_config)
 
-ifneq "$(IDF_TARGET)" "esp32"
-include/config/auto.conf: FORCE
-endif
 ifneq "$(IDF_CMAKE)" "n"
 include/config/auto.conf: FORCE
 endif

@@ -4,5 +4,4 @@ COMPONENT_LDFLAGS += -L$(BUILD_DIR_BASE)/asio -lasio
 COMPONENT_LINKER_DEPS += 
 COMPONENT_SUBMODULES += $(IDF_PATH)/components/asio/asio
 COMPONENT_LIBRARIES += asio
-COMPONENT_LDFRAGMENTS += 
 component-asio-build: 

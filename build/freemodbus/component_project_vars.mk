@@ -4,5 +4,4 @@ COMPONENT_LDFLAGS += -L$(BUILD_DIR_BASE)/freemodbus -lfreemodbus
 COMPONENT_LINKER_DEPS += 
 COMPONENT_SUBMODULES += 
 COMPONENT_LIBRARIES += freemodbus
-COMPONENT_LDFRAGMENTS += 
 component-freemodbus-build: 
