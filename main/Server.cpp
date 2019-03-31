@@ -88,8 +88,8 @@ static int lcd_y_pos = 0;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = false;
-bool enableCapSense = false;
+bool enablePwm = true;
+bool enableCapSense = true;
 bool enableLcd = false;
 bool enableMover = true;
 
@@ -212,13 +212,13 @@ static String jsonTemplateStr = "{"
 		"\"encoder2_value\":%d,"
 		"\"pwm1\":%d,"
 		"\"pwm2\":%d,"
-		"\"target1\":%d,"
-		"\"target2\":%d,"
+		"\"target1\":%.2f,"
+		"\"target2\":%.2f,"
 		"\"output1\":%.2f,"
 		"\"output2\":%.2f,"
-		"\"an1\":%d,"
-		"\"an2\":%d,"
-		"\"actual_diff\":%d,"
+		"\"an1\":%u,"
+		"\"an2\":%u,"
+		"\"actual_diff\":%.2f,"
 		"\"PID1output\":\"p1out=%.2f<br>"
 		                  "i1out=%.2f<br>"
 											"d1out=%.2f<br>"
@@ -241,20 +241,20 @@ static String jsonTemplateStr = "{"
 											"errorSum2=%.2f<br>"
 											"maxIOut2=%.2f<br>"
 											"maxErr2=%.2f\","
-		"\"stop1_top\":%d,"
-		"\"stop1_bottom\":%d,"
-		"\"stop2_top\":%d,"
-		"\"stop2_bottom\":%d,"
+		"\"stop1_top\":%u,"
+		"\"stop1_bottom\":%u,"
+		"\"stop2_top\":%u,"
+		"\"stop2_bottom\":%u,"
 		"\"cap_reading\":%lu,"
 		"\"cap_read_time_ms\":%lu,"
 		"\"capfast\":%.2f,"
 		"\"capslow\":%.2f,"
 		"\"uptime_h\":%.2f,"
 		"\"enablePID\":%d,"
-		"\"esp32_heap\":%lu"
+		"\"esp32_heap\":%u"
 		"}\0";
 //@formatter:on
-static char txtToSend[900] = "";
+static char txtToSend[1100] = "";
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -962,7 +962,7 @@ IRAM_ATTR void setJsonString() {
 //Serial.println("reportjson");
 //reportingJson = true;reportJson
 
-	unsigned long size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+	size_t size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
 
 	//@formatter:on
 	sprintf(txtToSend, jsonTemplateStr.c_str(),
@@ -1887,13 +1887,13 @@ void setup() {
 
 	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
+//	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
+//		lcd_out("SYSTEM_EVENT_STA_GOT_IP\n");
+//		lcd_out(String(WiFi.localIPv6().toString()+ "\n").c_str());
+//		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
+//	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
-		lcd_out("SYSTEM_EVENT_AP_STA_GOT_IP6\n");
-		lcd_out(String(WiFi.localIPv6().toString()+ "\n").c_str());
-		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
-	}, WiFiEvent_t::SYSTEM_EVENT_AP_STA_GOT_IP6);
-	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
-		//startServer();
+		startServer();
 		}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
@@ -2048,7 +2048,7 @@ void myLoop() {
 		if((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)){
 			previousHeap = ESP.getFreeHeap();
 			float time = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, freeHeap: %ul", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
+			log_i("time[s]: %" PRIu64 " heap size: %d uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, ESP.getFreeHeap(), time, xPortGetCoreID(), freeheap);
 			heap_caps_check_integrity_all(true);
 			previousSecond = mySecond;
 		}
@@ -2106,7 +2106,7 @@ void myLoop() {
 			//heap_trace_dump();
 			previousMs = millis();
 		}
-		vTaskDelay(100 / portTICK_PERIOD_MS);
+		vTaskDelay(5 / portTICK_PERIOD_MS);
 
 	}
 }
@@ -2138,7 +2138,7 @@ void app_main() {
 	lcd_out("Starting LoopTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Loop,  // pvTaskCode
-			"Workload2",            // pcName
+			"MyLoop",            // pcName
 			6480,                   // usStackDepth
 			NULL,                   // pvParameters
 			16,                      // uxPriority
