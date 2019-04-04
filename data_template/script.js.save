@@ -48,7 +48,8 @@ function handleSearchBottom(cb)
 
 function keyPress(e)
 {
-	// look for window.event in case event isn't passed in
+	// lo
+ok for window.event in case event isn't passed in
 	e = e || window.event;
 	if (e.keyCode == 13)
 	{
@@ -261,7 +262,7 @@ function onMessage(evt)
 			document.getElementById("motor2_pos").textContent = res[1];
 		}
 	}
-	//websocket.send('OK');
+	websocket.send('OK');
 }
 
 function onError(evt)

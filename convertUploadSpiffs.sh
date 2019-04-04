@@ -1,3 +1,4 @@
+echo on
 cd /home/klemen/esp/DoubleLifter/data_template
 pwd
 python3.7 -m htmlark -o ../data/index.html index.htm
