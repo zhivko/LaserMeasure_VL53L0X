@@ -3,7 +3,7 @@
 	url = https://github.com/me-no-dev/AsyncTCP.git
 [submodule "components/ESPAsyncWebServer"]
 	path = components/ESPAsyncWebServer
-	url = https://github.com/me-no-dev/ESPAsyncWebServer.git
+	url = https://github.com/zhivko/ESPAsyncWebServer.git
 [submodule "components/MiniPID"]
 	path = components/MiniPID
 	url = https://github.com/zhivko/MiniPID.git
