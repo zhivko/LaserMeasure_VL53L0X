@@ -4,4 +4,5 @@ COMPONENT_LDFLAGS += -L$(BUILD_DIR_BASE)/heap -lheap -Wl,--wrap=calloc -Wl,--wra
 COMPONENT_LINKER_DEPS += 
 COMPONENT_SUBMODULES += 
 COMPONENT_LIBRARIES += heap
+COMPONENT_LDFRAGMENTS += $(IDF_PATH)/components/heap/linker.lf
 component-heap-build: 
