@@ -208,6 +208,8 @@ function onOpen(evt)
 function onClose(evt)
 {
 	writeToScreen("DISCONNECTED");
+	writeToScreen("RECONNECT...");
+	testWebSocket();
 }
 
 function onMessage(evt)
@@ -261,7 +263,7 @@ function onMessage(evt)
 			document.getElementById("motor2_pos").textContent = res[1];
 		}
 	}
-	//websocket.send('OK');
+	websocket.send('OK');
 }
 
 function onError(evt)

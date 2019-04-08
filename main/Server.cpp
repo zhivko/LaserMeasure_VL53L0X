@@ -16,7 +16,8 @@
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
- curl -F "image=@build/DoubleLifter.bin" 192.168.1.7:81/update
+ curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verboe
+ curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -57,8 +58,6 @@
 #include <Preferences.h>
 #include "nvs_flash.h"
 
-#include "FDC2212.h"
-
 /*SPI Includes*/
 #include "driver/spi_master.h"
 #include "iot_lcd.h"
@@ -72,6 +71,12 @@
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
+
+#include "debug/lwip_debug.h"
+#include "lwip/debug.h"
+#include "lwip/stats.h"
+
+#include "Taskmanager.h"
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
 #define NUM_RECORDS 100
@@ -94,9 +99,10 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-bool enablePwm = false;
-bool enableCapSense = false;
-bool enableLcd = true;
+#define enableCapSense 0
+#define enablePwm 0
+#define enableTaskManager 1
+bool enableLcd = false;
 bool enableMover = false;
 
 bool enableLed = true;
@@ -108,6 +114,9 @@ int moverIntervalMs = 50;
 int loopIntervalMs = 500;
 static int taskCore = 0;
 bool restartNow = false;
+
+long previousMs = 0;
+
 
 String ssid;
 String password;
@@ -126,6 +135,11 @@ AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 #ifdef arduinoWebserver
 WebServer server(81);
 WebSocketsServer ws = WebSocketsServer(82);
+#endif
+
+#if enableCapSense == 1
+	#include "FDC2212.h"
+	FDC2212 fdc2212;
 #endif
 
 const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START", "STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED",
@@ -195,6 +209,7 @@ volatile int32_t encoder2_value;
 //Ticker mover;
 //Ticker jsonReporter;
 TaskHandle_t TaskA;
+TaskHandle_t TaskMan;
 TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
 //TaskHandle_t i2cTask;
@@ -251,10 +266,12 @@ static String jsonTemplateStr = "{"
 		"\"stop1_bottom\":%u,"
 		"\"stop2_top\":%u,"
 		"\"stop2_bottom\":%u,"
+#if enableCapSense == 1
 		"\"cap_reading\":%lu,"
 		"\"cap_read_time_ms\":%lu,"
 		"\"capfast\":%.2f,"
 		"\"capslow\":%.2f,"
+#endif
 		"\"uptime_h\":%.2f,"
 		"\"enablePID\":%d,"
 		"\"esp32_heap\":%lu"
@@ -275,8 +292,6 @@ long searchTopMilis;
 
 int16_t deltaSearch = 2000;
 
-FDC2212 fdc2212;
-
 uint32_t cap_reading = 0;
 
 // PID
@@ -293,6 +308,8 @@ static String pid_str;
  return idf_wmonitor_coredump_size_from_partition(p);
  }
  */
+
+//void dbg_lwip_stats_show(void);
 
 void testSpi(int which);
 void gdfVdsStatus(int which);
@@ -317,16 +334,17 @@ void timerCallBack(TimerHandle_t xTimer){
 #endif
 }
 
+#if enableCapSense == 1
 TimerHandle_t tmrCapSense;
 void timerCapSenseCallBack(TimerHandle_t xTimer){
 	Serial.printf("getreading \n");
 	fdc2212.getReading();
 }
+#endif
 
 void processWsData(const char *data){
 	if(strcmp(data, "OK") != 0){
-		Serial.println("processWsData\n");
-		Serial.printf("received: %s\n", data);
+		Serial.printf("processWsData: %s\n",data);
 #ifdef arduinoWebserver
 		ws.broadcastTXT(processInput(data).c_str());
 #else
@@ -727,14 +745,15 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
 	if(type == WS_EVT_CONNECT){
 //client connected
 		//lcd_out("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
-		client->printf("Hello Client %u :)", client->id());
-		delay(100);
-		client->ping();
-		delay(100);
-		sendPidToClient();
-		delay(100);
-		shouldSendJson = true;
+		shouldSendJson = false;
+		//client->printf("Hello Client %u :)", client->id());
+		delay(200);
+		//client->ping();
+		delay(200);
+		//sendPidToClient();
+		delay(200);
 		lastWsClient = client->id();
+		shouldSendJson = true;
 
 	}else if(type == WS_EVT_DISCONNECT){
 //client disconnected
@@ -753,7 +772,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
 //the whole message is in a single frame and we got all of it's data
 			//lcd_out("%lu ws[%s][%u] %s-message[%llu]: ", millis(), server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
 
-			Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+			//Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
 
 			if(info->opcode == WS_TEXT){
 				for(size_t i = 0; i < info->len; i++){
@@ -766,7 +785,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
 					msg += buff;
 				}
 			}
-			Serial.printf("%s\n", msg.c_str());
+			//Serial.printf("%s\n", msg.c_str());
 			heap_caps_check_integrity_all(true);
 			processWsData(msg.c_str());
 			heap_caps_check_integrity_all(true);
@@ -921,11 +940,12 @@ void startServer(){
 #else
 	// handler for the /update form POST (once file upload finishes)
 	server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
-		lcd_out("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+		Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+		shouldSendJson = false;
 		uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 		if(0 == index){
 			lcd_out("UploadStart: %s\n", filename.c_str());
-			xTimerStop(tmrWs, 0);
+			//xTimerStop(tmrWs, 0);
 			if(!Update.begin(maxSketchSpace)){Serial.println("Update begin failure!");}
 		}
 		if(Update.write(data, len) != len){
@@ -942,9 +962,15 @@ void startServer(){
 		}
 	});
 
+	server.on("/update", HTTP_GET,
+			[](AsyncWebServerRequest *request){
+				request->send(200, "text/html", "<form method='POST' action='http://127.0.0.1:81/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+			});
+
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->send(404);
 	});
+
 	server.addHandler(&ws);
 	ws.enable(true);
 #endif
@@ -1013,10 +1039,12 @@ IRAM_ATTR void setJsonString(){
 			stop1_bottom,
 			stop2_top,
 			stop2_bottom,
+#if enableCapSense == 1
 			cap_reading,
 			fdc2212.readTimeMs,
 			fdc2212.capFast,
 			fdc2212.capSlow,
+#endif
 			timeH,
 			(pidEnabled == true ? "1" : "0")
 			,size);
@@ -1626,46 +1654,58 @@ void setup(){
 	lcd_out("LED INIT\n");
 	if(enableLed)
 		pinMode(LED_PIN, OUTPUT);
-	pinMode(SS1, OUTPUT);	// Slave select first gate driver
-	pinMode(SS2, OUTPUT);	// Slave select second gate driver
 
 	vTaskDelay(3 / portTICK_PERIOD_MS);
 	lcd_out("Blinking.\n");
 	blink(2);
+
+#if enablePwm == 1
+	lcd_out("Gate driving enable.\n");
+
+	digitalWrite( GATEDRIVER_PIN, HIGH);							//enable gate drivers
+	pinMode(SS1, OUTPUT);	// Slave select first gate driver
+	pinMode(SS2, OUTPUT);	// Slave select second gate driver
+
 	digitalWrite(SS1, HIGH);	// deselect gate driver 1 - CS to HIGH
 	digitalWrite(SS2, HIGH);	// deselect gate driver 2 - CS to HIGH
 
-	if(enablePwm){
-		lcd_out("Gate driving enable.\n");
-		pinMode(GATEDRIVER_PIN, OUTPUT);		//
-		digitalWrite(GATEDRIVER_PIN, LOW);		//disable gate drivers
-
 //initialise vspi with default pins
-		lcd_out("initialise vspi with default pins 1...\n");
-		vspi = new SPIClass(VSPI);
+	lcd_out("initialise vspi with default pins 1...\n");
+	vspi = new SPIClass(VSPI);
 // VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
 // begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
 
-		lcd_out("encoders\n");
-		pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
-		lcd_out("encoders 1\n");
-		pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
-		lcd_out("encoders 2\n");
-		pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
-		lcd_out("encoders 3\n");
-		pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
-		lcd_out("encoders 4\n");
-	}
+	lcd_out("encoders\n");
+	pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
+	lcd_out("encoders 1\n");
+	pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
+	lcd_out("encoders 2\n");
+	pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
+	lcd_out("encoders 3\n");
+	pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
+	lcd_out("encoders 4\n");
 
-	if(enableCapSense){
-		lcd_out("Setting up FDC2212...\n");
-		fdc2212 = FDC2212([](const CapacityResponse& response){
-			Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-			return true;
-		});
-		fdc2212.begin();
-		lcd_out("Setting up FDC2212...Done.\n");
-	}
+	delay(10);
+	Serial.println("initialise PWM ...");
+	ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
+	ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
+	ledcSetup(LEDC_CHANNEL_2, 20000, LEDC_RESOLUTION);
+	ledcSetup(LEDC_CHANNEL_3, 20000, LEDC_RESOLUTION);
+	ledcAttachPin(PWM1_PIN, LEDC_CHANNEL_0);
+	ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
+	ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
+	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
+#endif
+
+#if enableCapSense == 1
+	lcd_out("Setting up FDC2212...\n");
+	fdc2212 = FDC2212([](const CapacityResponse& response){
+		Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+		return true;
+	});
+	fdc2212.begin();
+	lcd_out("Setting up FDC2212...Done.\n");
+#endif
 
 	pinMode(19, INPUT_PULLUP);
 	pinMode(18, OUTPUT);
@@ -1676,19 +1716,6 @@ void setup(){
 		vspi->begin(18, 19, 23, -1);
 		vspi->setDataMode(SPI_MODE1);
 		vspi->setHwCs(false);
-	}
-
-	if(enablePwm){
-		delay(10);
-		Serial.println("initialise ledc...");
-		ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
-		ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
-		ledcSetup(LEDC_CHANNEL_2, 20000, LEDC_RESOLUTION);
-		ledcSetup(LEDC_CHANNEL_3, 20000, LEDC_RESOLUTION);
-		ledcAttachPin(PWM1_PIN, LEDC_CHANNEL_0);
-		ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
-		ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
-		ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	}
 
 	lcd_out("Loading WIFI setting\n");
@@ -1761,6 +1788,7 @@ void setup(){
 			checkNoApFoundCritical();
 		}
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 		lcd_out("SYSTEM_EVENT_SCAN_DONE");
 		int n = WiFi.scanComplete();
@@ -1876,7 +1904,7 @@ void setup(){
 		log_e("Failed to init WDT! Error: %d", errWdtInit);
 	}
 
-	if(enablePwm){
+#if enablePwm
 		Serial.println("DVA");
 		lcd_out("Starting GateDriverTask...");
 		Serial.flush();
@@ -1891,7 +1919,22 @@ void setup(){
 		digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 		lcd_out("Starting GateDriverTask...Done.\n");
 		Serial.flush();
-	}
+#endif
+
+#if enableTaskManager == 1
+	lcd_out("Starting taskmanager...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(taskmanageTask,			// pvTaskCode
+			"TaskManager",			// pcName
+			4096,			// usStackDepth
+			NULL,			// pvParameters
+			22,			// uxPriority
+			&TaskMan,			// pxCreatedTask
+			taskCore);			// xCoreID
+	esp_task_wdt_add(TaskMan);
+	lcd_out("Starting Taskmanager task...Done.\n");
+	Serial.flush();
+#endif
 
 //mover.attach_ms(10, move);
 
@@ -1906,15 +1949,15 @@ void setup(){
 	 }
 	 Serial.flush();
 	 */
-	if(enableCapSense){
-		int id2 = 2;
-		tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2, &timerCapSenseCallBack);
-		if(xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS){
-			esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
-		}else{
-			esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
-		}
+#if enableCapSense == 1
+	int id2 = 2;
+	tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2, &timerCapSenseCallBack);
+	if(xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS){
+		esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
+	}else{
+		esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
 	}
+#endif
 
 	if(enableMover){
 		int id3 = 3;
@@ -1933,97 +1976,144 @@ void setup(){
 //printEncoderInfo();
 }
 
+/*
+ void dbg_lwip_stats_show(void)
+ {
+ TCP_STATS_DISPLAY();
+ UDP_STATS_DISPLAY();
+ ICMP_STATS_DISPLAY();
+ IGMP_STATS_DISPLAY();
+ IP_STATS_DISPLAY();
+ IPFRAG_STATS_DISPLAY();
+ ETHARP_STATS_DISPLAY();
+ LINK_STATS_DISPLAY();
+ MEM_STATS_DISPLAY();
+ SYS_STATS_DISPLAY();
+ IP6_STATS_DISPLAY();
+ ICMP6_STATS_DISPLAY();
+ IP6_FRAG_STATS_DISPLAY();
+ MLD6_STATS_DISPLAY();
+ ND6_STATS_DISPLAY();
+ ESP_STATS_DISPLAY();
+ }
+ */
+
 uint32_t previousHeap;
 uint64_t mySecond = 0;
 uint64_t previousSecond = 0;
 long delta;
 long start;
 void myLoop(){			//ArduinoOTA.handle();
-	enableCore0WDT();
-	esp_task_wdt_add(NULL);	//enableCore1WDT();
+
 //printEncoderInfo();
-	long previousMs = 0;
-	for(;;){
-		mySecond = esp_timer_get_time() / 1000000.0;
-		if((mySecond % 10 == 0 && mySecond != previousSecond) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)){
+//	for(;;){
+	mySecond = esp_timer_get_time() / 1000000.0;
+	if((mySecond % 10 == 0) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)){
 #ifndef arduinoWebserver
-			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, wsLength: %d\n", mySecond, timeH, xPortGetCoreID(), freeheap,
-					ws._buffers.length());
+		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+		log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, wsLength: %d\n", mySecond, timeH, xPortGetCoreID(), freeheap,
+				ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 			#endif
-			heap_caps_check_integrity_all(true);
-			previousHeap = ESP.getFreeHeap();
-			previousSecond = mySecond;
-		}
+		//dbg_lwip_stats_show();
 		heap_caps_check_integrity_all(true);
+		if(abs(ESP.getFreeHeap() - previousHeap) > 10000)
+			previousHeap = ESP.getFreeHeap();
+		previousSecond = mySecond;
+		previousMs = millis();
 
-		if(rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value){
-//Serial.println("Saving to flash enc1.");
-			encoder1_value = rotaryEncoder1.readEncoder();
-			start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
-			preferences.begin("settings", false);
-			preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-			preferences.putInt("target1", (int) target1);
-			preferences.end();
-			delta = micros() - start;
+		/*
+		 vTaskList(ptrTaskList);
+		 Serial.println(F("**********************************"));
+		 Serial.println(F("Task  State   Prio    Stack    Num"));
+		 Serial.println(F("**********************************"));
+		 Serial.print(ptrTaskList);
+		 Serial.println(F("**********************************"));
+		 */
 
-			if(delta > 1000)
-				log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
+	}
+	heap_caps_check_integrity_all(true);
+	/*
+	 if(rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value){
+	 //Serial.println("Saving to flash enc1.");
+	 encoder1_value = rotaryEncoder1.readEncoder();
+	 start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
+	 preferences.begin("settings", false);
+	 preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+	 preferences.putInt("target1", (int) target1);
+	 preferences.end();
+	 delta = micros() - start;
 
-		}
+	 if(delta > 1000)
+	 log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
 
-		if(rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value){
-//Serial.println("Saving to flash enc2.");
-			encoder2_value = rotaryEncoder2.readEncoder();
-			start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
-			preferences.begin("settings", false);
-			preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-			preferences.putInt("target2", (int) target2);
-			preferences.end();
-			delta = micros() - start;
+	 }
 
-			if(delta > 1000){
-				log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
-			}
-		}
+	 if(rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value){
+	 //Serial.println("Saving to flash enc2.");
+	 encoder2_value = rotaryEncoder2.readEncoder();
+	 start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
+	 preferences.begin("settings", false);
+	 preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+	 preferences.putInt("target2", (int) target2);
+	 preferences.end();
+	 delta = micros() - start;
 
-		esp_err_t resetOK = esp_task_wdt_reset();
-		if(resetOK != ESP_OK){
-			log_i("Failed reset wdt: err %#03x\n", resetOK);
-		}
+	 if(delta > 1000){
+	 log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
+	 }
+	 }
+	 */
+	esp_err_t resetOK = esp_task_wdt_reset();
+	if(resetOK != ESP_OK){
+		log_i("Failed reset wdt: err %#03x\n", resetOK);
+	}
 
-		if(restartNow){
-			log_i("Restart\n");
-			ESP.restart();
-		}
+	if(restartNow){
+		log_i("Restart\n");
+		ESP.restart();
+	}
 
-		if((millis() > (previousMs + jsonReportIntervalMs)) && shouldSendJson){
-			setJsonString();
-			//Serial.println(txtToSend);
-			ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+	//if((millis() > (previousMs + jsonReportIntervalMs)) && shouldSendJson){
+		setJsonString();
+		//Serial.println(txtToSend);
+		ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 #ifdef arduinoWebserver
 			ws.broadcastTXT(txtToSend);
 #else
-			ws.textAll(txtToSend);
+		if(ws.hasClient(lastWsClient)){
+			ws.text(lastWsClient, txtToSend);
+		}
+		/*
+		 uint8_t opcode = WS_TEXT;
+		 uint8_t _opcode = opcode & 0x07;
+		 bool mask = false;
+		 size_t len = sizeof(txtToSend)/sizeof(txtToSend[0]);
+		 if(ws.hasClient(lastWsClient)){
+		 Serial.printf("Space: %d\n", ((AsyncClient*) ws.client(lastWsClient))->space());
+		 size_t sent = webSocketSendFrame((AsyncClient*) ws.client(lastWsClient), true, _opcode, mask, (uint8_t*) txtToSend, len);
+		 Serial.printf("Sent len: %d\n", sent);
+		 }
+		 */
 #endif
 
-			//ESP_ERROR_CHECK(heap_trace_stop());
-			//heap_trace_dump();
+		//ESP_ERROR_CHECK(heap_trace_stop());
+		//heap_trace_dump();
 //Serial.printf("texted all: %s\n", txtToSend);
-			previousMs = millis();
-		}
+
+	//}
 
 #ifdef arduinoWebserver
 		server.handleClient();
 		ws.loop();
 #endif
 
-		//vTaskDelay(5 / portTICK_PERIOD_MS);
-		optimistic_yield(5);
-	}
+	//vTaskDelay(10 / portTICK_PERIOD_MS);
+	//optimistic_yield(5);
+
+//	}
 }
 
 void loop(){
@@ -2037,7 +2127,8 @@ void Loop(void*parameter){
 int id3 = 4;
 TimerHandle_t tmr2;
 void loopCallBack(TimerHandle_t xTimer){
-	loop();
+	//loop();
+	myLoop();
 }
 
 extern "C" {
@@ -2048,27 +2139,34 @@ void app_main(){
 
 	if(enableLcd == true)
 		esp_draw();
+
 	setup();
 
-	lcd_out("Starting LoopTask...");
-	Serial.flush();
-	xTaskCreatePinnedToCore(Loop,							// pvTaskCode
-			"MyLoop",							// pcName
-			25000,							// usStackDepth
-			NULL,							// pvParameters
-			16,							// uxPriority
-			&TaskLoop,							// pxCreatedTask
-			taskCore);							// xCoreID
-	esp_task_wdt_add(TaskLoop);
+	/*
+	 lcd_out("Starting LoopTask...");
+	 Serial.flush();
+	 xTaskCreatePinnedToCore(Loop,							// pvTaskCode
+	 "MyLoop",							// pcName
+	 25000,							// usStackDepth
+	 NULL,							// pvParameters
+	 16,							// uxPriority
+	 &TaskLoop,							// pxCreatedTask
+	 taskCore);							// xCoreID
+	 esp_task_wdt_add(TaskLoop);
+	 lcd_out("Starting LoopTask...Done.\n");
+	 Serial.flush();
+	 */
 
-	digitalWrite( GATEDRIVER_PIN, HIGH);							//enable gate drivers
-	lcd_out("Starting LoopTask...Done.\n");
-	Serial.flush();
-
-	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(loopIntervalMs), pdTRUE, (void *) id3, &loopCallBack);
+	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE, (void *) id3, &loopCallBack);
 	if( xTimerStart ( tmr2 , 10 ) != pdPASS){
-		printf("Timer loop start error");
+		lcd_out("Timer loop start error");
 	}
+	else
+	{
+		lcd_out("Timer loop created.");
+	}
+	//enableCore0WDT();
+	//esp_task_wdt_add(NULL);	//enableCore1WDT();
 
-//loop();
+	//loop();
 }
