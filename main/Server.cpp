@@ -2017,7 +2017,7 @@ void myLoop(){			//ArduinoOTA.handle();
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 			#endif
-		//dbg_lwip_stats_show();
+		dbg_lwip_stats_show();
 		heap_caps_check_integrity_all(true);
 		if(abs(ESP.getFreeHeap() - previousHeap) > 10000)
 			previousHeap = ESP.getFreeHeap();
