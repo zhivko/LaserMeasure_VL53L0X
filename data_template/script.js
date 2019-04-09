@@ -263,7 +263,7 @@ function onMessage(evt)
 			document.getElementById("motor2_pos").textContent = res[1];
 		}
 	}
-	websocket.send('s');
+	websocket.send('ok');
 }
 
 function onError(evt)

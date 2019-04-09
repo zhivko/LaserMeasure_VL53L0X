@@ -174,7 +174,7 @@ static void IRAM_ATTR readEncoder2_ISR() {
 	portEXIT_CRITICAL_ISR(&(rotaryEncoder2.mux));
 }
 
-uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 8) {
+uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
 	adc1_channel_t chan;
 	switch (pin) {
 	case 32:
@@ -334,6 +334,6 @@ void Task1(void * parameter) {
 			log_e("Failed to feed WDT! Error: %d", err);
 		}
 
-		vTaskDelay(10 / portTICK_PERIOD_MS);
+		vTaskDelay(5 / portTICK_PERIOD_MS);
 	}
 }
