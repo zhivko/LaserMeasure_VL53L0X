@@ -302,7 +302,7 @@ if(websocket!=null)
 
 function writeToScreen(message)
 {
-	output.innerHTML = 'Time: ' + ((new Date()).getTime()-currentTimeMs) +'ms Received: ' + message + "<br>\n" + output.innerHTML;		
+	output.innerHTML = 'Time: ' + (((new Date()).getTime()-currentTimeMs)/1000) +'s Received: ' + message + "<br>\n" + output.innerHTML;		
 }
 function doDisconnect()
 {
