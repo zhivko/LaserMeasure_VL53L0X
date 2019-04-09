@@ -203,7 +203,6 @@ function testWebSocket()
 function onOpen(evt)
 {
 	writeToScreen("CONNECTED");
-	writeToScreen('<span style="color: blue;">Time: ' + ((new Date()).getTime()-currentTimeMs) +'ms Received: ' + evt.data+'</span>');
 }
 function onClose(evt)
 {
@@ -303,7 +302,7 @@ if(websocket!=null)
 
 function writeToScreen(message)
 {
-	output.innerHTML = message + "<br>\n" + output.innerHTML;		
+	output.innerHTML = 'Time: ' + ((new Date()).getTime()-currentTimeMs) +'ms Received: ' + message + "<br>\n" + output.innerHTML;		
 }
 function doDisconnect()
 {
