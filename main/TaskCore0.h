@@ -334,6 +334,6 @@ void Task1(void * parameter) {
 			log_e("Failed to feed WDT! Error: %d", err);
 		}
 
-		vTaskDelay(5 / portTICK_PERIOD_MS);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
 	}
 }
