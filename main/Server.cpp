@@ -99,10 +99,10 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-#define enableCapSense 1
-#define enablePwm 1
-#define enableTaskManager 0
-bool enableLcd = false;
+#define enableCapSense 0
+#define enablePwm 0
+#define enableTaskManager 1
+bool enableLcd = true;
 bool enableMover = false;
 
 bool enableLed = true;
@@ -1979,6 +1979,9 @@ void setup() {
 	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	delay(100);
 
+	Serial.flush();
+#endif
+
 	lcd_out("Starting GateDriverTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
@@ -1991,8 +1994,6 @@ void setup() {
 	esp_task_wdt_add(TaskA);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting GateDriverTask...Done.\n");
-	Serial.flush();
-#endif
 
 	blink(5);
 	lcd_out("Setup Done.\n");

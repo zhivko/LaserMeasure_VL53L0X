@@ -16,12 +16,31 @@ void taskmanageTask(void * pvParameters){
 		uxArraySize = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, &ulTotalRunTime);
 		sprintf(outputBuffer, "%15s%15s%15s%15s%15s%15s%15s%15s\r\n", "NAME", "ID", "STATE", "PRIO", "BASE", "TIME", "CPU", "STACK");
 		Serial.print(outputBuffer);
+		TaskStatus_t xTaskDetails;
 
 		for(int i = 0; i < uxArraySize; i++){
+
+			vTaskGetInfo( /* The handle of the task being queried. */
+							  pxTaskStatusArray[i].xHandle,
+			                  /* The TaskStatus_t structure to complete with information
+			                  on xTask. */
+			                  &xTaskDetails,
+			                  /* Include the stack high water mark value in the
+			                  TaskStatus_t structure. */
+			                  pdTRUE,
+			                  /* Include the task state in the TaskStatus_t structure. */
+			                  eInvalid );
+			uint32_t taskWatermark = xTaskDetails.usStackHighWaterMark;
+			//((tskTCB*)pxTaskStatusArray[i].xHandle)
+
+			pxTaskStatusArray[i].
+
 			sprintf(outputBuffer, "%15s", pxTaskStatusArray[i].pcTaskName);
 			Serial.print(outputBuffer);
 			sprintf(outputBuffer, "%15u", pxTaskStatusArray[i].xTaskNumber);
 			Serial.print(outputBuffer);
+
+
 
 			switch (pxTaskStatusArray[i].eCurrentState){
 			case eRunning:
