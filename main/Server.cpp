@@ -99,20 +99,21 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-#define enableCapSense 0
-#define enablePwm 0
+#define enableCapSense 1
+#define enablePwm 1
 #define enableTaskManager 1
-bool enableLcd = true;
+bool enableLcd = false;
 bool enableMover = false;
 
-bool enableLed = true;
+bool enableLed = false;
 bool shouldReboot = false;
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 100;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
-static int taskCore = 0;
+static int taskManagerCore = 0;
+static int pidTaskCore = 1;
 bool restartNow = false;
 
 long previousMs = 0;
@@ -1898,7 +1899,7 @@ void setup() {
 			NULL,			// pvParameters
 			22,			// uxPriority
 			&TaskMan,			// pxCreatedTask
-			taskCore);			// xCoreID
+			taskManagerCore);			// xCoreID
 	esp_task_wdt_add(TaskMan);
 	lcd_out("Starting Taskmanager task...Done.\n");
 	Serial.flush();
@@ -1985,12 +1986,12 @@ void setup() {
 	lcd_out("Starting GateDriverTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
-			"GateDriverTask",			// pcName
-			4096,			// usStackDepth
+			"pidTask",			// pcName
+			6096,			// usStackDepth
 			NULL,			// pvParameters
 			1,			    // uxPriority
 			&TaskA,			// pxCreatedTask
-			0);			// xCoreID
+			pidTaskCore);			// xCoreID
 	esp_task_wdt_add(TaskA);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting GateDriverTask...Done.\n");
