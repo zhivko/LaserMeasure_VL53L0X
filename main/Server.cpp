@@ -104,16 +104,20 @@ float timeH;
 #define enableTaskManager 1
 bool enableLcd = false;
 bool enableMover = false;
-
 bool enableLed = false;
 bool shouldReboot = false;
+
+static int taskManagerCore = 0;
+static int pidTaskCore = 1;
+
+
+
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 100;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
-static int taskManagerCore = 0;
-static int pidTaskCore = 1;
+
 bool restartNow = false;
 
 long previousMs = 0;
