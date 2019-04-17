@@ -16,7 +16,7 @@
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
- curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verboe
+ curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verbose
  curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
 #include <esp_heap_caps.h>
@@ -109,8 +109,6 @@ bool shouldReboot = false;
 
 static int taskManagerCore = 0;
 static int pidTaskCore = 1;
-
-
 
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 100;
@@ -343,7 +341,7 @@ void timerCallBack(TimerHandle_t xTimer) {
 
 #if enableCapSense == 1
 TimerHandle_t tmrCapSense;
-void timerCapSenseCallBack(TimerHandle_t xTimer){
+void timerCapSenseCallBack(TimerHandle_t xTimer) {
 	//Serial.printf("getreading \n");
 	fdc2212.getReading();
 }
@@ -901,6 +899,7 @@ void handle_update_progress_cb(AsyncWebServerRequest *request, String filename,
 		Update.printError(Serial);
 	}
 	if (final) {
+		lcd_out("Update complete - final\n");
 		if (!Update.end(true)) {
 			Update.printError(Serial);
 		} else {
@@ -975,7 +974,9 @@ void startServer() {
 				if(Update.write(data, len) != len) {
 					Update.printError(Serial);
 					//xTimerStart(tmrWs, 0);
-				} else {Serial.printf("Write: %d bytes\n", len);}
+				} else {
+					Serial.printf("Write: %d bytes\n", len);
+				}
 				if(final) {
 					lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
 					if (Update.end(true)) {
@@ -988,7 +989,7 @@ void startServer() {
 
 	server.on("/update", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
-				request->send(200, "text/html", "<form method='POST' action='http://127.0.0.1:81/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+				request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
 			});
 
 	server.onNotFound([](AsyncWebServerRequest *request) {
@@ -1091,7 +1092,7 @@ void lcd_out(const char*format, ...) {
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
 	}
-	esp_log_write(ESP_LOG_INFO, TAG, loc_buf);
+	ESP_LOGI(TAG, "%s", temp);
 
 	va_end(arg);
 	if (len >= sizeof(loc_buf)) {
@@ -1689,10 +1690,12 @@ void setup() {
 
 #if enableCapSense == 1
 	lcd_out("Setting up FDC2212...\n");
-	fdc2212 = FDC2212([](const CapacityResponse& response){
-		Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-		return true;
-	});
+	fdc2212 =
+			FDC2212(
+					[](const CapacityResponse& response) {
+						Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
+						return true;
+					});
 	fdc2212.begin();
 	lcd_out("Setting up FDC2212...Done.\n");
 #endif
@@ -1924,10 +1927,12 @@ void setup() {
 	 */
 #if enableCapSense == 1
 	int id2 = 2;
-	tmrCapSense = xTimerCreate("MyTimerCapSense", pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2, &timerCapSenseCallBack);
-	if(xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS){
+	tmrCapSense = xTimerCreate("MyTimerCapSense",
+			pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
+			&timerCapSenseCallBack);
+	if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
 		esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
-	}else{
+	} else {
 		esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
 	}
 #endif
@@ -2038,15 +2043,16 @@ void myLoop() {			//ArduinoOTA.handle();
 //printEncoderInfo();
 //	for(;;){
 	mySecond = esp_timer_get_time() / 1000000.0;
-	if ((mySecond % 10 == 0)
-			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+	if (((mySecond % 10 == 0) && (previousSecond != mySecond)) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-		log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, wsLength: %d\n", mySecond, timeH, xPortGetCoreID(), freeheap,
+		lcd_out(
+				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, wsLength: %d\n",
+				mySecond, timeH, xPortGetCoreID(), freeheap,
 				ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			log_i("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
+			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 			#endif
 		//dbg_lwip_stats_show();
 		heap_caps_check_integrity_all(true);
@@ -2066,44 +2072,45 @@ void myLoop() {			//ArduinoOTA.handle();
 
 	}
 	heap_caps_check_integrity_all(true);
-	/*
-	 if(rotaryEncoder1.encoderChanged() != 0 && ((int) target1) == encoder1_value){
-	 //Serial.println("Saving to flash enc1.");
-	 encoder1_value = rotaryEncoder1.readEncoder();
-	 start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
-	 preferences.begin("settings", false);
-	 preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-	 preferences.putInt("target1", (int) target1);
-	 preferences.end();
-	 delta = micros() - start;
 
-	 if(delta > 1000)
-	 log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
+	if (rotaryEncoder1.encoderChanged() != 0) {
+		//Serial.println("Saving to flash enc1.");
+		encoder1_value = rotaryEncoder1.readEncoder();
+		start = micros();// ref: https://github.com/espressif/arduino-esp32/issues/384
+		preferences.begin("settings", false);
+		preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
+		preferences.putInt("target1", (int) target1);
+		preferences.end();
+		delta = micros() - start;
 
-	 }
+		if (delta > 1000)
+		{
+			lcd_out("%lu Preferences save completed in %lu us.\n", micros(), delta);
+		}
+	}
 
-	 if(rotaryEncoder2.encoderChanged() != 0 && ((int) target2) == encoder2_value){
-	 //Serial.println("Saving to flash enc2.");
-	 encoder2_value = rotaryEncoder2.readEncoder();
-	 start = micros();	// ref: https://github.com/espressif/arduino-esp32/issues/384
-	 preferences.begin("settings", false);
-	 preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-	 preferences.putInt("target2", (int) target2);
-	 preferences.end();
-	 delta = micros() - start;
+	if (rotaryEncoder2.encoderChanged() != 0) {
+		//Serial.println("Saving to flash enc2.");
+		encoder2_value = rotaryEncoder2.readEncoder();
+		start = micros();// ref: https://github.com/espressif/arduino-esp32/issues/384
+		preferences.begin("settings", false);
+		preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
+		preferences.putInt("target2", (int) target2);
+		preferences.end();
+		delta = micros() - start;
 
-	 if(delta > 1000){
-	 log_i("%lu Preferences save completed in %lu us.\n", micros(), delta);
-	 }
-	 }
-	 */
+		if (delta > 1000) {
+			lcd_out("%lu Preferences save completed in %lu us.\n", micros(), delta);
+		}
+	}
+
 	esp_err_t resetOK = esp_task_wdt_reset();
 	if (resetOK != ESP_OK) {
-		log_i("Failed reset wdt: err %#03x\n", resetOK);
+		lcd_out("Failed reset wdt: err %#03x\n", resetOK);
 	}
 
 	if (restartNow) {
-		log_i("Restart\n");
+		lcd_out("Restart\n");
 		ESP.restart();
 	}
 
