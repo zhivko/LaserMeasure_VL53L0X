@@ -77,8 +77,8 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 
-#define enableCapSense 0
-#define enablePwm 0
+#define enableCapSense 1
+#define enablePwm 1
 #define enableTaskManager 1
 #define enableEncSaver 1
 bool enableLcd = true;
@@ -87,10 +87,10 @@ bool enableLed = false;
 bool shouldReboot = false;
 
 #if enableTaskManager == 1
-#include "Taskmanager.h"
+	#include "Taskmanager.h"
 #endif
 #if enableEncSaver == 1
-#include "encoderSaver.h"
+	#include "encoderSaver.h"
 #endif
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
@@ -501,8 +501,10 @@ String processInput(const char *input) {
 		ret.concat(target2);
 		ret.concat("\n");
 
+		preferences.begin("settings", false);
 		preferences.putInt("target1", (int) target1);
 		preferences.putInt("target2", (int) target2);
+		preferences.end();
 
 	} else if (strncmp(input, "enablePid", 9) == 0) {
 		pidEnabled = true;
