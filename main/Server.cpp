@@ -2098,7 +2098,7 @@ void myLoop() {			//ArduinoOTA.handle();
 	if (shouldSendJson) {
 		setJsonString();
 		//Serial.println(txtToSend);
-		ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+		//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 #ifdef arduinoWebserver
 			ws.broadcastTXT(txtToSend);
 #else
