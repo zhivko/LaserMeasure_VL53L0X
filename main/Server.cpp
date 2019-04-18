@@ -77,21 +77,20 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 
-
-#define enableCapSense 1
-#define enablePwm 1
+#define enableCapSense 0
+#define enablePwm 0
 #define enableTaskManager 1
 #define enableEncSaver 1
-bool enableLcd = false;
+bool enableLcd = true;
 bool enableMover = false;
 bool enableLed = false;
 bool shouldReboot = false;
 
 #if enableTaskManager == 1
-	#include "Taskmanager.h"
+#include "Taskmanager.h"
 #endif
 #if enableEncSaver == 1
-	#include "encoderSaver.h"
+#include "encoderSaver.h"
 #endif
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
@@ -100,7 +99,7 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 
 char ptrTaskList[250];
 const char* TAG = "DoubleLifter";
-bool shouldSendJson = true;
+bool shouldSendJson = false;
 //IRAM_ATTR String getJsonString();
 
 //AsyncUDP udp;
@@ -115,11 +114,8 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-
-
 static int taskManagerCore = 0;
 static int encoderSaverCore = 0;
-static int pidTaskCore = 1;
 
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 100;
@@ -768,7 +764,6 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 	if (type == WS_EVT_CONNECT) {
 //client connected
 		//lcd_out("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
-		shouldSendJson = false;
 		//client->printf("Hello Client %u :)", client->id());
 		delay(200);
 		//client->ping();
@@ -776,7 +771,6 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		sendPidToClient();
 		delay(400);
 		lastWsClient = client->id();
-		shouldSendJson = true;
 
 	} else if (type == WS_EVT_DISCONNECT) {
 //client disconnected
@@ -900,7 +894,6 @@ void syncTime() {
 	}
 }
 
-
 void startServer() {
 	syncTime();
 	MDNS.begin(hostName);
@@ -955,7 +948,7 @@ void startServer() {
 	server.onFileUpload(
 			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
 				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
-				shouldSendJson = false;
+				//shouldSendJson = false;
 				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 				if(0 == index) {
 					lcd_out("UploadStart: %s\n", filename.c_str());
@@ -964,7 +957,7 @@ void startServer() {
 				}
 				if(Update.write(data, len) != len) {
 					Update.printError(Serial);
-					shouldSendJson = true;
+					//shouldSendJson = true;
 					//xTimerStart(tmrWs, 0);
 				} else {
 					Serial.printf("Write: %d bytes\n", len);
@@ -995,6 +988,28 @@ void startServer() {
 
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	//server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
+		shouldSendJson = true;
+		request->send(200, "text/html", "Toggled OK");
+	});
+	server.on("/toggleChartsOff", HTTP_GET, [](AsyncWebServerRequest *request) {
+		shouldSendJson = false;
+		request->send(200, "text/html", "Toggled OK");
+	});
+	server.on("/gcode", HTTP_GET, [](AsyncWebServerRequest *request) {
+		int paramsNr = request->params();
+		for(int i=0;i<paramsNr;i++) {
+
+			AsyncWebParameter* p = request->getParam(i);
+			Serial.print("Param name: ");
+			Serial.println(p->name());
+			if(p->name().equalsIgnoreCase("gcode"))
+			{
+				processInput(p->value().c_str());
+			}
+		}
+		request->send(200, "text/html", "Gcode OK");
+	});
 
 	server.begin();
 	lcd_out("WebServer started.\n");
@@ -1830,7 +1845,6 @@ void setup() {
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-
 	waitForIp();			//	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
 //		lcd_out("WIFI_MODE_AP");
@@ -1944,6 +1958,7 @@ void setup() {
 	}
 
 #if enablePwm == 1
+	int pidTaskCore = 1;
 	lcd_out("Gate driving enable.\n");
 	pinMode(GATEDRIVER_PIN, OUTPUT);
 	digitalWrite(GATEDRIVER_PIN, HIGH);					//enable gate drivers

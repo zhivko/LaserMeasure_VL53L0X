@@ -30,6 +30,31 @@ function handleEnablePID(cb)
 		doSendCommand("disablePid");
 }
 
+function handleChartToggle(cb)
+{
+	const Http = new XMLHttpRequest();
+	chartsVisible = document.getElementById("chartsVisible");
+	divCharts = document.getElementById("charts");
+	var url;
+    if(!chartsVisible.checked)
+    {
+		url='/toggleChartsOn';
+    	divCharts.style.visibility='visible';
+    }
+    else
+    {
+		url='/toggleChartsOff';
+    	divCharts.style.visibility='hidden';
+	}
+	
+	Http.open("GET", url);
+	Http.send();
+	Http.onreadystatechange=(e)=>{
+		writeToScreen("Toggled charts");
+	}
+}
+
+
 function handleSearchTop(cb)
 {
 	if(!cb.checked)
@@ -60,7 +85,7 @@ function keyPress(e)
 
 function init()
 {
-	
+	parent.document.getElementById("chartsVisible").checked = false;
 	output = parent.document.getElementById("output");
 	testWebSocket();
 	
@@ -188,6 +213,7 @@ function init()
 	});		
 	chart4.render;
 }
+
 function testWebSocket()
 {
 	if (location.host != "")
@@ -279,7 +305,18 @@ function doSend(element)
 {
 	//writeToScreen("SENT: " + message); 
 	textToSend = element.id + "#" + element.value;
-	websocket.send(textToSend);
+	if(element.id == 'gCodeCmd1' || element.id == 'gCodeCmd2')
+	{
+		const Http = new XMLHttpRequest();
+		const url= '/gcode?gcode=' + textToSend;
+		Http.open("GET", url);
+		Http.send();
+		Http.onreadystatechange=(e)=>{
+			writeToScreen("Sent gcode: " + textToSend);
+		}		
+	}
+	else
+		websocket.send(textToSend);
 }
 function doSendParentElementId(element)
 {
