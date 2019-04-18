@@ -1,6 +1,6 @@
 var currentTimeMs=(new Date()).getTime();
 var websocket;
-
+const Http = new XMLHttpRequest();
 var output;
 
 var dps1 = [];   //dataPoints. 
@@ -30,9 +30,8 @@ function handleEnablePID(cb)
 		doSendCommand("disablePid");
 }
 
-function handleChartToggle(cb)
+function handleChartToggle()
 {
-	const Http = new XMLHttpRequest();
 	chartsVisible = document.getElementById("chartsVisible");
 	divCharts = document.getElementById("charts");
 	var url;
@@ -49,9 +48,6 @@ function handleChartToggle(cb)
 	
 	Http.open("GET", url);
 	Http.send();
-	Http.onreadystatechange=(e)=>{
-		writeToScreen("Toggled charts");
-	}
 }
 
 
@@ -307,13 +303,10 @@ function doSend(element)
 	textToSend = element.id + "#" + element.value;
 	if(element.id == 'gCodeCmd1' || element.id == 'gCodeCmd2')
 	{
-		const Http = new XMLHttpRequest();
-		const url= '/gcode?gcode=' + textToSend;
+
+		const url= '/gcode?gcode=' + encodeURIComponent(textToSend);
 		Http.open("GET", url);
 		Http.send();
-		Http.onreadystatechange=(e)=>{
-			writeToScreen("Sent gcode: " + textToSend);
-		}		
 	}
 	else
 		websocket.send(textToSend);

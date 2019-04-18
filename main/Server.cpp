@@ -987,7 +987,7 @@ void startServer() {
 #endif
 
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
-	//server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
+	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
 		shouldSendJson = true;
 		request->send(200, "text/html", "Toggled OK");
@@ -1001,10 +1001,15 @@ void startServer() {
 		for(int i=0;i<paramsNr;i++) {
 
 			AsyncWebParameter* p = request->getParam(i);
-			Serial.print("Param name: ");
-			Serial.println(p->name());
+
 			if(p->name().equalsIgnoreCase("gcode"))
 			{
+				Serial.print("Param name: ");
+				Serial.println(p->name());
+
+				Serial.print("Param value: ");
+				Serial.println(p->value());
+
 				processInput(p->value().c_str());
 			}
 		}
