@@ -25,7 +25,7 @@ extern AiEsp32RotaryEncoder rotaryEncoder2;
 extern AiEsp32RotaryEncoder rotaryEncoder1;
 
 extern Preferences preferences;
-extern volatile int32_t encoder1_value, encoder2_value;
+extern int32_t encoder1_value, encoder2_value;
 extern volatile double output1, output2;
 extern volatile double target1, target2;
 extern volatile int16_t pwm1, pwm2;

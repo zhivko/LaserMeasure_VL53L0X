@@ -77,7 +77,22 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 
-#include "Taskmanager.h"
+
+#define enableCapSense 1
+#define enablePwm 1
+#define enableTaskManager 1
+#define enableEncSaver 1
+bool enableLcd = false;
+bool enableMover = false;
+bool enableLed = false;
+bool shouldReboot = false;
+
+#if enableTaskManager == 1
+	#include "Taskmanager.h"
+#endif
+#if enableEncSaver == 1
+	#include "encoderSaver.h"
+#endif
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
 #define NUM_RECORDS 100
@@ -100,15 +115,10 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-#define enableCapSense 0
-#define enablePwm 0
-#define enableTaskManager 0
-bool enableLcd = false;
-bool enableMover = false;
-bool enableLed = false;
-bool shouldReboot = false;
+
 
 static int taskManagerCore = 0;
+static int encoderSaverCore = 0;
 static int pidTaskCore = 1;
 
 const char* hostName = "esp32_door";
@@ -116,6 +126,7 @@ int jsonReportIntervalMs = 100;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
+int encoderSaverIntervalMs = 500;
 
 bool restartNow = false;
 
@@ -210,12 +221,13 @@ String status2;
 String gdfVds1;
 String gdfVds2;
 
-volatile int32_t encoder1_value;
-volatile int32_t encoder2_value;
+int32_t encoder1_value;
+int32_t encoder2_value;
 //Ticker mover;
 //Ticker jsonReporter;
 TaskHandle_t TaskA;
 TaskHandle_t TaskMan;
+TaskHandle_t TaskEncSaver;
 TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
 //TaskHandle_t i2cTask;
@@ -492,6 +504,9 @@ String processInput(const char *input) {
 		ret.concat(" target2= ");
 		ret.concat(target2);
 		ret.concat("\n");
+
+		preferences.putInt("target1", (int) target1);
+		preferences.putInt("target2", (int) target2);
 
 	} else if (strncmp(input, "enablePid", 9) == 0) {
 		pidEnabled = true;
@@ -1875,18 +1890,17 @@ void setup() {
 		log_e("Failed to init WDT! Error: %d", errWdtInit);
 	}
 
-#if enableTaskManager == 1
-	lcd_out("Starting taskmanager...");
+#if enableEncSaver == 1
+	lcd_out("Starting encoder saver...");
 	Serial.flush();
-	xTaskCreatePinnedToCore(taskmanageTask,			// pvTaskCode
-			"TaskManager",			// pcName
+	xTaskCreatePinnedToCore(encoderSaverTask,			// pvTaskCode
+			"EncoderSaver",			// pcName
 			4096,			// usStackDepth
 			NULL,			// pvParameters
 			22,			// uxPriority
-			&TaskMan,			// pxCreatedTask
-			taskManagerCore);			// xCoreID
-	esp_task_wdt_add(TaskMan);
-	lcd_out("Starting Taskmanager task...Done.\n");
+			&TaskEncSaver,			// pxCreatedTask
+			encoderSaverCore);			// xCoreID
+	lcd_out("Starting encoder saver task...Done.\n");
 	Serial.flush();
 #endif
 
@@ -1967,7 +1981,7 @@ void setup() {
 	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	delay(100);
 
-	lcd_out("Starting GateDriverTask...");
+	lcd_out("Starting pidTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
 			"pidTask",			// pcName
@@ -1978,8 +1992,23 @@ void setup() {
 			pidTaskCore);			// xCoreID
 	esp_task_wdt_add(TaskA);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
-	lcd_out("Starting GateDriverTask...Done.\n");
+	lcd_out("Starting pidTask...Done.\n");
 
+	Serial.flush();
+#endif
+
+#if enableTaskManager == 1
+	lcd_out("Starting taskmanager...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(taskmanageTask,			// pvTaskCode
+			"TaskManager",			// pcName
+			4096,			// usStackDepth
+			NULL,			// pvParameters
+			22,			// uxPriority
+			&TaskMan,			// pxCreatedTask
+			taskManagerCore);			// xCoreID
+	esp_task_wdt_add(TaskMan);
+	lcd_out("Starting Taskmanager task...Done.\n");
 	Serial.flush();
 #endif
 
@@ -2051,38 +2080,6 @@ void myLoop() {			//ArduinoOTA.handle();
 
 	}
 	heap_caps_check_integrity_all(true);
-
-	if (rotaryEncoder1.encoderChanged() != 0) {
-		//Serial.println("Saving to flash enc1.");
-		encoder1_value = rotaryEncoder1.readEncoder();
-		start = micros();// ref: https://github.com/espressif/arduino-esp32/issues/384
-		preferences.begin("settings", false);
-		preferences.putInt("encoder1_value", rotaryEncoder1.readEncoder());
-		preferences.putInt("target1", (int) target1);
-		preferences.end();
-		delta = micros() - start;
-
-		if (delta > 1000) {
-			lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
-					delta);
-		}
-	}
-
-	if (rotaryEncoder2.encoderChanged() != 0) {
-		//Serial.println("Saving to flash enc2.");
-		encoder2_value = rotaryEncoder2.readEncoder();
-		start = micros();// ref: https://github.com/espressif/arduino-esp32/issues/384
-		preferences.begin("settings", false);
-		preferences.putInt("encoder2_value", rotaryEncoder2.readEncoder());
-		preferences.putInt("target2", (int) target2);
-		preferences.end();
-		delta = micros() - start;
-
-		if (delta > 1000) {
-			lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
-					delta);
-		}
-	}
 
 	esp_err_t resetOK = esp_task_wdt_reset();
 	if (resetOK != ESP_OK) {
