@@ -60,6 +60,7 @@ function keyPress(e)
 
 function init()
 {
+	
 	output = parent.document.getElementById("output");
 	testWebSocket();
 	

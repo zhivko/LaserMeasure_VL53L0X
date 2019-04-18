@@ -964,8 +964,11 @@ void startServer() {
 				}
 				if(Update.write(data, len) != len) {
 					Update.printError(Serial);
+					shouldSendJson = true;
 					//xTimerStart(tmrWs, 0);
-				} else {Serial.printf("Write: %d bytes\n", len);}
+				} else {
+					Serial.printf("Write: %d bytes\n", len);
+				}
 				if(final) {
 					lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
 					if (Update.end(true)) {

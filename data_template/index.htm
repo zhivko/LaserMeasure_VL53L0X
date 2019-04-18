@@ -50,14 +50,15 @@ PID regulation data:</br>
 <table border="1">
 <tr><td><small id="PID1output"></small></td><td><small id="PID2output"></small></td></tr>
 </table>
-<input type="checkbox" checked="checked" id="enablePID" name="enablePID" onMouseDown="handleEnablePID(this);" value="Bike" />Pid enabled
+<input type="checkbox" checked="checked" id="enablePID" name="enablePID" onMouseDown="handleEnablePID(this);" value="Bike" style="position:absolute;z-index:40;top:0px;left:300px" />Charts
 
-
-<div id="chartContainer1" style="height: 200px; width:500px;position:absolute;z-index:10;top:50px;left:300px"></div>
-<div id="chartContainer4" style="height: 200px; width:500px;position:absolute;z-index:20;top:250px;left:300px"></div>
-<div id="chartContainer2" style="height: 200px; width:500px;position:absolute;z-index:30;top:450px;left:300px"></div>
-<div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:40;top:650px;left:300px"></div>
-
+<input type="checkbox" checked="" id="chartsVisible" name="chartsVisible" onMouseDown="handleEnablePID(this);" value="Bike" />Pid enabled
+<div id="charts">
+	<div id="chartContainer1" style="height: 200px; width:500px;position:absolute;z-index:10;top:50px;left:300px"></div>
+	<div id="chartContainer4" style="height: 200px; width:500px;position:absolute;z-index:20;top:250px;left:300px"></div>
+	<div id="chartContainer2" style="height: 200px; width:500px;position:absolute;z-index:30;top:450px;left:300px"></div>
+	<div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:40;top:650px;left:300px"></div>
+</div>
 
 <p>
 <button onMouseDown="doSendCommand('status')" type="button">Status</button>
