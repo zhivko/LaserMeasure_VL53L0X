@@ -82,6 +82,6 @@ void taskmanageTask(void * pvParameters){
 			Serial.print(outputBuffer);
 		}
 
-		delay(5000);
+		delay(30000);
 	}
 }

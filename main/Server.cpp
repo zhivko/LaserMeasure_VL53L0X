@@ -17,6 +17,7 @@
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
  curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
  curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verbose
+ curl -F "image=@build/DoubleLifter.bin" http://192.168.43.165:81/update --progress-bar --verbose
  curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
 #include <esp_heap_caps.h>
@@ -99,8 +100,8 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-#define enableCapSense 1
-#define enablePwm 1
+#define enableCapSense 0
+#define enablePwm 0
 #define enableTaskManager 0
 bool enableLcd = false;
 bool enableMover = false;
@@ -935,40 +936,36 @@ void startServer() {
 	ws.begin();
 	lcd_out("WebsocketServer started\n");
 #else
-
 	// handler for the /update form POST (once file upload finishes)
-	server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
-		request->send(200);
-	}, handle_update_progress_cb);  // Simple Firmware Update Form
-	  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
-	    request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-	  });
-	  server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
-	    shouldReboot = !Update.hasError();
-	    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
-	    response->addHeader("Connection", "close");
-	    request->send(response);
-	  },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-	    if(!index){
-	      Serial.printf("Update Start: %s\n", filename.c_str());
-	      if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
-	        Update.printError(Serial);
-	      }
-	    }
-	    if(!Update.hasError()){
-	      if(Update.write(data, len) != len){
-	        Update.printError(Serial);
-	      }
-	    }
-	    if(final){
-	      if(Update.end(true)){
-	        Serial.printf("Update Success: %uB\n", index+len);
-	        restartNow = true;
-	      } else {
-	        Update.printError(Serial);
-	      }
-	    }
-	  });
+	server.onFileUpload(
+			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
+				shouldSendJson = false;
+				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+				if(0 == index) {
+					lcd_out("UploadStart: %s\n", filename.c_str());
+					//xTimerStop(tmrWs, 0);
+					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
+				}
+				if(Update.write(data, len) != len) {
+					Update.printError(Serial);
+					//xTimerStart(tmrWs, 0);
+				} else {Serial.printf("Write: %d bytes\n", len);}
+				if(final) {
+					lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+					if (Update.end(true)) {
+						lcd_out("Update succesful!");
+						restartNow = true;
+					} else {
+						Update.printError(Serial);
+					}
+				}
+			});
+
+	server.on("/update", HTTP_GET,
+			[](AsyncWebServerRequest *request) {
+				request->send(200, "text/html", "<form method='POST' action='http://127.0.0.1:81/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+			});
 
 	server.onNotFound([](AsyncWebServerRequest *request) {
 		request->send(404);
@@ -1814,6 +1811,8 @@ void setup() {
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+
+
 	waitForIp();			//	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
 //		lcd_out("WIFI_MODE_AP");
@@ -1968,9 +1967,6 @@ void setup() {
 	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	delay(100);
 
-	Serial.flush();
-#endif
-
 	lcd_out("Starting GateDriverTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
@@ -1983,6 +1979,9 @@ void setup() {
 	esp_task_wdt_add(TaskA);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting GateDriverTask...Done.\n");
+
+	Serial.flush();
+#endif
 
 	blink(5);
 	lcd_out("Setup Done.\n");
@@ -2091,7 +2090,7 @@ void myLoop() {			//ArduinoOTA.handle();
 	}
 
 	if (restartNow) {
-		lcd_out("Restart\n");
+		lcd_out("Restarting...\n");
 		ESP.restart();
 	}
 
