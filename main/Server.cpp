@@ -101,7 +101,7 @@ float timeH;
 
 #define enableCapSense 1
 #define enablePwm 1
-#define enableTaskManager 1
+#define enableTaskManager 0
 bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = false;
@@ -884,31 +884,6 @@ void syncTime() {
 	}
 }
 
-#ifndef arduinoWebserver
-
-void handle_update_progress_cb(AsyncWebServerRequest *request, String filename,
-		size_t index, uint8_t *data, size_t len, bool final) {
-	uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-	if (!index) {
-		lcd_out("Update\n");
-		if (!Update.begin(free_space)) {
-			Update.printError(Serial);
-		}
-	}
-	if (Update.write(data, len) != len) {
-		Update.printError(Serial);
-	}
-	if (final) {
-		lcd_out("Update complete - final\n");
-		if (!Update.end(true)) {
-			Update.printError(Serial);
-		} else {
-			restartNow = true; //Set flag so main loop can issue restart call
-			lcd_out("Update complete\n");
-		}
-	}
-}
-#endif // arduinoWebserver
 
 void startServer() {
 	syncTime();
@@ -960,37 +935,40 @@ void startServer() {
 	ws.begin();
 	lcd_out("WebsocketServer started\n");
 #else
-	// handler for the /update form POST (once file upload finishes)
-	server.onFileUpload(
-			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
-				shouldSendJson = false;
-				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-				if(0 == index) {
-					lcd_out("UploadStart: %s\n", filename.c_str());
-					//xTimerStop(tmrWs, 0);
-					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
-				}
-				if(Update.write(data, len) != len) {
-					Update.printError(Serial);
-					//xTimerStart(tmrWs, 0);
-				} else {
-					Serial.printf("Write: %d bytes\n", len);
-				}
-				if(final) {
-					lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
-					if (Update.end(true)) {
-						lcd_out("Update succesful!");
-					} else {
-						Update.printError(Serial);
-					}
-				}
-			});
 
-	server.on("/update", HTTP_GET,
-			[](AsyncWebServerRequest *request) {
-				request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-			});
+	// handler for the /update form POST (once file upload finishes)
+	server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+		request->send(200);
+	}, handle_update_progress_cb);  // Simple Firmware Update Form
+	  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
+	    request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+	  });
+	  server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
+	    shouldReboot = !Update.hasError();
+	    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
+	    response->addHeader("Connection", "close");
+	    request->send(response);
+	  },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+	    if(!index){
+	      Serial.printf("Update Start: %s\n", filename.c_str());
+	      if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
+	        Update.printError(Serial);
+	      }
+	    }
+	    if(!Update.hasError()){
+	      if(Update.write(data, len) != len){
+	        Update.printError(Serial);
+	      }
+	    }
+	    if(final){
+	      if(Update.end(true)){
+	        Serial.printf("Update Success: %uB\n", index+len);
+	        restartNow = true;
+	      } else {
+	        Update.printError(Serial);
+	      }
+	    }
+	  });
 
 	server.onNotFound([](AsyncWebServerRequest *request) {
 		request->send(404);
@@ -1092,7 +1070,8 @@ void lcd_out(const char*format, ...) {
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
 	}
-	ESP_LOGI(TAG, "%s", temp);
+	//ESP_LOGI(TAG, "%s", temp);
+	Serial.printf("%s\n", temp);
 
 	va_end(arg);
 	if (len >= sizeof(loc_buf)) {
@@ -1668,7 +1647,7 @@ void setup() {
 	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
 	esp_log_level_set(TAG, ESP_LOG_VERBOSE);//esp_log_level_set("phy_init", ESP_LOG_INFO);
 	lcd_out("DoubeLifter START %d", 1);
-	Serial.print("Baud rate: 115200");
+	Serial.println("Baud rate: 115200");
 	Serial.begin(115200);
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
@@ -2043,7 +2022,8 @@ void myLoop() {			//ArduinoOTA.handle();
 //printEncoderInfo();
 //	for(;;){
 	mySecond = esp_timer_get_time() / 1000000.0;
-	if (((mySecond % 10 == 0) && (previousSecond != mySecond)) || (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+	if (((mySecond % 10 == 0) && (previousSecond != mySecond))
+			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 		lcd_out(
@@ -2083,9 +2063,9 @@ void myLoop() {			//ArduinoOTA.handle();
 		preferences.end();
 		delta = micros() - start;
 
-		if (delta > 1000)
-		{
-			lcd_out("%lu Preferences save completed in %lu us.\n", micros(), delta);
+		if (delta > 1000) {
+			lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
+					delta);
 		}
 	}
 
@@ -2100,13 +2080,14 @@ void myLoop() {			//ArduinoOTA.handle();
 		delta = micros() - start;
 
 		if (delta > 1000) {
-			lcd_out("%lu Preferences save completed in %lu us.\n", micros(), delta);
+			lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
+					delta);
 		}
 	}
 
 	esp_err_t resetOK = esp_task_wdt_reset();
 	if (resetOK != ESP_OK) {
-		lcd_out("Failed reset wdt: err %#03x\n", resetOK);
+		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
 	}
 
 	if (restartNow) {
