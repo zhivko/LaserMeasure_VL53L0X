@@ -81,7 +81,7 @@
 #define enablePwm 1
 #define enableTaskManager 1
 #define enableEncSaver 1
-bool enableLcd = true;
+bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = false;
 bool shouldReboot = false;
