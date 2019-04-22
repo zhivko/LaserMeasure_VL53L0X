@@ -1,4 +1,6 @@
 #include "Taskmanager.h"
+#include <esp_task_wdt.h>
+
 
 void taskmanageTask(void * pvParameters){
 	TaskStatus_t *pxTaskStatusArray = nullptr;
@@ -16,7 +18,6 @@ void taskmanageTask(void * pvParameters){
 		uxArraySize = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, &ulTotalRunTime);
 		sprintf(outputBuffer, "%15s%15s%15s%15s%15s%15s%15s%15s%15s\r\n", "NAME", "ID", "STATE", "PRIO", "BASE", "TIME", "CPU", "STACK", "CORE");
 		Serial.print(outputBuffer);
-		TaskStatus_t xTaskDetails;
 
 		for(int i = 0; i < uxArraySize; i++){
 
@@ -81,7 +82,10 @@ void taskmanageTask(void * pvParameters){
 			sprintf(outputBuffer, "\r\n");
 			Serial.print(outputBuffer);
 		}
-
-		delay(30000);
+	    esp_err_t err = esp_task_wdt_reset();
+	    if(err != ESP_OK){
+	        log_e("Failed to feed WDT! Error: %d", err);
+	    }
+		delay(4000);
 	}
 }

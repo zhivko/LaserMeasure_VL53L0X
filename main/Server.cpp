@@ -77,20 +77,23 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 
-#define enableCapSense 1
-#define enablePwm 1
-#define enableTaskManager 1
+#include "esp_task_wdt.h"
+
+
+#define enableCapSense 0
+#define enablePwm 0
+#define enableTaskManager 0
 #define enableEncSaver 1
-bool enableLcd = false;
+bool enableLcd = true;
 bool enableMover = false;
 bool enableLed = false;
 bool shouldReboot = false;
 
 #if enableTaskManager == 1
-	#include "Taskmanager.h"
+#include "Taskmanager.h"
 #endif
 #if enableEncSaver == 1
-	#include "encoderSaver.h"
+#include "encoderSaver.h"
 #endif
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
@@ -770,10 +773,14 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		delay(200);
 		//client->ping();
 		delay(200);
-		sendPidToClient();
-		delay(400);
+		shouldSendJson = false;
 		lastWsClient = client->id();
-
+		sendPidToClient();
+		delay(100);
+		setJsonString();
+		if (ws.hasClient(lastWsClient)) {
+			ws.text(lastWsClient, txtToSend);
+		}
 	} else if (type == WS_EVT_DISCONNECT) {
 //client disconnected
 		lcd_out("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
@@ -992,11 +999,11 @@ void startServer() {
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
 		shouldSendJson = true;
-		request->send(200, "text/html", "Toggled OK");
+		request->send(200, "text/html", "Toggled shouldSendJson ON");
 	});
 	server.on("/toggleChartsOff", HTTP_GET, [](AsyncWebServerRequest *request) {
 		shouldSendJson = false;
-		request->send(200, "text/html", "Toggled OK");
+		request->send(200, "text/html", "Toggled shouldSendJson OFF");
 	});
 	server.on("/gcode", HTTP_GET, [](AsyncWebServerRequest *request) {
 		int paramsNr = request->params();
@@ -1068,16 +1075,16 @@ IRAM_ATTR void setJsonString() {
 				output2,
 				an1,
 				an2,
-				(pid1.getActual() - pid2.getActual()),
+				(pid1.getActual() - pid2.getActual())
 
 #if enableCapSense == 1
-			cap_reading,
+			,cap_reading,
 			fdc2212.readTimeMs,
 			fdc2212.capFast,
-			fdc2212.capSlow,
+			fdc2212.capSlow
 #endif
 
-				esp_get_free_heap_size(),
+				,esp_get_free_heap_size(),
 				timeH);
 //@formatter:on
 }
@@ -1908,11 +1915,13 @@ void setup() {
 	}
 
 	printEncoderInfo();
-	Serial.println("ENA");
+//	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
 	if (errWdtInit != ESP_OK) {
 		log_e("Failed to init WDT! Error: %d", errWdtInit);
 	}
+	disableCore0WDT();
+	disableCore1WDT();
 
 #if enableEncSaver == 1
 	lcd_out("Starting encoder saver...");
@@ -2038,6 +2047,7 @@ void setup() {
 #endif
 
 	blink(5);
+
 	lcd_out("Setup Done.\n");
 
 //printEncoderInfo();
@@ -2075,7 +2085,7 @@ void myLoop() {			//ArduinoOTA.handle();
 //printEncoderInfo();
 //	for(;;){
 	mySecond = esp_timer_get_time() / 1000000.0;
-	if (((mySecond % 10 == 0) && (previousSecond != mySecond))
+	if (((mySecond % 5 == 0) && (previousSecond != mySecond))
 			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
@@ -2086,23 +2096,17 @@ void myLoop() {			//ArduinoOTA.handle();
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
-			#endif
+#endif
+		setJsonString();
+		if (ws.hasClient(lastWsClient)) {
+			ws.text(lastWsClient, txtToSend);
+		}
 		//dbg_lwip_stats_show();
 		heap_caps_check_integrity_all(true);
 		if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
 			previousHeap = ESP.getFreeHeap();
 		previousSecond = mySecond;
 		previousMs = millis();
-
-		/*
-		 vTaskList(ptrTaskList);
-		 Serial.println(F("**********************************"));
-		 Serial.println(F("Task  State   Prio    Stack    Num"));
-		 Serial.println(F("**********************************"));
-		 Serial.print(ptrTaskList);
-		 Serial.println(F("**********************************"));
-		 */
-
 	}
 	heap_caps_check_integrity_all(true);
 
@@ -2117,7 +2121,7 @@ void myLoop() {			//ArduinoOTA.handle();
 	}
 
 	//if((millis() > (previousMs + jsonReportIntervalMs)) && shouldSendJson){
-	if (shouldSendJson) {
+	if (shouldSendJson == true) {
 		setJsonString();
 		//Serial.println(txtToSend);
 		//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
@@ -2151,14 +2155,14 @@ void myLoop() {			//ArduinoOTA.handle();
 		ws.loop();
 #endif
 
-	//vTaskDelay(10 / portTICK_PERIOD_MS);
-	//optimistic_yield(5);
-
-//	}
 }
 
 void loop() {
-	vTaskSuspend(NULL);
+	//vTaskSuspend(NULL);
+    esp_err_t err = esp_task_wdt_reset();
+    if(err != ESP_OK){
+        log_e("Failed to feed WDT! Error: %d", err);
+    }
 }
 
 void Loop(void*parameter) {
