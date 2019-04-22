@@ -1,7 +1,4 @@
 # Hello World Example
 
-Starts a FreeRTOS task to print "Hello World"
+Starts a esp-idf firmware for DoubleLifter - esp32 based webserver for 2 servo motor controlled by pid controller
 
-See the README.md file in the upper level 'examples' directory for more information about examples.
-
-See the README.md file in the upper level 'examples' directory for more information about examples.

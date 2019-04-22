@@ -80,13 +80,13 @@
 #include "esp_task_wdt.h"
 
 
-#define enableCapSense 0
-#define enablePwm 0
+#define enableCapSense 1
+#define enablePwm 1
 #define enableTaskManager 0
 #define enableEncSaver 1
-bool enableLcd = true;
+bool enableLcd = false;
 bool enableMover = false;
-bool enableLed = false;
+bool enableLed = true;
 bool shouldReboot = false;
 
 #if enableTaskManager == 1
@@ -770,13 +770,11 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 //client connected
 		//lcd_out("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
 		//client->printf("Hello Client %u :)", client->id());
-		delay(200);
+		delay(100);
 		//client->ping();
-		delay(200);
 		shouldSendJson = false;
 		lastWsClient = client->id();
 		sendPidToClient();
-		delay(100);
 		setJsonString();
 		if (ws.hasClient(lastWsClient)) {
 			ws.text(lastWsClient, txtToSend);
@@ -1115,7 +1113,7 @@ void lcd_out(const char*format, ...) {
 		}
 	}
 	//ESP_LOGI(TAG, "%s", temp);
-	Serial.printf("%s\n", temp);
+	Serial.printf("%s", temp);
 
 	va_end(arg);
 	if (len >= sizeof(loc_buf)) {
