@@ -79,7 +79,6 @@
 
 #include "esp_task_wdt.h"
 
-
 #define enableCapSense 1
 #define enablePwm 1
 #define enableTaskManager 0
@@ -90,7 +89,8 @@ bool enableLed = true;
 bool shouldReboot = false;
 
 #if enableTaskManager == 1
-#include "Taskmanager.h"
+	#include "Taskmanager.h"
+	static int taskManagerCore = 0;
 #endif
 #if enableEncSaver == 1
 #include "encoderSaver.h"
@@ -117,7 +117,6 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-static int taskManagerCore = 0;
 static int encoderSaverCore = 0;
 
 const char* hostName = "esp32_door";
@@ -241,60 +240,27 @@ ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
 AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
 ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 
-MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
-MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
+IRAM_ATTR void setJsonString();
 
-//@formatter:off
-static String jsonTemplateStr = "{"
-		"\"encoder1_value\":%d,"
-		"\"encoder2_value\":%d,"
-		"\"pwm1\":%d,"
-		"\"pwm2\":%d,"
-		"\"target1\":%.2f,"
-		"\"target2\":%.2f,"
-		"\"output1\":%.2f,"
-		"\"output2\":%.2f,"
-		"\"an1\":%u,"
-		"\"an2\":%u,"
-		"\"actual_diff\":%.2f,"
-		"\"PID1output\":\"p1out=%.2f<br>"
-		                  "i1out=%.2f<br>"
-											"d1out=%.2f<br>"
-											"f1out=%.2f<br>"
-											"pos1out=%.2f<br>"
-											"setpoint1=%.2f<br>"
-											"actual1=%.2f<br>"
-											"error1=%.2f<br>"
-											"errorSum1=%.2f<br>"
-											"maxIOut1=%.2f<br>"
-											"maxErr1=%.2f\","
-		"\"PID2output\":\"p2out=%.2f<br>"
-											"i2out=%.2f<br>"
-											"d2out=%.2f<br>"
-											"f2out=%.2f<br>"
-											"pos2out=%.2f<br>"
-											"setpoint2=%.2f<br>"
-											"actual2=%.2f<br>"
-											"error2=%.2f<br>"
-											"errorSum2=%.2f<br>"
-											"maxIOut2=%.2f<br>"
-											"maxErr2=%.2f\","
-		"\"stop1_top\":%u,"
-		"\"stop1_bottom\":%u,"
-		"\"stop2_top\":%u,"
-		"\"stop2_bottom\":%u,"
-#if enableCapSense == 1
-		"\"cap_reading\":%lu,"
-		"\"cap_read_time_ms\":%lu,"
-		"\"capfast\":%.2f,"
-		"\"capslow\":%.2f,"
-#endif
-		"\"uptime_h\":%.2f,"
-		"\"enablePID\":%d,"
-		"\"esp32_heap\":%lu"
-		"}\0";
-//@formatter:on
 char txtToSend[1100] = { };
+
+bool pidRegulatedCallBack1(int time) {
+	setJsonString();
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
+	return false;
+}
+
+bool pidRegulatedCallBack2(int time) {
+	setJsonString();
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
+	return false;
+}
+MiniPID pid1 = MiniPID(0.0, 0.0, 0.0, pidRegulatedCallBack1);
+MiniPID pid2 = MiniPID(0.0, 0.0, 0.0, pidRegulatedCallBack2);
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -335,7 +301,6 @@ void setPidsFromString(String str1);
 String getToken(String data, char separator, int index);
 void sendPidToClient();
 void lcd_out(const char *format, ...);
-IRAM_ATTR void setJsonString();
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(const char* input);
 
@@ -2157,10 +2122,10 @@ void myLoop() {			//ArduinoOTA.handle();
 
 void loop() {
 	//vTaskSuspend(NULL);
-    esp_err_t err = esp_task_wdt_reset();
-    if(err != ESP_OK){
-        log_e("Failed to feed WDT! Error: %d", err);
-    }
+	esp_err_t err = esp_task_wdt_reset();
+	if (err != ESP_OK) {
+		log_e("Failed to feed WDT! Error: %d", err);
+	}
 }
 
 void Loop(void*parameter) {
