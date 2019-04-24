@@ -79,8 +79,8 @@
 
 #include "esp_task_wdt.h"
 
-#define enableCapSense 0
-#define enablePwm 0
+#define enableCapSense 1
+#define enablePwm 1
 #define enableTaskManager 0
 bool enableLcd = false;
 bool enableMover = false;
@@ -91,7 +91,14 @@ bool shouldReboot = false;
 	#include "Taskmanager.h"
 	static int taskManagerCore = 0;
 #endif
+
 #if enablePwm
+
+	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
+	#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
+	#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
+	#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
+
 	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
 	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
 	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
@@ -192,11 +199,6 @@ int shouldPwm_M2_right = 0;
 
 #define SS1 33
 #define SS2 25
-
-#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
-#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
-#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
-#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
 
 // @doc https://remotemonitoringsystems.ca/time-zone-abbreviations.php
 // @doc timezone UTC = UTC
