@@ -261,8 +261,13 @@ void Task1(void * parameter) {
 		lastAn2_fast = an2_fast;
 		lastAn2_slow = an2_slow;
 
+#if enablePwm == 1
 		encoder1_value = rotaryEncoder1.readEncoder();
 		encoder2_value = rotaryEncoder2.readEncoder();
+#else
+		encoder1_value = 15000;
+		encoder2_value = 15000;
+#endif
 		if (pidEnabled) {
 			int16_t encoderDelta = encoder1_value - encoder2_value;
 			pid1.setPositionDiff(encoderDelta);
@@ -306,7 +311,7 @@ void Task1(void * parameter) {
 				setOutputPercent(previousPercent_str_2, 2);
 			}
 		}
-
+#if enablePwm == 1
 		if (pwm1 >= 0) {
 			ledcAnalogWrite(LEDC_CHANNEL_0, pwm1, pwmValueMax);
 			ledcAnalogWrite(LEDC_CHANNEL_1, 0, pwmValueMax);
@@ -325,6 +330,7 @@ void Task1(void * parameter) {
 			ledcAnalogWrite(LEDC_CHANNEL_2, 0, pwmValueMax);
 			//Serial.printf("pwm2: %d\n", pwm2);
 		}
+#endif
 
 		//Serial.println("resetting task");
 		//esp_task_wdt_reset();

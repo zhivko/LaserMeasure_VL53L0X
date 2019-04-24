@@ -79,11 +79,10 @@
 
 #include "esp_task_wdt.h"
 
-#define enableCapSense 1
-#define enablePwm 1
+#define enableCapSense 0
+#define enablePwm 0
 #define enableTaskManager 0
-#define enableEncSaver 1
-bool enableLcd = false;
+bool enableLcd = true;
 bool enableMover = false;
 bool enableLed = true;
 bool shouldReboot = false;
@@ -92,9 +91,14 @@ bool shouldReboot = false;
 	#include "Taskmanager.h"
 	static int taskManagerCore = 0;
 #endif
-#if enableEncSaver == 1
-#include "encoderSaver.h"
+#if enablePwm
+	#define enableEncSaver 1
+	#include "encoderSaver.h"
+#else
+	#define enableEncSaver 0
 #endif
+
+int pidTaskCore = 1;
 
 #define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
 #define NUM_RECORDS 100
@@ -139,15 +143,6 @@ String coredumpStr = "";
 
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
-
-#ifndef arduinoWebserver
-AsyncWebServer server(81);
-AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
-#endif
-#ifdef arduinoWebserver
-WebServer server(81);
-WebSocketsServer ws = WebSocketsServer(82);
-#endif
 
 #if enableCapSense == 1
 #include "FDC2212.h"
@@ -235,32 +230,46 @@ volatile double target1, target2;
 double target1_read, target2_read;
 volatile bool pidEnabled = true;
 
-AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+#if enablePwm == 1
+	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
+	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+#endif
 
 IRAM_ATTR void setJsonString();
 
 char txtToSend[1100] = { };
 
-bool pidRegulatedCallBack1(int time) {
+#ifndef arduinoWebserver
+	AsyncWebServer server(81);
+	AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+#endif
+#ifdef arduinoWebserver
+	WebServer server(81);
+	WebSocketsServer ws = WebSocketsServer(82);
+#endif
+
+void pidRegulatedCallBack1() {
+	//Serial.println("Callback1");
+	//Serial.flush();
 	setJsonString();
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
-	return false;
 }
 
-bool pidRegulatedCallBack2(int time) {
+void pidRegulatedCallBack2() {
+	//Serial.println("Callback2");
+	//Serial.flush();
 	setJsonString();
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
-	return false;
 }
-MiniPID pid1 = MiniPID(0.0, 0.0, 0.0, pidRegulatedCallBack1);
-MiniPID pid2 = MiniPID(0.0, 0.0, 0.0, pidRegulatedCallBack2);
+
+MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
+MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
 
 uint16_t an1, an2;
 float an1_fast, an1_slow;
@@ -1616,13 +1625,17 @@ void printEncoderInfo() {
 	Serial.print("encoder1_value: ");
 	Serial.print(encoder1_value);
 	Serial.print(" ");
+#if enablePwm == 1
 	Serial.print(rotaryEncoder1.readEncoder());
+#endif
 	Serial.print(" target1: ");
 	Serial.println(target1);
 	Serial.print("encoder2_value: ");
 	Serial.print(encoder2_value);
 	Serial.print(" ");
+#if enablePwm == 1
 	Serial.print(rotaryEncoder2.readEncoder());
+#endif
 	Serial.print(" target2: ");
 	Serial.println(target2);
 }
@@ -1723,6 +1736,9 @@ void setup() {
 		setPidsFromString(initialPidStr);
 		pid_str = initialPidStr;
 	}
+
+	pid1.setCallback(pidRegulatedCallBack1);
+	pid2.setCallback(pidRegulatedCallBack2);
 
 	int32_t outputMin_ = preferences.getInt("outputMin1", -100000);
 	int32_t outputMax_ = preferences.getInt("outputMax1", -100000);
@@ -1828,6 +1844,7 @@ void setup() {
 //
 //	}
 
+#if enablePwm == 1
 	rotaryEncoder1.setBoundaries(0, 30000, false);
 	rotaryEncoder2.setBoundaries(0, 30000, false);
 	preferences.begin("settings", true);
@@ -1878,6 +1895,12 @@ void setup() {
 	}
 
 	printEncoderInfo();
+#else
+	encoder1_value = 15000;
+	encoder2_value = 15000;
+#endif
+
+
 //	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
 	if (errWdtInit != ESP_OK) {
@@ -1937,7 +1960,6 @@ void setup() {
 	}
 
 #if enablePwm == 1
-	int pidTaskCore = 1;
 	lcd_out("Gate driving enable.\n");
 	pinMode(GATEDRIVER_PIN, OUTPUT);
 	digitalWrite(GATEDRIVER_PIN, HIGH);					//enable gate drivers
@@ -1977,20 +1999,6 @@ void setup() {
 	ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
 	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
 	delay(100);
-
-	lcd_out("Starting pidTask...");
-	Serial.flush();
-	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
-			"pidTask",			// pcName
-			6096,			// usStackDepth
-			NULL,			// pvParameters
-			1,			    // uxPriority
-			&TaskA,			// pxCreatedTask
-			pidTaskCore);			// xCoreID
-	esp_task_wdt_add(TaskA);
-	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
-	lcd_out("Starting pidTask...Done.\n");
-
 	Serial.flush();
 #endif
 
@@ -2009,8 +2017,20 @@ void setup() {
 	Serial.flush();
 #endif
 
-	blink(5);
+	lcd_out("Starting pidTask...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
+			"pidTask",			// pcName
+			6096,			// usStackDepth
+			NULL,			// pvParameters
+			1,			    // uxPriority
+			&TaskA,			// pxCreatedTask
+			pidTaskCore);			// xCoreID
+	esp_task_wdt_add(TaskA);
+	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
+	lcd_out("Starting pidTask...Done.\n");
 
+	blink(5);
 	lcd_out("Setup Done.\n");
 
 //printEncoderInfo();
@@ -2041,6 +2061,7 @@ void setup() {
 uint32_t previousHeap;
 uint64_t mySecond = 0;
 uint64_t previousSecond = 0;
+uint64_t previousSecondSetter = 0;
 long delta;
 long start;
 void myLoop() {			//ArduinoOTA.handle();
@@ -2073,9 +2094,23 @@ void myLoop() {			//ArduinoOTA.handle();
 	}
 	heap_caps_check_integrity_all(true);
 
-	esp_err_t resetOK = esp_task_wdt_reset();
-	if (resetOK != ESP_OK) {
-		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
+//	esp_err_t resetOK = esp_task_wdt_reset();
+//	if (resetOK != ESP_OK) {
+//		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
+//	}
+
+	if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
+		Serial.print("Setting setpoint ");
+		if (pid1.getSetpoint() <= 15000) {
+			pid1.setSetpoint(15300);
+			pid2.setSetpoint(15300);
+			Serial.printf("%f\n", pid1.getSetpoint());
+		} else {
+			pid1.setSetpoint(15000);
+			pid2.setSetpoint(15000);
+			Serial.printf("%f\n", pid1.getSetpoint());
+		}
+		previousSecondSetter = mySecond;
 	}
 
 	if (restartNow) {
@@ -2089,7 +2124,7 @@ void myLoop() {			//ArduinoOTA.handle();
 		//Serial.println(txtToSend);
 		//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 #ifdef arduinoWebserver
-			ws.broadcastTXT(txtToSend);
+				ws.broadcastTXT(txtToSend);
 #else
 		if (ws.hasClient(lastWsClient)) {
 			ws.text(lastWsClient, txtToSend);
@@ -2114,14 +2149,14 @@ void myLoop() {			//ArduinoOTA.handle();
 	}
 
 #ifdef arduinoWebserver
-		server.handleClient();
-		ws.loop();
+			server.handleClient();
+			ws.loop();
 #endif
 
 }
 
 void loop() {
-	//vTaskSuspend(NULL);
+	vTaskSuspend(NULL);
 	esp_err_t err = esp_task_wdt_reset();
 	if (err != ESP_OK) {
 		log_e("Failed to feed WDT! Error: %d", err);
@@ -2165,8 +2200,8 @@ void app_main() {
 	 Serial.flush();
 	 */
 
-	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs), pdTRUE,
-			(void *) id3, &loopCallBack);
+	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs),
+	pdTRUE, (void *) id3, &loopCallBack);
 	if ( xTimerStart ( tmr2 , 100 / portTICK_PERIOD_MS ) != pdPASS) {
 		lcd_out("Timer loop start error");
 	} else {
