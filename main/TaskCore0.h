@@ -6,6 +6,7 @@
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
 #include <esp_adc_cal.h>
+#include "Server.h"
 
 #define REF_VOLTAGE 1100
 esp_adc_cal_characteristics_t *adc_chars = new esp_adc_cal_characteristics_t;
@@ -43,7 +44,8 @@ extern uint16_t stop2_top, stop2_bottom;
 extern uint16_t stop1_top, stop1_bottom;
 extern String status;
 
-extern volatile bool pidEnabled;
+extern volatile bool pid1Enabled;
+extern volatile bool pid2Enabled;
 
 extern uint16_t an1, an2;
 uint16_t lastAn1_fast, lastAn1_slow;
@@ -274,18 +276,20 @@ void Task1(void * parameter) {
 		encoder1_value = 15000;
 		encoder2_value = 15000;
 #endif
-		if (pidEnabled) {
-			int16_t encoderDelta = encoder1_value - encoder2_value;
+		int16_t encoderDelta = encoder1_value - encoder2_value;
+		if (pid1Enabled) {
 			pid1.setPositionDiff(encoderDelta);
-			pid2.setPositionDiff(-encoderDelta);
 			pid1.setSetpoint(target1);
-			pid2.setSetpoint(target2);
 			output1 = pid1.getOutput((float) encoder1_value, target1);
-			output2 = pid2.getOutput((float) encoder2_value, target2);
-
 			pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+		}
+		if (pid2Enabled) {
+			pid2.setPositionDiff(-encoderDelta);
+			pid2.setSetpoint(target2);
+			output2 = pid2.getOutput((float) encoder2_value, target2);
 			pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
 		}
+
 		if (status.equals("searchtop") || status.equals("searchbottom")) {
 			// because of higher startup current we do check 1 sec after start of searchtop or searchbottom
 			if ((an1_slow >= 700.0 || an2_slow >= 700.0)

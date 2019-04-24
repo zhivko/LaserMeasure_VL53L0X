@@ -22,12 +22,19 @@ var chart2;
 var chart3;
 var chart4;
 
-function handleEnablePID(cb)
+function handleEnablePID1(cb)
 {
 	if(!cb.checked)
-		doSendCommand("enablePid");
+		doSendCommand("enablePid1");
 	else
-		doSendCommand("disablePid");
+		doSendCommand("disablePid1");
+}
+function handleEnablePID2(cb)
+{
+	if(!cb.checked)
+		doSendCommand("enablePid2");
+	else
+		doSendCommand("disablePid2");
 }
 
 function handleChartToggle()

@@ -78,10 +78,7 @@
 #include "lwip/stats.h"
 
 #include "esp_task_wdt.h"
-
-#define enableCapSense 1
-#define enablePwm 1
-#define enableTaskManager 0
+#include "Server.h"
 bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = true;
@@ -92,8 +89,7 @@ bool shouldReboot = false;
 	static int taskManagerCore = 0;
 #endif
 
-#if enablePwm
-
+#if enablePwm == 1
 	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
 	#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
 	#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
@@ -237,7 +233,8 @@ volatile double output2 = 0;
 volatile double target1 = 0;
 volatile double target2 = 0;
 double target1_read, target2_read;
-volatile bool pidEnabled = true;
+volatile bool pid1Enabled = true;
+volatile bool pid2Enabled = true;
 
 IRAM_ATTR void setJsonString();
 void CheckIpTask(void * parameter);
@@ -254,18 +251,13 @@ AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 #endif
 
 void pidRegulatedCallBack1() {
-	Serial.println("Callback1");
-	Serial.flush();
-	setJsonString();
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
+	pwm1=0;
+	pid1Enabled = false;
 }
 
 void pidRegulatedCallBack2() {
-	Serial.println("Callback2");
-	Serial.flush();
-	setJsonString();
+	pwm2=0;
+	pid2Enabled = false;
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
@@ -486,8 +478,16 @@ String processInput(const char *input) {
 		preferences.putInt("target2", (int) target2);
 		preferences.end();
 
-	} else if (strncmp(input, "enablePid", 9) == 0) {
-		pidEnabled = true;
+		pid1Enabled = true;
+		pid2Enabled = true;
+	} else if (strncmp(input, "enablePid1", 10) == 0) {
+		pid1Enabled = true;
+	} else if (strncmp(input, "disablePid1", 11) == 0) {
+		pid1Enabled = false;
+	} else if (strncmp(input, "enablePid2", 10) == 0) {
+		pid2Enabled = true;
+	} else if (strncmp(input, "disablePid2", 11) == 0) {
+		pid2Enabled = false;
 	} else if (strncmp(input, "maxPercentOutput1", 17) == 0) {
 		String percent_str = getToken(input, '#', 1);
 		setOutputPercent(percent_str, 1);
@@ -502,8 +502,6 @@ String processInput(const char *input) {
 		preferences.putInt("outputMin2", pid2.getMinOutput());
 		preferences.putInt("outputMax2", pid2.getMaxOutput());
 		preferences.end();
-	} else if (strncmp(input, "disablePid", 10) == 0) {
-		pidEnabled = false;
 	} else if (strncmp(input, "wificonnect", 11) == 0) {
 		ssid = getToken(input, ' ', 1);
 		password = getToken(input, ' ', 2);
@@ -562,7 +560,8 @@ String processInput(const char *input) {
 		Serial.println(target1);
 		Serial.print(" target2: ");
 		Serial.println(target2);
-		pidEnabled = true;
+		pid1Enabled = true;
+		pid2Enabled = true;
 	} else if (strncmp(input, "gobottom", 8) == 0) {
 		target1 = stop1_bottom;
 		target2 = stop1_bottom;
@@ -571,11 +570,13 @@ String processInput(const char *input) {
 		Serial.println(target1);
 		Serial.print(" target2: ");
 		Serial.println(target2);
-		pidEnabled = true;
+		pid1Enabled = true;
+		pid2Enabled = true;
 	} else if (strncmp(input, "searchtop", 9) == 0
 			|| strncmp(input, "searchbottom", 12) == 0) {
 		if (getToken(input, ' ', 1).equals(String("start"))) {
-			pidEnabled = false;
+			pid1Enabled = false;
+			pid2Enabled = false;
 			pwm1 = 0;
 			pwm2 = 0;
 
@@ -602,7 +603,8 @@ String processInput(const char *input) {
 			Serial.print(" target2: ");
 			Serial.println(target2);
 
-			pidEnabled = true;
+			pid1Enabled = true;
+			pid2Enabled = true;
 			searchTopMilis = millis();
 		} else {
 			status = "";
@@ -2072,6 +2074,7 @@ void myLoop() {			//ArduinoOTA.handle();
 //		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
 //	}
 
+	/*
 	if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
 		Serial.print("Setting setpoint ");
 		if (target1 <= 15000) {
@@ -2085,6 +2088,7 @@ void myLoop() {			//ArduinoOTA.handle();
 		Serial.printf("%f\n", target1);
 		previousSecondSetter = mySecond;
 	}
+	*/
 
 	if (restartNow) {
 		lcd_out("Restarting...\n");
