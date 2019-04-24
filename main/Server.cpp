@@ -82,7 +82,7 @@
 #define enableCapSense 0
 #define enablePwm 0
 #define enableTaskManager 0
-bool enableLcd = true;
+bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = true;
 bool shouldReboot = false;
@@ -92,10 +92,16 @@ bool shouldReboot = false;
 	static int taskManagerCore = 0;
 #endif
 #if enablePwm
+	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
+	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+
 	#define enableEncSaver 1
 	#include "encoderSaver.h"
+	static int encoderSaverCore = 0;
 #else
-	#define enableEncSaver 0
+#define enableEncSaver 0
 #endif
 
 int pidTaskCore = 1;
@@ -120,8 +126,6 @@ uint32_t lastWsClient = -1;
 float timeH;
 
 // jtag pins: 15, 12 13 14
-
-static int encoderSaverCore = 0;
 
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 100;
@@ -214,36 +218,33 @@ String status2;
 String gdfVds1;
 String gdfVds2;
 
-int32_t encoder1_value;
-int32_t encoder2_value;
+int32_t encoder1_value = 0;
+int32_t encoder2_value = 0;
 //Ticker mover;
 //Ticker jsonReporter;
 TaskHandle_t TaskA;
+TaskHandle_t TaskCheckIp;
 TaskHandle_t TaskMan;
 TaskHandle_t TaskEncSaver;
 TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
 //TaskHandle_t i2cTask;
 
-volatile double output1, output2;
-volatile double target1, target2;
+volatile double output1 = 0;
+volatile double output2 = 0;
+volatile double target1 = 0;
+volatile double target2 = 0;
 double target1_read, target2_read;
 volatile bool pidEnabled = true;
 
-#if enablePwm == 1
-	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
-#endif
-
 IRAM_ATTR void setJsonString();
+void CheckIpTask(void * parameter);
 
 char txtToSend[1100] = { };
 
 #ifndef arduinoWebserver
-	AsyncWebServer server(81);
-	AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncWebServer server(81);
+AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 #endif
 #ifdef arduinoWebserver
 	WebServer server(81);
@@ -251,8 +252,8 @@ char txtToSend[1100] = { };
 #endif
 
 void pidRegulatedCallBack1() {
-	//Serial.println("Callback1");
-	//Serial.flush();
+	Serial.println("Callback1");
+	Serial.flush();
 	setJsonString();
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
@@ -260,8 +261,8 @@ void pidRegulatedCallBack1() {
 }
 
 void pidRegulatedCallBack2() {
-	//Serial.println("Callback2");
-	//Serial.flush();
+	Serial.println("Callback2");
+	Serial.flush();
 	setJsonString();
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
@@ -1088,6 +1089,7 @@ void lcd_out(const char*format, ...) {
 	}
 	//ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
+	Serial.flush();
 
 	va_end(arg);
 	if (len >= sizeof(loc_buf)) {
@@ -1490,7 +1492,6 @@ void waitForIp() {
 	NO_AP_FOUND_count = 0;
 
 	WiFi.mode(WIFI_STA);
-	WiFi.enableIpV6();
 	WiFi.setTxPower(WIFI_POWER_19_5dBm);
 	WiFi.begin(ssid.c_str(), password.c_str());
 	WiFi.setSleep(false);
@@ -1513,52 +1514,6 @@ void waitForIp() {
 //  break;
 		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
 	}
-	if (WiFi.status() != WL_CONNECTED) {
-		lcd_out("Could not connect... Entering in AP mode.\n");
-		WiFi.mode(WIFI_AP);
-		if (WiFi.softAP(softAP_ssid, softAP_password)) {
-			Serial.println("Wait 100 ms for AP_START...");
-			delay(100);
-			//IPAddress Ip(192, 168, 1, 8);
-			//IPAddress NMask(255, 255, 255, 0);
-			//WiFi.softAPConfig(Ip, Ip, NMask);
-			IPAddress myIP = WiFi.softAPIP();
-			lcd_out((String(softAP_ssid) + " is running.\n").c_str());
-			lcd_out((myIP.toString() + "\n").c_str());
-			Serial.print("AP IP address: ");
-			Serial.println(myIP);
-
-			tcpip_adapter_ip_info_t ip_info;
-			char* str2;
-			ESP_ERROR_CHECK(
-					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
-			str2 = inet_ntoa(ip_info);
-			String buf("WiFi AP IP: ");
-			buf.concat(str2);
-			buf.concat("\n");
-			lcd_out(buf.c_str());
-
-			startServer();
-		}
-	} else {
-		tcpip_adapter_ip_info_t ip_info;
-		char* str2;
-		ESP_ERROR_CHECK(
-				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
-		str2 = inet_ntoa(ip_info);
-		String buf("WiFi STA IP: ");
-		buf.concat(str2);
-		buf.concat("\n");
-		lcd_out(buf.c_str());
-	}
-
-	Serial.print("status: ");
-	Serial.println(WiFi.status());
-	Serial.print("WiFi local IP: ");
-	Serial.println(WiFi.localIP());
-
-	Serial.print("WiFi local IPv6: ");
-	Serial.println(WiFi.localIPv6());
 
 }
 
@@ -1772,6 +1727,7 @@ void setup() {
 	}
 	Serial.println("load saved wifi settings...Done.");
 	preferences.end();
+
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("Wifi lost connection.\n");
 
@@ -1832,13 +1788,13 @@ void setup() {
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
-		startServer();
-	}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
+		//sstartServer();
+		}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-	waitForIp();			//	wifi_mode_t mode = WiFi.getMode();
+	//waitForIp();			//	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
 //		lcd_out("WIFI_MODE_AP");
 //
@@ -1899,7 +1855,6 @@ void setup() {
 	encoder1_value = 15000;
 	encoder2_value = 15000;
 #endif
-
 
 //	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
@@ -2030,6 +1985,24 @@ void setup() {
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
+	WiFi.mode(WIFI_STA);
+	WiFi.setTxPower(WIFI_POWER_19_5dBm);
+	WiFi.begin(ssid.c_str(), password.c_str());
+	WiFi.setSleep(false);
+
+	lcd_out("Starting checkIP task...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(CheckIpTask,			// pvTaskCode
+			"checkIpTask",	// pcName
+			6096,			// usStackDepth
+			NULL,			// pvParameters
+			1,			    // uxPriority
+			&TaskCheckIp,			// pxCreatedTask
+			0);			// xCoreID
+	esp_task_wdt_add(TaskA);
+	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
+	lcd_out("Starting pidTask...Done.\n");
+
 	blink(5);
 	lcd_out("Setup Done.\n");
 
@@ -2082,9 +2055,7 @@ void myLoop() {			//ArduinoOTA.handle();
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 #endif
 		setJsonString();
-		if (ws.hasClient(lastWsClient)) {
-			ws.text(lastWsClient, txtToSend);
-		}
+		ws.textAll(txtToSend);
 		//dbg_lwip_stats_show();
 		heap_caps_check_integrity_all(true);
 		if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
@@ -2101,15 +2072,15 @@ void myLoop() {			//ArduinoOTA.handle();
 
 	if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
 		Serial.print("Setting setpoint ");
-		if (pid1.getSetpoint() <= 15000) {
-			pid1.setSetpoint(15300);
-			pid2.setSetpoint(15300);
-			Serial.printf("%f\n", pid1.getSetpoint());
+		if (target1 <= 15000) {
+			target1 = 15300;
+			target2 = 15300;
 		} else {
-			pid1.setSetpoint(15000);
-			pid2.setSetpoint(15000);
+			target1 = 15000;
+			target2 = 15000;
 			Serial.printf("%f\n", pid1.getSetpoint());
 		}
+		Serial.printf("%f\n", target1);
 		previousSecondSetter = mySecond;
 	}
 
@@ -2211,4 +2182,46 @@ void app_main() {
 	//esp_task_wdt_add(NULL);	//enableCore1WDT();
 
 	//loop();
+}
+
+void CheckIpTask(void * parameter) {
+	delay(5000);
+	if (WiFi.status() != WL_CONNECTED) {
+		lcd_out("Could not connect... Entering in AP mode.\n");
+		WiFi.mode(WIFI_AP);
+		if (WiFi.softAP(softAP_ssid, softAP_password)) {
+			Serial.println("Wait 100 ms for AP_START...");
+			delay(100);
+			//IPAddress Ip(192, 168, 1, 8);
+			//IPAddress NMask(255, 255, 255, 0);
+			//WiFi.softAPConfig(Ip, Ip, NMask);
+			IPAddress myIP = WiFi.softAPIP();
+			lcd_out((String(softAP_ssid) + " is running.\n").c_str());
+			lcd_out((myIP.toString() + "\n").c_str());
+			Serial.print("AP IP address: ");
+			Serial.println(myIP);
+
+			tcpip_adapter_ip_info_t ip_info;
+			char* str2;
+			ESP_ERROR_CHECK(
+					tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info));
+			str2 = inet_ntoa(ip_info);
+			String buf("WiFi AP IP: ");
+			buf.concat(str2);
+			buf.concat("\n");
+			lcd_out(buf.c_str());
+		}
+	} else {
+		tcpip_adapter_ip_info_t ip_info;
+		char* str2;
+		ESP_ERROR_CHECK(
+				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+		str2 = inet_ntoa(ip_info);
+		String buf("WiFi STA IP: ");
+		buf.concat(str2);
+		buf.concat("\n");
+		lcd_out(buf.c_str());
+	}
+
+	vTaskDelete(NULL);
 }

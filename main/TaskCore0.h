@@ -21,8 +21,10 @@ extern void printEncoderInfo();
 // #define min(a,b) ((a)<(b)?(a):(b))
 // #define max(a,b) ((a)>(b)?(a):(b))
 
-extern AiEsp32RotaryEncoder rotaryEncoder2;
-extern AiEsp32RotaryEncoder rotaryEncoder1;
+# if enablePwm == 1
+	extern AiEsp32RotaryEncoder rotaryEncoder2;
+	extern AiEsp32RotaryEncoder rotaryEncoder1;
+#endif
 
 extern Preferences preferences;
 extern int32_t encoder1_value, encoder2_value;
@@ -69,6 +71,7 @@ void ledcAnalogWrite(uint8_t channel, uint32_t value, uint32_t valueMax =
 	ledcWrite(channel, _min(value, valueMax));
 }
 
+#if enablePwm == 1
 static void IRAM_ATTR readEncoder1_ISR() {
 	portENTER_CRITICAL_ISR(&(rotaryEncoder1.mux));
 	boolean A = digitalRead(rotaryEncoder1.encoderAPin);
@@ -173,6 +176,7 @@ static void IRAM_ATTR readEncoder2_ISR() {
 	rotaryEncoder2.phasep = rotaryEncoder2.phase;
 	portEXIT_CRITICAL_ISR(&(rotaryEncoder2.mux));
 }
+#endif
 
 uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
 	adc1_channel_t chan;
@@ -207,6 +211,7 @@ uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
 }
 
 void Task1(void * parameter) {
+#if enablePwm == 1
 	rotaryEncoder2.begin();
 	rotaryEncoder1.begin();
 	attachInterrupt(digitalPinToInterrupt(rotaryEncoder2.encoderAPin),
@@ -238,6 +243,7 @@ void Task1(void * parameter) {
 
 	Serial.println("Configuring adc end.");
 	printEncoderInfo();
+#endif
 
 	esp_task_wdt_add(NULL);
 	log_i("Task0 in loop on CORE: %d", xPortGetCoreID());
@@ -297,14 +303,18 @@ void Task1(void * parameter) {
 					preferences.begin("settings", false);
 					preferences.putInt("stop1_top", stop1_top);
 					preferences.end();
+#if enablePwm == 1
 					rotaryEncoder2.reset(encoder1_value);
+#endif
 				} else {
 					stop1_bottom = encoder1_value;
 					stop2_bottom = encoder1_value;
 					preferences.begin("settings", false);
 					preferences.putInt("stop1_bottom", stop1_bottom);
 					preferences.end();
+#if enablePwm == 1
 					rotaryEncoder2.reset(encoder1_value);
+#endif
 				}
 				status = "";
 				setOutputPercent(previousPercent_str_1, 1);
