@@ -14,10 +14,10 @@ void encoderSaverTask(void * pvParameters) {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000) {
-				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
-						delta);
-			}
+//			if (delta > 1000) {
+//				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
+//						delta);
+//			}
 		}
 
 		if (rotaryEncoder2.encoderChanged() != 0) {
@@ -29,10 +29,10 @@ void encoderSaverTask(void * pvParameters) {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000) {
-				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
-						delta);
-			}
+//			if (delta > 1000) {
+//				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
+//						delta);
+//			}
 		}
 
 		delay(500);

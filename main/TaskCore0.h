@@ -23,8 +23,8 @@ extern void printEncoderInfo();
 // #define max(a,b) ((a)>(b)?(a):(b))
 
 # if enablePwm == 1
-	extern AiEsp32RotaryEncoder rotaryEncoder2;
-	extern AiEsp32RotaryEncoder rotaryEncoder1;
+extern AiEsp32RotaryEncoder rotaryEncoder2;
+extern AiEsp32RotaryEncoder rotaryEncoder1;
 #endif
 
 extern Preferences preferences;
@@ -61,8 +61,8 @@ extern long searchTopMilis;
 extern String previousPercent_str_1, previousPercent_str_2;
 extern void setOutputPercent(String percent_str, int i);
 
-void ledcAnalogWrite(uint8_t channel, uint32_t value, uint32_t valueMax =
-		pwmValueMax) {
+static void IRAM_ATTR ledcAnalogWrite(uint8_t channel, uint32_t value,
+		uint32_t valueMax = pwmValueMax) {
 	/*
 	 // calculate duty, 8191 from 2 ^ 13 - 1
 	 uint32_t duty = (8191 / valueMax) * _min(value, valueMax);
@@ -71,6 +71,27 @@ void ledcAnalogWrite(uint8_t channel, uint32_t value, uint32_t valueMax =
 	 ledcWrite(channel, duty);
 	 */
 	ledcWrite(channel, _min(value, valueMax));
+}
+
+static void IRAM_ATTR setAnalogForPwm() {
+	if (pwm1 >= 0) {
+		ledcAnalogWrite(LEDC_CHANNEL_0, pwm1, pwmValueMax);
+		ledcAnalogWrite(LEDC_CHANNEL_1, 0, pwmValueMax);
+		//Serial.printf("pwm1: %d\n", pwm1);
+	} else if (pwm1 < 0) {
+		ledcAnalogWrite(LEDC_CHANNEL_1, abs(pwm1), pwmValueMax);
+		ledcAnalogWrite(LEDC_CHANNEL_0, 0, pwmValueMax);
+		//Serial.printf("pwm1: %d\n", pwm1);
+	}
+	if (pwm2 >= 0) {
+		ledcAnalogWrite(LEDC_CHANNEL_2, pwm2, pwmValueMax);
+		ledcAnalogWrite(LEDC_CHANNEL_3, 0, pwmValueMax);
+		//Serial.printf("pwm2: %d\n", pwm2);
+	} else if (pwm2 < 0) {
+		ledcAnalogWrite(LEDC_CHANNEL_3, abs(pwm2), pwmValueMax);
+		ledcAnalogWrite(LEDC_CHANNEL_2, 0, pwmValueMax);
+		//Serial.printf("pwm2: %d\n", pwm2);
+	}
 }
 
 #if enablePwm == 1
@@ -180,7 +201,7 @@ static void IRAM_ATTR readEncoder2_ISR() {
 }
 #endif
 
-uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
+IRAM_ATTR uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
 	adc1_channel_t chan;
 	switch (pin) {
 	case 32:
@@ -282,13 +303,20 @@ void Task1(void * parameter) {
 			pid1.setSetpoint(target1);
 			output1 = pid1.getOutput((float) encoder1_value, target1);
 			pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+		} else {
+			pwm1 = 0;
 		}
 		if (pid2Enabled) {
 			pid2.setPositionDiff(-encoderDelta);
 			pid2.setSetpoint(target2);
 			output2 = pid2.getOutput((float) encoder2_value, target2);
 			pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+		} else {
+			pwm2 = 0;
 		}
+#if enablePwm == 1
+		setAnalogForPwm();
+#endif
 
 		if (status.equals("searchtop") || status.equals("searchbottom")) {
 			// because of higher startup current we do check 1 sec after start of searchtop or searchbottom
@@ -325,26 +353,6 @@ void Task1(void * parameter) {
 				setOutputPercent(previousPercent_str_2, 2);
 			}
 		}
-#if enablePwm == 1
-		if (pwm1 >= 0) {
-			ledcAnalogWrite(LEDC_CHANNEL_0, pwm1, pwmValueMax);
-			ledcAnalogWrite(LEDC_CHANNEL_1, 0, pwmValueMax);
-			//Serial.printf("pwm1: %d\n", pwm1);
-		} else if (pwm1 < 0) {
-			ledcAnalogWrite(LEDC_CHANNEL_1, abs(pwm1), pwmValueMax);
-			ledcAnalogWrite(LEDC_CHANNEL_0, 0, pwmValueMax);
-			//Serial.printf("pwm1: %d\n", pwm1);
-		}
-		if (pwm2 >= 0) {
-			ledcAnalogWrite(LEDC_CHANNEL_2, pwm2, pwmValueMax);
-			ledcAnalogWrite(LEDC_CHANNEL_3, 0, pwmValueMax);
-			//Serial.printf("pwm2: %d\n", pwm2);
-		} else if (pwm2 < 0) {
-			ledcAnalogWrite(LEDC_CHANNEL_3, abs(pwm2), pwmValueMax);
-			ledcAnalogWrite(LEDC_CHANNEL_2, 0, pwmValueMax);
-			//Serial.printf("pwm2: %d\n", pwm2);
-		}
-#endif
 
 		//Serial.println("resetting task");
 		//esp_task_wdt_reset();
@@ -353,7 +361,6 @@ void Task1(void * parameter) {
 		if (err != ESP_OK) {
 			log_e("Failed to feed WDT! Error: %d", err);
 		}
-
-		vTaskDelay(10 / portTICK_PERIOD_MS);
+		vTaskDelay(5 / portTICK_PERIOD_MS);
 	}
 }

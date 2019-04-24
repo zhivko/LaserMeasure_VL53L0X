@@ -79,10 +79,7 @@
 
 #include "esp_task_wdt.h"
 #include "Server.h"
-bool enableLcd = false;
-bool enableMover = false;
-bool enableLed = true;
-bool shouldReboot = false;
+
 
 #if enableTaskManager == 1
 	#include "Taskmanager.h"
@@ -251,16 +248,19 @@ AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 #endif
 
 void pidRegulatedCallBack1() {
-	pwm1=0;
 	pid1Enabled = false;
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
+	Serial.printf("Pid1Enable=false, pwm1=0\n");
 }
 
 void pidRegulatedCallBack2() {
-	pwm2=0;
 	pid2Enabled = false;
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
+	Serial.printf("Pid2Enable=false, pwm2=0\n");
 }
 
 MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
@@ -283,7 +283,7 @@ uint32_t cap_reading = 0;
 
 // PID
 static String initialPidStr =
-		"p=70.00 i=3.00 d=10.00 f=0.00 syn=1 synErr=4.00 ramp=70.00 maxIout=600.00";
+		"p=3.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=1.00 maxIout=540.00";
 static String pid_str;
 
 //AsyncPing myPing;
@@ -303,7 +303,8 @@ void gdfVdsStatus(int which);
 void clearFault();
 void setPidsFromString(String str1);
 String getToken(String data, char separator, int index);
-void sendPidToClient();
+void sendPidToClient1();
+void sendPidToClient2();
 void lcd_out(const char *format, ...);
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(const char* input);
@@ -339,6 +340,70 @@ void processWsData(const char *data) {
 			ws.textAll(reply);
 #endif
 	}
+}
+
+
+void sendPidToClient1() {
+	pid_str = String("");
+	pid_str.concat("{");
+	pid_str.concat("\"pid\":");
+	pid_str.concat("\"p=");
+	pid_str.concat(pid1.getP());
+	pid_str.concat(" i=");
+	pid_str.concat(pid1.getI());
+	pid_str.concat(" d=");
+	pid_str.concat(pid1.getD());
+	pid_str.concat(" f=");
+	pid_str.concat(pid1.getF());
+	pid_str.concat(" syn=");
+	pid_str.concat(pid1.getSynchronize() ? "1" : "0");
+	pid_str.concat(" synErr=");
+	pid_str.concat(pid1.getSyncDisabledForErrorSmallerThen());
+	pid_str.concat(" ramp=");
+	pid_str.concat(pid1.getRampRate());
+	pid_str.concat(" maxIout=");
+	pid_str.concat(pid1.getMaxIOutput());
+	pid_str.concat("\",");
+	pid_str.concat("\"maxPercentOutput\":");
+	pid_str.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+	pid_str.concat("}");
+
+#ifdef arduinoWebserver
+	ws.broadcastTXT(pid_str.c_str());
+#endif // arduinoWebserver
+#ifndef arduinoWebserver
+	ws.textAll(pid_str.c_str());
+#endif
+	Serial.printf("pid2: %s\n", pid_str.c_str());
+
+}
+
+void sendPidToClient2() {
+	pid_str = String("");
+	pid_str.concat("{");
+	pid_str.concat("\"pid\":");
+	pid_str.concat("\"p=");
+	pid_str.concat(pid2.getP());
+	pid_str.concat(" i=");
+	pid_str.concat(pid2.getI());
+	pid_str.concat(" d=");
+	pid_str.concat(pid2.getD());
+	pid_str.concat(" f=");
+	pid_str.concat(pid2.getF());
+	pid_str.concat(" syn=");
+	pid_str.concat(pid2.getSynchronize() ? "1" : "0");
+	pid_str.concat(" synErr=");
+	pid_str.concat(pid2.getSyncDisabledForErrorSmallerThen());
+	pid_str.concat(" ramp=");
+	pid_str.concat(pid2.getRampRate());
+	pid_str.concat(" maxIout=");
+	pid_str.concat(pid2.getMaxIOutput());
+	pid_str.concat("\",");
+	pid_str.concat("\"maxPercentOutput\":");
+	pid_str.concat((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
+	pid_str.concat("}");
+
+	Serial.printf("pid1: %s\n", pid_str.c_str());
 }
 
 TimerHandle_t tmrMover;
@@ -449,7 +514,8 @@ String processInput(const char *input) {
 	} else if (strncmp(input, "pid#", 4) == 0) {
 		String input2 = getToken(input, '#', 1);
 		setPidsFromString(input2);
-		sendPidToClient();
+		sendPidToClient1();
+		sendPidToClient2();
 
 		preferences.begin("settings", false);
 		preferences.putString("pid", input2);
@@ -477,6 +543,9 @@ String processInput(const char *input) {
 		preferences.putInt("target1", (int) target1);
 		preferences.putInt("target2", (int) target2);
 		preferences.end();
+
+		pid1.reset();
+		pid2.reset();
 
 		pid1Enabled = true;
 		pid2Enabled = true;
@@ -636,7 +705,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
 
 		// send message to client
 		ws.broadcastTXT("Connected");
-		sendPidToClient();
+		sendPidToClient1();
 	}
 		break;
 	case WStype_TEXT:
@@ -729,7 +798,7 @@ void handleNotFound(){
 
 	String message = "File Not Found\n\n";
 	message += "URI: ";
-	message += server.uri();
+ 	message += server.uri();
 	message += "\nMethod: ";
 	message += (server.method() == HTTP_GET) ? "GET" : "POST";
 	message += "\nArguments: ";
@@ -753,7 +822,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		//client->ping();
 		shouldSendJson = false;
 		lastWsClient = client->id();
-		sendPidToClient();
+		sendPidToClient1();
 		setJsonString();
 		if (ws.hasClient(lastWsClient)) {
 			ws.text(lastWsClient, txtToSend);
@@ -1036,6 +1105,8 @@ IRAM_ATTR void setJsonString() {
 #endif
 
 
+				"\"PID1output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
+				"\"PID2output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
 
 				"\"esp32_heap\":%zu,"
 				"\"uptime_h\":%.2f"
@@ -1060,6 +1131,33 @@ IRAM_ATTR void setJsonString() {
 			fdc2212.capFast,
 			fdc2212.capSlow
 #endif
+
+
+			,pid1.getPoutput()
+			,pid1.getIoutput()
+			,pid1.getDoutput()
+			,pid1.getFoutput()
+			,pid1.getPOSoutput()
+			,pid1.getPOSoutputFiltered()
+			,pid1.getSetpoint()
+			,pid1.getActual()
+			,pid1.getError()
+			,pid1.getErrorSum()
+			,pid1.getMaxIOutput()
+			,pid1.getMaxError()
+
+			,pid2.getPoutput()
+			,pid2.getIoutput()
+			,pid2.getDoutput()
+			,pid2.getFoutput()
+			,pid2.getPOSoutput()
+			,pid2.getPOSoutputFiltered()
+			,pid2.getSetpoint()
+			,pid2.getActual()
+			,pid2.getError()
+			,pid2.getErrorSum()
+			,pid2.getMaxIOutput()
+			,pid2.getMaxError()
 
 				,esp_get_free_heap_size(),
 				timeH);
@@ -1180,40 +1278,6 @@ void setPidsFromString(String input) {
 		pid1.setSynchronize(false);
 		pid2.setSynchronize(false);
 	}
-}
-
-void sendPidToClient() {
-	pid_str = String("");
-	pid_str.concat("{");
-	pid_str.concat("\"pid\":");
-	pid_str.concat("\"p=");
-	pid_str.concat(pid1.getP());
-	pid_str.concat(" i=");
-	pid_str.concat(pid1.getI());
-	pid_str.concat(" d=");
-	pid_str.concat(pid1.getD());
-	pid_str.concat(" f=");
-	pid_str.concat(pid1.getF());
-	pid_str.concat(" syn=");
-	pid_str.concat(pid1.getSynchronize() ? "1" : "0");
-	pid_str.concat(" synErr=");
-	pid_str.concat(pid1.getSyncDisabledForErrorSmallerThen());
-	pid_str.concat(" ramp=");
-	pid_str.concat(pid1.getRampRate());
-	pid_str.concat(" maxIout=");
-	pid_str.concat(pid1.getMaxIOutput());
-	pid_str.concat("\",");
-	pid_str.concat("\"maxPercentOutput\":");
-	pid_str.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-	pid_str.concat("}");
-
-#ifdef arduinoWebserver
-	ws.broadcastTXT(pid_str.c_str());
-#endif // arduinoWebserver
-#ifndef arduinoWebserver
-	ws.textAll(pid_str.c_str());
-#endif
-
 }
 
 void setOutputPercent(String percent_str, int i) {
