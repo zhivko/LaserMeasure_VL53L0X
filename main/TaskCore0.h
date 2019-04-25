@@ -61,6 +61,7 @@ extern long searchTopMilis;
 extern String previousPercent_str_1, previousPercent_str_2;
 extern void setOutputPercent(String percent_str, int i);
 
+#if enablePwm == 1
 static void IRAM_ATTR ledcAnalogWrite(uint8_t channel, uint32_t value,
 		uint32_t valueMax = pwmValueMax) {
 	/*
@@ -94,7 +95,6 @@ static void IRAM_ATTR setAnalogForPwm() {
 	}
 }
 
-#if enablePwm == 1
 static void IRAM_ATTR readEncoder1_ISR() {
 	portENTER_CRITICAL_ISR(&(rotaryEncoder1.mux));
 	boolean A = digitalRead(rotaryEncoder1.encoderAPin);

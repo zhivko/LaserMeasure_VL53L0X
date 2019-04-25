@@ -105,8 +105,9 @@
 #endif
 
 int pidTaskCore = 1;
+bool shouldReboot = false;
 
-#define freeheap heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
+#define freeheap heap_caps_get_free_size(MALLOC_CAP_8BIT)
 #define NUM_RECORDS 100
 static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
 
@@ -1044,10 +1045,12 @@ void startServer() {
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
+		lcd_out("toggleCharts ON\n");
 		shouldSendJson = true;
 		request->send(200, "text/html", "Toggled shouldSendJson ON");
 	});
 	server.on("/toggleChartsOff", HTTP_GET, [](AsyncWebServerRequest *request) {
+		lcd_out("toggleCharts OFF\n");
 		shouldSendJson = false;
 		request->send(200, "text/html", "Toggled shouldSendJson OFF");
 	});
@@ -1197,7 +1200,6 @@ void lcd_out(const char*format, ...) {
 	if (len >= sizeof(loc_buf)) {
 		delete[] temp;
 	}
-
 }
 
 String getToken(String data, char separator, int index) {
@@ -2115,8 +2117,8 @@ void myLoop() {			//ArduinoOTA.handle();
 #ifndef arduinoWebserver
 		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 		lcd_out(
-				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, wsLength: %d\n",
-				mySecond, timeH, xPortGetCoreID(), freeheap,
+				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
+				mySecond, timeH, xPortGetCoreID(), freeheap, heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
 				ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
