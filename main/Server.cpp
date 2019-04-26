@@ -80,26 +80,25 @@
 #include "esp_task_wdt.h"
 #include "Server.h"
 
-
 #if enableTaskManager == 1
 	#include "Taskmanager.h"
 	static int taskManagerCore = 0;
 #endif
 
 #if enablePwm == 1
-	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
-	#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
-	#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
-	#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
+#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
+#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
+#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
+#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
 
-	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
+ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
+AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
+ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 
-	#define enableEncSaver 1
-	#include "encoderSaver.h"
-	static int encoderSaverCore = 0;
+#define enableEncSaver 1
+#include "encoderSaver.h"
+static int encoderSaverCore = 0;
 #else
 #define enableEncSaver 0
 #endif
@@ -253,7 +252,7 @@ void pidRegulatedCallBack1() {
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
-	Serial.printf("Pid1Enable=false, pwm1=0\n");
+	lcd_out("Pid1Enable=false, pwm1=0\n");
 }
 
 void pidRegulatedCallBack2() {
@@ -261,7 +260,7 @@ void pidRegulatedCallBack2() {
 	if (ws.hasClient(lastWsClient)) {
 		ws.text(lastWsClient, txtToSend);
 	}
-	Serial.printf("Pid2Enable=false, pwm2=0\n");
+	lcd_out("Pid2Enable=false, pwm2=0\n");
 }
 
 MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
@@ -285,7 +284,8 @@ uint32_t cap_reading = 0;
 // PID
 static String initialPidStr =
 		"p=3.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=1.00 maxIout=540.00";
-static String pid_str;
+static String pid_str1;
+static String pid_str2;
 
 //AsyncPing myPing;
 //IPAddress addr;
@@ -302,10 +302,10 @@ static String pid_str;
 void testSpi(int which);
 void gdfVdsStatus(int which);
 void clearFault();
-void setPidsFromString(String str1);
+void setPidsFromString(MiniPID* pid, String str1);
 String getToken(String data, char separator, int index);
-void sendPidToClient1();
-void sendPidToClient2();
+void sendPid1ToClient();
+void sendPid2ToClient();
 void lcd_out(const char *format, ...);
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(const char* input);
@@ -333,78 +333,84 @@ void timerCapSenseCallBack(TimerHandle_t xTimer) {
 void processWsData(const char *data) {
 	if (strncmp(data, "ok", 2) != 0) {
 		Serial.printf("processWsData: %s\n", data);
-#ifdef arduinoWebserver
-		ws.broadcastTXT(processInput(data).c_str());
-#else
 		String reply = processInput(data);
-		if (reply.length() > 0)
+		if (reply.length() > 0) {
+#ifdef arduinoWebserver
+		ws.broadcastTXT(reply);
+#else
 			ws.textAll(reply);
 #endif
+		}
+
 	}
 }
 
-
-void sendPidToClient1() {
-	pid_str = String("");
-	pid_str.concat("{");
-	pid_str.concat("\"pid\":");
-	pid_str.concat("\"p=");
-	pid_str.concat(pid1.getP());
-	pid_str.concat(" i=");
-	pid_str.concat(pid1.getI());
-	pid_str.concat(" d=");
-	pid_str.concat(pid1.getD());
-	pid_str.concat(" f=");
-	pid_str.concat(pid1.getF());
-	pid_str.concat(" syn=");
-	pid_str.concat(pid1.getSynchronize() ? "1" : "0");
-	pid_str.concat(" synErr=");
-	pid_str.concat(pid1.getSyncDisabledForErrorSmallerThen());
-	pid_str.concat(" ramp=");
-	pid_str.concat(pid1.getRampRate());
-	pid_str.concat(" maxIout=");
-	pid_str.concat(pid1.getMaxIOutput());
-	pid_str.concat("\",");
-	pid_str.concat("\"maxPercentOutput\":");
-	pid_str.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-	pid_str.concat("}");
+void sendPid1ToClient() {
+	pid_str1 = String("");
+	pid_str1.concat("{");
+	pid_str1.concat("\"pid1\":");
+	pid_str1.concat("\"p=");
+	pid_str1.concat(pid1.getP());
+	pid_str1.concat(" i=");
+	pid_str1.concat(pid1.getI());
+	pid_str1.concat(" d=");
+	pid_str1.concat(pid1.getD());
+	pid_str1.concat(" f=");
+	pid_str1.concat(pid1.getF());
+	pid_str1.concat(" syn=");
+	pid_str1.concat(pid1.getSynchronize() ? "1" : "0");
+	pid_str1.concat(" synErr=");
+	pid_str1.concat(pid1.getSyncDisabledForErrorSmallerThen());
+	pid_str1.concat(" ramp=");
+	pid_str1.concat(pid1.getRampRate());
+	pid_str1.concat(" maxIout=");
+	pid_str1.concat(pid1.getMaxIOutput());
+	pid_str1.concat("\",");
+	pid_str1.concat("\"maxPercentOutput\":");
+	pid_str1.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
+	pid_str1.concat("}");
 
 #ifdef arduinoWebserver
-	ws.broadcastTXT(pid_str.c_str());
+	ws.broadcastTXT(pid_str1.c_str());
 #endif // arduinoWebserver
 #ifndef arduinoWebserver
-	ws.textAll(pid_str.c_str());
+	ws.textAll(pid_str1.c_str());
 #endif
-	Serial.printf("pid2: %s\n", pid_str.c_str());
-
+	Serial.printf("pid1: %s\n", pid_str1.c_str());
 }
 
-void sendPidToClient2() {
-	pid_str = String("");
-	pid_str.concat("{");
-	pid_str.concat("\"pid\":");
-	pid_str.concat("\"p=");
-	pid_str.concat(pid2.getP());
-	pid_str.concat(" i=");
-	pid_str.concat(pid2.getI());
-	pid_str.concat(" d=");
-	pid_str.concat(pid2.getD());
-	pid_str.concat(" f=");
-	pid_str.concat(pid2.getF());
-	pid_str.concat(" syn=");
-	pid_str.concat(pid2.getSynchronize() ? "1" : "0");
-	pid_str.concat(" synErr=");
-	pid_str.concat(pid2.getSyncDisabledForErrorSmallerThen());
-	pid_str.concat(" ramp=");
-	pid_str.concat(pid2.getRampRate());
-	pid_str.concat(" maxIout=");
-	pid_str.concat(pid2.getMaxIOutput());
-	pid_str.concat("\",");
-	pid_str.concat("\"maxPercentOutput\":");
-	pid_str.concat((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
-	pid_str.concat("}");
+void sendPid2ToClient() {
+	pid_str2 = String("");
+	pid_str2.concat("{");
+	pid_str2.concat("\"pid2\":");
+	pid_str2.concat("\"p=");
+	pid_str2.concat(pid2.getP());
+	pid_str2.concat(" i=");
+	pid_str2.concat(pid2.getI());
+	pid_str2.concat(" d=");
+	pid_str2.concat(pid2.getD());
+	pid_str2.concat(" f=");
+	pid_str2.concat(pid2.getF());
+	pid_str2.concat(" syn=");
+	pid_str2.concat(pid2.getSynchronize() ? "1" : "0");
+	pid_str2.concat(" synErr=");
+	pid_str2.concat(pid2.getSyncDisabledForErrorSmallerThen());
+	pid_str2.concat(" ramp=");
+	pid_str2.concat(pid2.getRampRate());
+	pid_str2.concat(" maxIout=");
+	pid_str2.concat(pid2.getMaxIOutput());
+	pid_str2.concat("\",");
+	pid_str2.concat("\"maxPercentOutput\":");
+	pid_str2.concat((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
+	pid_str2.concat("}");
 
-	Serial.printf("pid1: %s\n", pid_str.c_str());
+#ifdef arduinoWebserver
+	ws.broadcastTXT(pid_str1.c_str());
+#endif // arduinoWebserver
+#ifndef arduinoWebserver
+	ws.textAll(pid_str2.c_str());
+#endif
+	Serial.printf("pid2: %s\n", pid_str2.c_str());
 }
 
 TimerHandle_t tmrMover;
@@ -512,17 +518,20 @@ String processInput(const char *input) {
 	} else if (strncmp(input, "clrflt", 6) == 0) {
 		clearFault();
 		ret.concat("Clear Fault done.");
-	} else if (strncmp(input, "pid#", 4) == 0) {
+	} else if (strncmp(input, "pid1#", 5) == 0) {
 		String input2 = getToken(input, '#', 1);
-		setPidsFromString(input2);
-		sendPidToClient1();
-		sendPidToClient2();
-
+		setPidsFromString(&pid1, input2);
 		preferences.begin("settings", false);
-		preferences.putString("pid", input2);
+		preferences.putString("pid1", input2);
 		preferences.end();
-
-		ret.concat("Parsing pid done.");
+		ret.concat("Parsing pid1 done.");
+	} else if (strncmp(input, "pid2#", 5) == 0) {
+		String input2 = getToken(input, '#', 1);
+		setPidsFromString(&pid2, input2);
+		preferences.begin("settings", false);
+		preferences.putString("pid2", input2);
+		preferences.end();
+		ret.concat("Parsing pid1 done.");
 	} else if (strncmp(input, "gCodeCmd", 8) == 0) {
 		Serial.printf("Parsing target1=.. target2=... command:%s\n", input);
 		String input2 = getToken(input, '#', 1);
@@ -706,7 +715,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
 
 		// send message to client
 		ws.broadcastTXT("Connected");
-		sendPidToClient1();
+		sendPid1ToClient();
 	}
 		break;
 	case WStype_TEXT:
@@ -823,7 +832,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		//client->ping();
 		shouldSendJson = false;
 		lastWsClient = client->id();
-		sendPidToClient1();
+		sendPid1ToClient();
+		sendPid2ToClient();
 		setJsonString();
 		if (ws.hasClient(lastWsClient)) {
 			ws.text(lastWsClient, txtToSend);
@@ -1168,6 +1178,7 @@ IRAM_ATTR void setJsonString() {
 }
 
 void lcd_out(const char*format, ...) {
+
 	char loc_buf[255];
 	char * temp = loc_buf;
 	va_list arg;
@@ -1200,6 +1211,7 @@ void lcd_out(const char*format, ...) {
 	if (len >= sizeof(loc_buf)) {
 		delete[] temp;
 	}
+
 }
 
 String getToken(String data, char separator, int index) {
@@ -1225,7 +1237,7 @@ String getToken(String data, char separator, int index) {
 // takes pid string in form:
 // p=40.00 i=2.00 d=0.30 f=0.00 syn=1 synErr=0.00 ramp=50.00 maxIout=1000.00
 // p=40.00 i=2.00 d=0.30 f=0.00 syn=0 synErr=0.00 ramp=50.00 maxIout=1000.00
-void setPidsFromString(String input) {
+void setPidsFromString(MiniPID* pid, String input) {
 	Serial.printf("Parsing pid: %s\n", input.c_str());
 	String p_str = getToken(input, ' ', 0);
 	String p_val = getToken(p_str, '=', 1);
@@ -1260,25 +1272,18 @@ void setPidsFromString(String input) {
 		maxIOut_val = "1.0";
 	}
 
-	pid1.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
+	pid->setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
 			f_val.toFloat());
-	pid2.setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
-	pid1.setOutputRampRate(ramp_val.toFloat());
-	pid2.setOutputRampRate(ramp_val.toFloat());	//pid1.setOutputFilter(0.01);
+	pid->setOutputRampRate(ramp_val.toFloat());	//pid1.setOutputFilter(0.01);
 //pid2.setOutputFilter(0.01);
 	Serial.print("f_val: ");
 	Serial.println(f_val.toFloat());
-	pid1.setMaxIOutput(maxIOut_val.toFloat());
-	pid2.setMaxIOutput(maxIOut_val.toFloat());
-	pid1.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
-	pid2.setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
+	pid->setMaxIOutput(maxIOut_val.toFloat());
+	pid->setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
 	if (syn_val.equals("1")) {
-		pid1.setSynchronize(true);
-		pid2.setSynchronize(true);
+		pid->setSynchronize(true);
 	} else {
-		pid1.setSynchronize(false);
-		pid2.setSynchronize(false);
+		pid->setSynchronize(false);
 	}
 }
 
@@ -1751,15 +1756,25 @@ void setup() {
 	lcd_out(String(" ssid:     " + ssid + "\n").c_str());
 	lcd_out(String(" pass:     " + password + "\n").c_str());
 
-	pid_str = preferences.getString("pid", "null");
-	if (!pid_str.equals("null")) {
-		Serial.printf("PID from flash: %s\n", pid_str.c_str());
-		setPidsFromString(pid_str);
+	pid_str1 = preferences.getString("pid1", "null");
+	if (!pid_str1.equals("null")) {
+		Serial.printf("PID1 from flash: %s\n", pid_str1.c_str());
+		setPidsFromString(&pid1, pid_str1);
 	} else {
-		Serial.printf("no PID from flash.\n");
+		Serial.printf("no PID1 from flash.\n");
 		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
-		setPidsFromString(initialPidStr);
-		pid_str = initialPidStr;
+		setPidsFromString(&pid1, initialPidStr);
+		pid_str1 = initialPidStr;
+	}
+	pid_str2 = preferences.getString("pid2", "null");
+	if (!pid_str2.equals("null")) {
+		Serial.printf("PID2 from flash: %s\n", pid_str2.c_str());
+		setPidsFromString(&pid2, pid_str2);
+	} else {
+		Serial.printf("no PID2 from flash.\n");
+		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
+		setPidsFromString(&pid2, initialPidStr);
+		pid_str2 = initialPidStr;
 	}
 
 	pid1.setCallback(pidRegulatedCallBack1);
@@ -2118,7 +2133,8 @@ void myLoop() {			//ArduinoOTA.handle();
 		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 		lcd_out(
 				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
-				mySecond, timeH, xPortGetCoreID(), freeheap, heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+				mySecond, timeH, xPortGetCoreID(), freeheap,
+				heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
 				ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
@@ -2141,20 +2157,20 @@ void myLoop() {			//ArduinoOTA.handle();
 //	}
 
 	/*
-	if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
-		Serial.print("Setting setpoint ");
-		if (target1 <= 15000) {
-			target1 = 15300;
-			target2 = 15300;
-		} else {
-			target1 = 15000;
-			target2 = 15000;
-			Serial.printf("%f\n", pid1.getSetpoint());
-		}
-		Serial.printf("%f\n", target1);
-		previousSecondSetter = mySecond;
-	}
-	*/
+	 if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
+	 Serial.print("Setting setpoint ");
+	 if (target1 <= 15000) {
+	 target1 = 15300;
+	 target2 = 15300;
+	 } else {
+	 target1 = 15000;
+	 target2 = 15000;
+	 Serial.printf("%f\n", pid1.getSetpoint());
+	 }
+	 Serial.printf("%f\n", target1);
+	 previousSecondSetter = mySecond;
+	 }
+	 */
 
 	if (restartNow) {
 		lcd_out("Restarting...\n");
