@@ -8,8 +8,8 @@
 #ifndef MAIN_SERVER_H_
 #define MAIN_SERVER_H_
 
-#define enablePwm 1
-bool enableLcd = false;
+#define enablePwm 0
+bool enableLcd = true;
 bool enableMover = false;
 bool enableLed = true;
 
