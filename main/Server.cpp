@@ -128,7 +128,9 @@ float timeH;
 // jtag pins: 15, 12 13 14
 
 const char* hostName = "esp32_door";
-int jsonReportIntervalMs = 100;
+int jsonReportIntervalMs = 5000;
+int jsonFastReportIntervalMs = 100;
+int jsonSlowReportIntervalMs = 5000;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
 int loopIntervalMs = 500;
@@ -137,6 +139,7 @@ int encoderSaverIntervalMs = 500;
 bool restartNow = false;
 
 long previousMs = 0;
+long previousJsonSentMs = 0;
 
 String ssid;
 String password;
@@ -846,7 +849,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
 		//client->ping();
-		shouldSendJson = false;
+		jsonReportIntervalMs = jsonSlowReportIntervalMs;
 		lastWsClient = client->id();
 		sendPid1ToClient();
 		sendPid2ToClient();
@@ -1071,13 +1074,15 @@ void startServer() {
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
-		lcd_out("toggleCharts ON\n");
+		//lcd_out("toggleCharts ON\n");
 		shouldSendJson = true;
+		jsonReportIntervalMs = jsonFastReportIntervalMs;
 		request->send(200, "text/html", "Toggled shouldSendJson ON");
 	});
 	server.on("/toggleChartsOff", HTTP_GET, [](AsyncWebServerRequest *request) {
-		lcd_out("toggleCharts OFF\n");
+		//lcd_out("toggleCharts OFF\n");
 		shouldSendJson = false;
+		jsonReportIntervalMs = jsonSlowReportIntervalMs;
 		request->send(200, "text/html", "Toggled shouldSendJson OFF");
 	});
 	server.on("/gcode", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -2141,93 +2146,92 @@ long start;
 void myLoop() {			//ArduinoOTA.handle();
 
 //printEncoderInfo();
-//	for(;;){
-	mySecond = esp_timer_get_time() / 1000000.0;
-	if (((mySecond % 5 == 0) && (previousSecond != mySecond))
-			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+	for (;;) {
+		mySecond = esp_timer_get_time() / 1000000.0;
+		if (((mySecond % 5 == 0) && (previousSecond != mySecond))
+				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
-		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-		lcd_out(
-				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
-				mySecond, timeH, xPortGetCoreID(), freeheap,
-				heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
-				ws._buffers.length());
+			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+			/*
+			 lcd_out(
+			 "time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
+			 mySecond, timeH, xPortGetCoreID(), freeheap,
+			 heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+			 ws._buffers.length());
+			 */
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 #endif
-		setJsonString();
-		ws.textAll(txtToSend);
-		//dbg_lwip_stats_show();
+			//dbg_lwip_stats_show();
+			heap_caps_check_integrity_all(true);
+			if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
+				previousHeap = ESP.getFreeHeap();
+			previousSecond = mySecond;
+			previousMs = millis();
+		}
 		heap_caps_check_integrity_all(true);
-		if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
-			previousHeap = ESP.getFreeHeap();
-		previousSecond = mySecond;
-		previousMs = millis();
-	}
-	heap_caps_check_integrity_all(true);
 
-//	esp_err_t resetOK = esp_task_wdt_reset();
-//	if (resetOK != ESP_OK) {
-//		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
-//	}
+		esp_err_t resetOK = esp_task_wdt_reset();
+		if (resetOK != ESP_OK) {
+			//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
+		}
 
-	/*
-	 if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
-	 Serial.print("Setting setpoint ");
-	 if (target1 <= 15000) {
-	 target1 = 15300;
-	 target2 = 15300;
-	 } else {
-	 target1 = 15000;
-	 target2 = 15000;
-	 Serial.printf("%f\n", pid1.getSetpoint());
-	 }
-	 Serial.printf("%f\n", target1);
-	 previousSecondSetter = mySecond;
-	 }
-	 */
+		if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
+			/*
+			 Serial.print("Setting setpoint ");
+			 if (target1 <= 15000) {
+			 target1 = 15300;
+			 target2 = 15300;
+			 } else {
+			 target1 = 15000;
+			 target2 = 15000;
+			 Serial.printf("%f\n", pid1.getSetpoint());
+			 }
+			 Serial.printf("%f\n", target1);
+			 */
+			heap_caps_print_heap_info(MALLOC_CAP_8BIT);
+			previousSecondSetter = mySecond;
+		}
 
-	if (restartNow) {
-		lcd_out("Restarting...\n");
-		ESP.restart();
-	}
+		if (restartNow) {
+			lcd_out("Restarting...\n");
+			ESP.restart();
+		}
 
-//if((millis() > (previousMs + jsonReportIntervalMs)) && shouldSendJson){
-	if (shouldSendJson == true) {
-		setJsonString();
-		//Serial.println(txtToSend);
-		//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
+			setJsonString();
+			//Serial.println(txtToSend);
+			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 #ifdef arduinoWebserver
 				ws.broadcastTXT(txtToSend);
 #else
-		if (ws.hasClient(lastWsClient)) {
-			ws.text(lastWsClient, txtToSend);
-		}
-		/*
-		 uint8_t opcode = WS_TEXT;
-		 uint8_t _opcode = opcode & 0x07;
-		 bool mask = false;
-		 size_t len = sizeof(txtToSend)/sizeof(txtToSend[0]);
-		 if(ws.hasClient(lastWsClient)){
-		 Serial.printf("Space: %d\n", ((AsyncClient*) ws.client(lastWsClient))->space());
-		 size_t sent = webSocketSendFrame((AsyncClient*) ws.client(lastWsClient), true, _opcode, mask, (uint8_t*) txtToSend, len);
-		 Serial.printf("Sent len: %d\n", sent);
-		 }
-		 */
+			if (ws.hasClient(lastWsClient)) {
+				ws.text(lastWsClient, txtToSend);
+			}
+			/*
+			 uint8_t opcode = WS_TEXT;
+			 uint8_t _opcode = opcode & 0x07;
+			 bool mask = false;
+			 size_t len = sizeof(txtToSend)/sizeof(txtToSend[0]);
+			 if(ws.hasClient(lastWsClient)){
+			 Serial.printf("Space: %d\n", ((AsyncClient*) ws.client(lastWsClient))->space());
+			 size_t sent = webSocketSendFrame((AsyncClient*) ws.client(lastWsClient), true, _opcode, mask, (uint8_t*) txtToSend, len);
+			 Serial.printf("Sent len: %d\n", sent);
+			 }
+			 */
 #endif
-
-		//ESP_ERROR_CHECK(heap_trace_stop());
-		//heap_trace_dump();
+			//ESP_ERROR_CHECK(heap_trace_stop());
+			//heap_trace_dump();
 //Serial.printf("texted all: %s\n", txtToSend);
-
-	}
-
+			previousJsonSentMs = millis();
+		}
 #ifdef arduinoWebserver
 			server.handleClient();
 			ws.loop();
 #endif
-
+		vTaskDelay(20 / portTICK_PERIOD_MS);
+	}
 }
 
 void loop() {
@@ -2260,31 +2264,30 @@ void app_main() {
 
 	setup();
 
-	/*
-	 lcd_out("Starting LoopTask...");
-	 Serial.flush();
-	 xTaskCreatePinnedToCore(Loop,							// pvTaskCode
-	 "MyLoop",							// pcName
-	 25000,							// usStackDepth
-	 NULL,							// pvParameters
-	 16,							// uxPriority
-	 &TaskLoop,							// pxCreatedTask
-	 taskCore);							// xCoreID
-	 esp_task_wdt_add(TaskLoop);
-	 lcd_out("Starting LoopTask...Done.\n");
-	 Serial.flush();
-	 */
+	lcd_out("Starting LoopTask...");
+	Serial.flush();
+	xTaskCreatePinnedToCore(Loop,							// pvTaskCode
+			"MyLoop",							// pcName
+			25000,							// usStackDepth
+			NULL,							// pvParameters
+			16,							// uxPriority
+			&TaskLoop,							// pxCreatedTask
+			0);							// xCoreID
+	esp_task_wdt_add(TaskLoop);
+	lcd_out("Starting LoopTask...Done.\n");
+	Serial.flush();
 
-	tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs),
-	pdTRUE, (void *) id3, &loopCallBack);
-	if ( xTimerStart ( tmr2 , 100 / portTICK_PERIOD_MS ) != pdPASS) {
-		lcd_out("Timer loop start error");
-	} else {
-		lcd_out("json timer created.");
-	}
+	/*
+	 tmr2 = xTimerCreate("MyTimer", pdMS_TO_TICKS(jsonReportIntervalMs),
+	 pdTRUE, (void *) id3, &loopCallBack);
+	 if ( xTimerStart ( tmr2 , 100 / portTICK_PERIOD_MS ) != pdPASS) {
+	 lcd_out("Timer loop start error");
+	 } else {
+	 lcd_out("json timer created.");
+	 }
+	 */
 //enableCore0WDT();
 //esp_task_wdt_add(NULL);	//enableCore1WDT();
-
 //loop();
 }
 
