@@ -393,7 +393,8 @@ String processInput(const char *input) {
 		}
 	} else if (strncmp(input, "target1_", 8) == 0) {
 		Serial.printf("Command: %s\n", input);
-		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
+				(float) target2);
 		String input2 = getToken(input, '#', 1);
 		target1 = input2.toDouble();
 		if (preferences.begin("settings", false)) {
@@ -407,14 +408,16 @@ String processInput(const char *input) {
 			setJsonString();
 			ws.text(lastWsClient, txtToSend);
 		}
-		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
+				(float) target2);
 	} else if (strncmp(input, "target2_", 8) == 0) {
 		Serial.printf("Command: %s\n", input);
-		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
+				(float) target2);
 		String input2 = getToken(input, '#', 1);
 		target2 = input2.toDouble();
 		if (preferences.begin("settings", false)) {
-			preferences.putInt("target2", (int)target2);
+			preferences.putInt("target2", (int) target2);
 			preferences.end();
 			lcd_out("Saved target2= %d from (%f)\n", (int) target2, target2);
 		}
@@ -424,7 +427,8 @@ String processInput(const char *input) {
 			setJsonString();
 			ws.text(lastWsClient, txtToSend);
 		}
-		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
+				(float) target2);
 	} else if (strncmp(input, "gCodeCmd", 8) == 0) {
 		Serial.printf("Parsing target1=.. target2=... command:%s\n", input);
 		String input2 = getToken(input, '#', 1);
@@ -881,7 +885,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 //Serial.printf("%d\n", type);
 	if (type == WS_EVT_CONNECT) {
 //client connected
-		lcd_out("%lu ws[%s][%u] [%s] connect\n", millis(), server->url(), client->id(), client->remoteIP().toString().c_str());
+		lcd_out("%lu ws[%s][%u] [%s] connect\n", millis(), server->url(),
+				client->id(), client->remoteIP().toString().c_str());
 
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
@@ -2233,13 +2238,11 @@ void myLoop() {			//ArduinoOTA.handle();
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			/*
-			 lcd_out(
-			 "time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
-			 mySecond, timeH, xPortGetCoreID(), freeheap,
-			 heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
-			 ws._buffers.length());
-			 */
+			lcd_out(
+					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
+					mySecond, timeH, xPortGetCoreID(), freeheap,
+					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+					ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
