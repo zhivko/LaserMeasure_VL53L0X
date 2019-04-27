@@ -52,7 +52,6 @@ function handleChartToggle()
 		url='/toggleChartsOff';
     	divCharts.style.visibility='hidden';
 	}
-	
 	Http.open("GET", url);
 	Http.send();
 }
@@ -89,6 +88,8 @@ function keyPress(e)
 function init()
 {
 	parent.document.getElementById("chartsVisible").checked = false;
+	parent.document.getElementById("enablepid1").checked = false;
+	parent.document.getElementById("enablepid2").checked = false;
 	output = parent.document.getElementById("output");
 	testWebSocket();
 	
@@ -255,10 +256,15 @@ function onMessage(evt)
 			   // you can get the value like this: myObject[propertyName]
 			   if(document.getElementById(propertyName) != null)
 			   {
-			   		if(document.getElementById(propertyName).nodeName == "INPUT")
+			   		if(document.getElementById(propertyName).nodeName == "INPUT" && document.getElementById(propertyName).nodeType == 0)
 			   			document.getElementById(propertyName).value = obj[propertyName];
-					else if(document.getElementById(propertyName).nodeName == "checkbox")
-			   			document.getElementById(propertyName).checked = obj[propertyName];					
+					else if(document.getElementById(propertyName).nodeName == "INPUT" && document.getElementById(propertyName).nodeType == 1){
+							//checkbox
+							if(obj[propertyName] == 1)
+								document.getElementById(propertyName).checked = true;
+							else
+								document.getElementById(propertyName).checked = false;
+						}
 			   		else	
 						document.getElementById(propertyName).innerHTML = obj[propertyName];
 			   }
@@ -310,7 +316,6 @@ function doSend(element)
 	textToSend = element.id + "#" + element.value;
 	if(element.id == 'gCodeCmd1' || element.id == 'gCodeCmd2')
 	{
-
 		const url= '/gcode?gcode=' + encodeURIComponent(textToSend);
 		Http.open("GET", url);
 		Http.send();
@@ -318,6 +323,17 @@ function doSend(element)
 	else
 		websocket.send(textToSend);
 }
+
+function moveTo(element)
+{
+	textToSend = element.id.split("_")[0] + "=" + element.value;
+	const url= '/' + element.id.split("_")[0] + '?' + textToSend;
+	Http.open("GET", url);
+	Http.send();
+}
+
+
+
 function doSendParentElementId(element)
 {
 

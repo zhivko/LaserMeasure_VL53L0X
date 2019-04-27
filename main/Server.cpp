@@ -121,7 +121,6 @@ bool shouldSendJson = false;
 WiFiUDP ntpClient;
 
 static CEspLcd* lcd_obj = NULL;
-static int lcd_y_pos = 0;
 uint32_t lastWsClient = -1;
 float timeH;
 
@@ -129,7 +128,7 @@ float timeH;
 
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 5000;
-int jsonFastReportIntervalMs = 100;
+int jsonFastReportIntervalMs = 500;
 int jsonSlowReportIntervalMs = 5000;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
@@ -270,7 +269,7 @@ uint32_t cap_reading = 0;
 
 // PID
 static String initialPidStr =
-		"p=3.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=1.00 maxIout=540.00";
+		"p=1.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=0.05 maxIout=540.00";
 static String pid_str1;
 static String pid_str2;
 
@@ -297,17 +296,15 @@ void lcd_out(const char *format, ...);
 
 void pidRegulatedCallBack1() {
 	pid1Enabled = false;
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
+	setJsonString();
+	ws.textAll(txtToSend);
 	lcd_out("Pid1Enable=false, pwm1=0\n");
 }
 
 void pidRegulatedCallBack2() {
 	pid2Enabled = false;
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
+	setJsonString();
+	ws.textAll(txtToSend);
 	lcd_out("Pid2Enable=false, pwm2=0\n");
 }
 
@@ -375,7 +372,16 @@ String processInput(const char *input) {
 			preferences.end();
 			ret.concat("saving pid1 done.");
 		}
-	} else if (strncmp(input, "target1_#", 8) == 0) {
+	} else if (strncmp(input, "pid2#", 5) == 0) {
+		String input2 = getToken(input, '#', 1);
+		setPidsFromString(&pid2, input2);
+		if (preferences.begin("settings", false)) {
+			preferences.begin("settings", false);
+			preferences.putString("pid2", input2);
+			preferences.end();
+			ret.concat("saving pid2 done.");
+		}
+	} else if (strncmp(input, "target1_", 7) == 0) {
 		Serial.printf("Command: %s\n", input);
 		String input2 = getToken(input, '#', 1);
 		target1 = (double) input2.toFloat();
@@ -386,7 +392,9 @@ String processInput(const char *input) {
 		}
 		pid1.reset();
 		pid1Enabled = true;
-	} else if (strncmp(input, "target2_#", 8) == 0) {
+		setJsonString();
+		ws.textAll(txtToSend);
+	} else if (strncmp(input, "target2_", 7) == 0) {
 		Serial.printf("Command: %s\n", input);
 		String input2 = getToken(input, '#', 1);
 		target2 = (double) input2.toFloat();
@@ -397,6 +405,8 @@ String processInput(const char *input) {
 		}
 		pid2.reset();
 		pid2Enabled = true;
+		setJsonString();
+		ws.textAll(txtToSend);
 	} else if (strncmp(input, "gCodeCmd", 8) == 0) {
 		Serial.printf("Parsing target1=.. target2=... command:%s\n", input);
 		String input2 = getToken(input, '#', 1);
@@ -1105,6 +1115,47 @@ void startServer() {
 		request->send(200, "text/html", "Gcode OK");
 	});
 
+	server.on("/target1", HTTP_GET, [](AsyncWebServerRequest *request) {
+		int paramsNr = request->params();
+		for(int i=0;i<paramsNr;i++) {
+			AsyncWebParameter* p = request->getParam(i);
+			if(p->name().equalsIgnoreCase("target1"))
+			{
+				Serial.print("Param name: ");
+				Serial.println(p->name());
+				Serial.print(" Param value: ");
+				Serial.println(p->value());
+				target1 = p->value().toDouble();
+				String toProcess = String("target1_");
+				toProcess.concat("#");
+				toProcess.concat(p->value().c_str());
+				processInput(toProcess.c_str());
+			}
+		}
+		request->send(200, "text/html", "Target1 set OK.");
+	});
+	server.on("/target2", HTTP_GET, [](AsyncWebServerRequest *request) {
+		int paramsNr = request->params();
+		for(int i=0;i<paramsNr;i++) {
+			AsyncWebParameter* p = request->getParam(i);
+			if(p->name().equalsIgnoreCase("target2"))
+			{
+				Serial.print("Param name: ");
+				Serial.println(p->name());
+				Serial.print(" Param value: ");
+				Serial.println(p->value());
+				target1 = p->value().toDouble();
+				String toProcess = String("target2_");
+				toProcess.concat("#");
+				toProcess.concat(p->value().c_str());
+				processInput(toProcess.c_str());
+			}
+		}
+		request->send(200, "text/html", "Target1 set OK.");
+	});
+
+
+
 	server.begin();
 	lcd_out("WebServer started.\n");
 
@@ -1137,6 +1188,8 @@ IRAM_ATTR void setJsonString() {
 		"\"capslow\":%.2f,"
 #endif
 
+				"\"enablepid1\":%d,"
+				"\"enablepid2\":%d,"
 
 				"\"PID1output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
 				"\"PID2output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
@@ -1165,6 +1218,8 @@ IRAM_ATTR void setJsonString() {
 			fdc2212.capSlow
 #endif
 
+			,(pid1Enabled == true ? 1 : 0)
+			,(pid2Enabled == true ? 1 : 0)
 
 			,pid1.getPoutput()
 			,pid1.getIoutput()
@@ -1198,7 +1253,6 @@ IRAM_ATTR void setJsonString() {
 }
 
 void lcd_out(const char*format, ...) {
-
 	char loc_buf[255];
 	char * temp = loc_buf;
 	va_list arg;
@@ -1215,7 +1269,8 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-	if (enableLcd) {
+#if enableLcd ==1
+		int lcd_y_pos = 0;
 		lcd_obj->drawString(loc_buf, 3, lcd_y_pos);
 		lcd_y_pos = lcd_y_pos + 10;
 		if (lcd_y_pos > 250) {
@@ -1223,6 +1278,7 @@ void lcd_out(const char*format, ...) {
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
 	}
+#endif
 //ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
 	Serial.flush();
@@ -2190,8 +2246,8 @@ void myLoop() {			//ArduinoOTA.handle();
 			 }
 			 Serial.printf("%f\n", target1);
 			 */
-			heap_caps_print_heap_info(MALLOC_CAP_8BIT);
-			previousSecondSetter = mySecond;
+			//heap_caps_print_heap_info(MALLOC_CAP_8BIT);
+			//previousSecondSetter = mySecond;
 		}
 
 		if (restartNow) {
@@ -2230,7 +2286,7 @@ void myLoop() {			//ArduinoOTA.handle();
 			server.handleClient();
 			ws.loop();
 #endif
-		vTaskDelay(20 / portTICK_PERIOD_MS);
+		vTaskDelay(30 / portTICK_PERIOD_MS);
 	}
 }
 

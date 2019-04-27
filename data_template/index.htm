@@ -37,19 +37,33 @@
 	
 	<td align="center">
 	<input id="target1_up" onkeypress="return keyPress(event);" value="15300" style="width:50px" type="text"\><br>
-	<img id="pwm_m1_left" src="48px-Gnome-go-up.svg" onMouseDown="doSend(document.getElementById('target1_up'));" />
+	<img id="pwm_m1_left" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target1_up'));" />
 	</td>
 	
 	<td></td>
 	
 	<td align="center">
 	<input id="target2_up" onkeypress="return keyPress(event);" value="15300" style="width:50px" type="text"\><br>
-	<img id="pwm_m2_left" src="48px-Gnome-go-up.svg" onMouseDown="doSend(document.getElementById('target2_up'));" />
+	<img id="pwm_m2_left" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target2_up'));" />
 	</td>
 	
 	</tr>
 
 	<tr><td>pid_sett</td><td><textarea id="pid1" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);"></textarea></td><td></td><td><textarea id="pid2" style="margin: 0px; height:70px; width:150px" onkeypress="return keyPress(event);"></textarea></td></tr>
+
+	<tr>
+	<td>pid_enab</td>
+	<td align="center">
+	<input type="checkbox" checked="" id="enablepid1" name="enablepid1" onMouseDown="handleEnablePID1(this);" value="Bike" />
+	</td>
+	
+	<td>
+	</td>
+	
+	<td align="center">
+	<input type="checkbox" checked="" id="enablepid2" name="enablepid2" onMouseDown="handleEnablePID2(this);" value="Bike" />
+	</td>
+	</tr>
 
 	<tr><td>encoder</td><td id='encoder1_value'></td><td></td><td id='encoder2_value'></td></tr>
 	<tr><td>target</td><td id='target1'></td><td></td><td id='target2'></td></tr>
@@ -62,14 +76,14 @@
 	<td></td>
 	
 	<td align="center">
-	<img id="pwm_m1_left" src="48px-Gnome-go-down.svg" onMouseDown="doSend(document.getElementById('target1_down'));" /><br>
+	<img id="pwm_m1_left" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target1_down'));" /><br>
 	<input id="target1_down" onkeypress="return keyPress(event);" value="15000" style="width:50px" type="text"\>
 	</td>
 	
 	<td></td>
 	
 	<td align="center">
-	<img id="pwm_m2_left" src="48px-Gnome-go-down.svg" onMouseDown="doSend(document.getElementById('target2_down'));" /><br>
+	<img id="pwm_m2_left" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target2_down'));" /><br>
 	<input id="target2_down" onkeypress="return keyPress(event);" value="15000" style="width:50px" type="text"\>
 	</td>
 	
@@ -101,8 +115,6 @@ PID regulation data:</br>
 </div>
 
 <p>
-<input type="checkbox" checked="" id="enablePID1" name="enablePID1" onMouseDown="handleEnablePID1(this);" value="Bike" />Pid1 enabled
-<input type="checkbox" checked="" id="enablePID2" name="enablePID2" onMouseDown="handleEnablePID2(this);" value="Bike" />Pid2 enabled
 <button onMouseDown="doSendCommand('status')" type="button">Status</button>
 <button onMouseDown="doSendCommand('gdfvdsstatus')" type="button">GDF VDS Status</button>
 <button onMouseDown="doSendCommand('clrflt')" type="button">Clear Fault</button>
