@@ -29,9 +29,9 @@ extern AiEsp32RotaryEncoder rotaryEncoder1;
 
 extern Preferences preferences;
 extern int32_t encoder1_value, encoder2_value;
-extern volatile double output1, output2;
-extern volatile double target1, target2;
-extern volatile int16_t pwm1, pwm2;
+extern double output1, output2;
+extern double target1, target2;
+extern int16_t pwm1, pwm2;
 
 uint8_t pwmPositionDelta = 150;
 uint8_t maxPositionDelta = 10;
@@ -44,8 +44,8 @@ extern uint16_t stop2_top, stop2_bottom;
 extern uint16_t stop1_top, stop1_bottom;
 extern String status;
 
-extern volatile bool pid1Enabled;
-extern volatile bool pid2Enabled;
+extern bool pid1Enabled;
+extern bool pid2Enabled;
 
 extern uint16_t an1, an2;
 uint16_t lastAn1_fast, lastAn1_slow;
@@ -234,6 +234,8 @@ IRAM_ATTR uint16_t avgAnalogRead(uint8_t pin, uint16_t samples = 2) {
 }
 
 void Task1(void * parameter) {
+	vSemaphoreCreateBinary(xSemaphore);
+
 #if enablePwm == 1
 	rotaryEncoder2.begin();
 	rotaryEncoder1.begin();
@@ -298,22 +300,26 @@ void Task1(void * parameter) {
 		encoder2_value = 15000;
 #endif
 		int16_t encoderDelta = encoder1_value - encoder2_value;
-		if (pid1Enabled) {
-			pid1.setPositionDiff(encoderDelta);
-			pid1.setSetpoint(target1);
-			output1 = pid1.getOutput((float) encoder1_value, target1);
-			pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
-		} else {
-			pwm1 = 0;
-		}
-		if (pid2Enabled) {
-			pid2.setPositionDiff(-encoderDelta);
-			pid2.setSetpoint(target2);
-			output2 = pid2.getOutput((float) encoder2_value, target2);
-			pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
-		} else {
-			pwm2 = 0;
-		}
+		//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 5) == pdTRUE) {
+
+			if (pid1Enabled) {
+				pid1.setPositionDiff(encoderDelta);
+				pid1.setSetpoint(target1);
+				output1 = pid1.getOutput((float) encoder1_value, target1);
+				pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+			} else {
+				pwm1 = 0;
+			}
+			if (pid2Enabled) {
+				pid2.setPositionDiff(-encoderDelta);
+				pid2.setSetpoint(target2);
+				output2 = pid2.getOutput((float) encoder2_value, target2);
+				pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+			} else {
+				pwm2 = 0;
+			}
+			//xSemaphoreGive( xSemaphore );
+		//}
 #if enablePwm == 1
 		setAnalogForPwm();
 #endif

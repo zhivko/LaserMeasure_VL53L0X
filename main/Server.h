@@ -8,6 +8,8 @@
 #ifndef MAIN_SERVER_H_
 #define MAIN_SERVER_H_
 
+SemaphoreHandle_t xSemaphore = NULL;
+
 #define enablePwm 1
 bool enableLcd = false;
 bool enableMover = false;

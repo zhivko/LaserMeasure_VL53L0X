@@ -128,7 +128,7 @@ float timeH;
 
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 5000;
-int jsonFastReportIntervalMs = 500;
+int jsonFastReportIntervalMs = 150;
 int jsonSlowReportIntervalMs = 5000;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
@@ -206,8 +206,8 @@ struct tm info;
 
 volatile uint16_t pwmValueMax = 1024;
 
-volatile int16_t pwm1 = 0;       // how bright the LED is
-volatile int16_t pwm2 = 0;       // how bright the LED is
+int16_t pwm1 = 0;       // how bright the LED is
+int16_t pwm2 = 0;       // how bright the LED is
 volatile int fadeAmount = 1;     // how many points to fade the LED by
 
 String status1;
@@ -227,13 +227,13 @@ TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
 //TaskHandle_t i2cTask;
 
-volatile double output1 = 0;
-volatile double output2 = 0;
-volatile double target1 = 0;
-volatile double target2 = 0;
+double output1 = 0;
+double output2 = 0;
+double target1 = 0;
+double target2 = 0;
 double target1_read, target2_read;
-volatile bool pid1Enabled = true;
-volatile bool pid2Enabled = true;
+bool pid1Enabled = true;
+bool pid2Enabled = true;
 
 IRAM_ATTR void setJsonString();
 void CheckIpTask(void * parameter);
@@ -295,17 +295,27 @@ void sendPid2ToClient();
 void lcd_out(const char *format, ...);
 
 void pidRegulatedCallBack1() {
+	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
 	pid1Enabled = false;
+	//xSemaphoreGive(xSemaphore);
 	setJsonString();
-	ws.textAll(txtToSend);
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
 	lcd_out("Pid1Enable=false, pwm1=0\n");
+	//}
 }
 
 void pidRegulatedCallBack2() {
+	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
 	pid2Enabled = false;
+	//xSemaphoreGive(xSemaphore);
 	setJsonString();
-	ws.textAll(txtToSend);
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
 	lcd_out("Pid2Enable=false, pwm2=0\n");
+	//}
 }
 
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
@@ -381,32 +391,40 @@ String processInput(const char *input) {
 			preferences.end();
 			ret.concat("saving pid2 done.");
 		}
-	} else if (strncmp(input, "target1_", 7) == 0) {
+	} else if (strncmp(input, "target1_", 8) == 0) {
 		Serial.printf("Command: %s\n", input);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
 		String input2 = getToken(input, '#', 1);
-		target1 = (double) input2.toFloat();
+		target1 = input2.toDouble();
 		if (preferences.begin("settings", false)) {
 			preferences.putInt("target1", (int) target1);
 			preferences.end();
-			lcd_out("Saved target1: %d from (%f)\n", (int) target1, target1);
+			lcd_out("Saved target1= %d from (%f)\n", (int) target1, target1);
 		}
-		pid1.reset();
+		//pid1.reset();
 		pid1Enabled = true;
-		setJsonString();
-		ws.textAll(txtToSend);
-	} else if (strncmp(input, "target2_", 7) == 0) {
-		Serial.printf("Command: %s\n", input);
-		String input2 = getToken(input, '#', 1);
-		target2 = (double) input2.toFloat();
-		if (preferences.begin("settings", false)) {
-			preferences.putInt("target2", (int) target2);
-			preferences.end();
-			lcd_out("Saved target2: %d from (%f)\n", (int) target2, target2);
+		if (ws.hasClient(lastWsClient)) {
+			setJsonString();
+			ws.text(lastWsClient, txtToSend);
 		}
-		pid2.reset();
+		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+	} else if (strncmp(input, "target2_", 8) == 0) {
+		Serial.printf("Command: %s\n", input);
+		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
+		String input2 = getToken(input, '#', 1);
+		target2 = input2.toDouble();
+		if (preferences.begin("settings", false)) {
+			preferences.putInt("target2", (int)target2);
+			preferences.end();
+			lcd_out("Saved target2= %d from (%f)\n", (int) target2, target2);
+		}
+		//pid2.reset();
 		pid2Enabled = true;
-		setJsonString();
-		ws.textAll(txtToSend);
+		if (ws.hasClient(lastWsClient)) {
+			setJsonString();
+			ws.text(lastWsClient, txtToSend);
+		}
+		lcd_out("Target1= %.2f target2= %.2f\n", (float)target1, (float)target2);
 	} else if (strncmp(input, "gCodeCmd", 8) == 0) {
 		Serial.printf("Parsing target1=.. target2=... command:%s\n", input);
 		String input2 = getToken(input, '#', 1);
@@ -585,7 +603,9 @@ void timerCallBack(TimerHandle_t xTimer) {
 #endif
 #ifndef arduinoWebserver
 	setJsonString();
-	ws.textAll(txtToSend);
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, txtToSend);
+	}
 #endif
 }
 
@@ -605,7 +625,9 @@ void processWsData(const char *data) {
 #ifdef arduinoWebserver
 		ws.broadcastTXT(reply);
 #else
-			ws.textAll(reply.c_str());
+			if (ws.hasClient(lastWsClient)) {
+				ws.text(lastWsClient, reply.c_str());
+			}
 #endif
 		}
 	}
@@ -640,7 +662,9 @@ void sendPid1ToClient() {
 	ws.broadcastTXT(pid_str1.c_str());
 #endif // arduinoWebserver
 #ifndef arduinoWebserver
-	ws.textAll(pid_str1.c_str());
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, pid_str1.c_str());
+	}
 #endif
 	Serial.printf("pid1: %s\n", pid_str1.c_str());
 }
@@ -674,7 +698,9 @@ void sendPid2ToClient() {
 	ws.broadcastTXT(pid_str1.c_str());
 #endif // arduinoWebserver
 #ifndef arduinoWebserver
-	ws.textAll(pid_str2.c_str());
+	if (ws.hasClient(lastWsClient)) {
+		ws.text(lastWsClient, pid_str2.c_str());
+	}
 #endif
 	Serial.printf("pid2: %s\n", pid_str2.c_str());
 }
@@ -855,7 +881,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 //Serial.printf("%d\n", type);
 	if (type == WS_EVT_CONNECT) {
 //client connected
-		//lcd_out("%lu ws[%s][%u] connect\n", millis(), server->url(), client->id());
+		lcd_out("%lu ws[%s][%u] [%s] connect\n", millis(), server->url(), client->id(), client->remoteIP().toString().c_str());
+
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
 		//client->ping();
@@ -869,8 +896,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		}
 	} else if (type == WS_EVT_DISCONNECT) {
 //client disconnected
-		lcd_out("%lu ws[%s][%u] disconnect\n", millis(), server->url(),
-				client->id());
+		lcd_out("%lu ws[%s][%u] [%s] disconnect\n", millis(), server->url(),
+				client->id(), client->remoteIP().toString().c_str());
 	} else if (type == WS_EVT_ERROR) {
 //error was received from the other end
 		lcd_out("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
@@ -1085,16 +1112,16 @@ void startServer() {
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
 	server.on("/toggleChartsOn", HTTP_GET, [](AsyncWebServerRequest *request) {
 		//lcd_out("toggleCharts ON\n");
-		shouldSendJson = true;
-		jsonReportIntervalMs = jsonFastReportIntervalMs;
-		request->send(200, "text/html", "Toggled shouldSendJson ON");
-	});
+			shouldSendJson = true;
+			jsonReportIntervalMs = jsonFastReportIntervalMs;
+			request->send(200, "text/html", "Toggled shouldSendJson ON");
+		});
 	server.on("/toggleChartsOff", HTTP_GET, [](AsyncWebServerRequest *request) {
 		//lcd_out("toggleCharts OFF\n");
-		shouldSendJson = false;
-		jsonReportIntervalMs = jsonSlowReportIntervalMs;
-		request->send(200, "text/html", "Toggled shouldSendJson OFF");
-	});
+			shouldSendJson = false;
+			jsonReportIntervalMs = jsonSlowReportIntervalMs;
+			request->send(200, "text/html", "Toggled shouldSendJson OFF");
+		});
 	server.on("/gcode", HTTP_GET, [](AsyncWebServerRequest *request) {
 		int paramsNr = request->params();
 		for(int i=0;i<paramsNr;i++) {
@@ -1122,13 +1149,12 @@ void startServer() {
 			if(p->name().equalsIgnoreCase("target1"))
 			{
 				Serial.print("Param name: ");
-				Serial.println(p->name());
+				Serial.print(p->name());
 				Serial.print(" Param value: ");
 				Serial.println(p->value());
-				target1 = p->value().toDouble();
 				String toProcess = String("target1_");
 				toProcess.concat("#");
-				toProcess.concat(p->value().c_str());
+				toProcess.concat(p->value());
 				processInput(toProcess.c_str());
 			}
 		}
@@ -1141,10 +1167,9 @@ void startServer() {
 			if(p->name().equalsIgnoreCase("target2"))
 			{
 				Serial.print("Param name: ");
-				Serial.println(p->name());
+				Serial.print(p->name());
 				Serial.print(" Param value: ");
 				Serial.println(p->value());
-				target1 = p->value().toDouble();
 				String toProcess = String("target2_");
 				toProcess.concat("#");
 				toProcess.concat(p->value().c_str());
@@ -1153,8 +1178,6 @@ void startServer() {
 		}
 		request->send(200, "text/html", "Target1 set OK.");
 	});
-
-
 
 	server.begin();
 	lcd_out("WebServer started.\n");
@@ -1927,7 +1950,9 @@ void setup() {
 			ws.broadcastTXT(ret);
 #endif
 #ifndef arduinoWebserver
-			ws.textAll(ret);
+			if (ws.hasClient(lastWsClient)) {
+				ws.text(lastWsClient, ret.c_str());
+			}
 #endif
 			//lcd_out("Resume reportJsonTask\n");
 			//xTimerStart(tmrWs, 0);
@@ -2256,9 +2281,9 @@ void myLoop() {			//ArduinoOTA.handle();
 		}
 
 		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
+			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 			setJsonString();
 			//Serial.println(txtToSend);
-			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 #ifdef arduinoWebserver
 				ws.broadcastTXT(txtToSend);
 #else

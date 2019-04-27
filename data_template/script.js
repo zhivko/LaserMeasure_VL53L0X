@@ -238,8 +238,8 @@ function onOpen(evt)
 function onClose(evt)
 {
 	writeToScreen("DISCONNECTED");
-	writeToScreen("RECONNECT...");
-	testWebSocket();
+	//writeToScreen("RECONNECT...");
+	//testWebSocket();
 }
 
 function onMessage(evt)
