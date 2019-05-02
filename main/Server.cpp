@@ -2283,7 +2283,7 @@ void myLoop() {			//ArduinoOTA.handle();
 		}
 
 		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
-			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+			ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 			setJsonString();
 			//Serial.println(txtToSend);
 #ifdef arduinoWebserver
@@ -2304,8 +2304,8 @@ void myLoop() {			//ArduinoOTA.handle();
 			 }
 			 */
 #endif
-			//ESP_ERROR_CHECK(heap_trace_stop());
-			//heap_trace_dump();
+			ESP_ERROR_CHECK(heap_trace_stop());
+			heap_trace_dump();
 //Serial.printf("texted all: %s\n", txtToSend);
 			previousJsonSentMs = millis();
 		}
