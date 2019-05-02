@@ -11,6 +11,7 @@
 SemaphoreHandle_t xSemaphore = NULL;
 
 #define enablePwm 1
+#define enableTaskManager 1
 bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = true;

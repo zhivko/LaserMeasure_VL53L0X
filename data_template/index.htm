@@ -31,20 +31,20 @@
 -->
 	
 	<table border="1">
-	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search top</td><td align="center"><a id='stop1_top'></a><br /><img id="gotop_1" src="48px-Gnome-go-top.svg" /></td><td></td><td align="center"><a id='stop2_top'></a><br><img id="gotop_2" src="48px-Gnome-go-top.svg"/></td></tr>
+	<tr><td><input type="checkbox" id="definetop" name="definetop" onMouseDown="handleSearchTop(this);" value="unchecked" />search<br>top</td><td align="center"><a id='stop1_top'></a><br/><img id="gotop_1" src="48px-Gnome-go-top.svg" /></td><td></td><td align="center"><a id='stop2_top'></a><br><img id="gotop_2" src="48px-Gnome-go-top.svg"/></td></tr>
 	<tr>
 	<td></td>
 	
 	<td align="center">
-	<input id="target1_up" onkeypress="return keyPress(event);" value="15300" style="width:50px" type="text"\><br>
-	<img id="pwm_m1_left" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target1_up'));" />
+	<input id="target1_up" onkeypress="return keyPress(event);" value="16000" style="width:50px" type="text"\><br>
+	<img id="pwm_m1_left" height="80" width="80" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target1_up'));" />
 	</td>
 	
 	<td></td>
 	
 	<td align="center">
-	<input id="target2_up" onkeypress="return keyPress(event);" value="15300" style="width:50px" type="text"\><br>
-	<img id="pwm_m2_left" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target2_up'));" />
+	<input id="target2_up" onkeypress="return keyPress(event);" value="16000" style="width:50px" type="text"\><br>
+	<img id="pwm_m2_left" height="80" width="80" src="48px-Gnome-go-up.svg" onMouseDown="moveTo(document.getElementById('target2_up'));" />
 	</td>
 	
 	</tr>
@@ -76,21 +76,21 @@
 	<td></td>
 	
 	<td align="center">
-	<img id="pwm_m1_left" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target1_down'));" /><br>
+	<img id="pwm_m1_left" height="80" width="80" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target1_down'));" /><br>
 	<input id="target1_down" onkeypress="return keyPress(event);" value="15000" style="width:50px" type="text"\>
 	</td>
 	
 	<td></td>
 	
 	<td align="center">
-	<img id="pwm_m2_left" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target2_down'));" /><br>
+	<img id="pwm_m2_left" height="80" width="80" src="48px-Gnome-go-down.svg" onMouseDown="moveTo(document.getElementById('target2_down'));" /><br>
 	<input id="target2_down" onkeypress="return keyPress(event);" value="15000" style="width:50px" type="text"\>
 	</td>
 	
 	</tr>
 
 
-	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search bottom</td><td align="center"><img id="gobottom 1" src="48px-Gnome-go-bottom.svg" id="roseSvg" /><br><a id='stop1_bottom'/></td><td></td><td align="center"><img id="gobottom 2" src="48px-Gnome-go-bottom.svg" id="roseSvg"></img><br><a id='stop2_bottom'/></td></tr>
+	<tr><td><input type="checkbox" id="definebottom" name="definebottom" onMouseDown="handleSearchBottom(this);" />search<br>bottom</td><td align="center"><img id="gobottom 1" src="48px-Gnome-go-bottom.svg" id="roseSvg" /><br><a id='stop1_bottom'/></td><td></td><td align="center"><img id="gobottom 2" src="48px-Gnome-go-bottom.svg" id="roseSvg"></img><br><a id='stop2_bottom'/></td></tr>
 	</table>
 	
 <p>
@@ -104,14 +104,12 @@ PID regulation data:</br>
 <tr><td><small id="PID1output"></small></td><td><small id="PID2output"></small></td></tr>
 </table>
 
-
-
 <label style="position:absolute;z-index:40;top:0px;left:500px; font-size: 12pt" onMouseUp="handleChartToggle();"><input type="checkbox" id="chartsVisible" name="chartsVisible" onMouseUp="handleChartToggle();" value="" style="height: 30px; width: 30px"/>Charts</label>
 <div id="charts" style="visibility:hidden">
-	<div id="chartContainer1" style="height: 200px; width:500px;position:absolute;z-index:10;top:50px;left:500px"></div>
-	<div id="chartContainer4" style="height: 200px; width:500px;position:absolute;z-index:20;top:250px;left:500px"></div>
-	<div id="chartContainer2" style="height: 200px; width:500px;position:absolute;z-index:30;top:450px;left:500px"></div>
-	<div id="chartContainer3" style="height: 200px; width:500px;position:absolute;z-index:40;top:650px;left:500px"></div>
+	<div id="chartContainer1" style="height: 200px; width:470px;position:absolute;z-index:-10;top:50px;left:500px"></div>
+	<div id="chartContainer4" style="height: 200px; width:470px;position:absolute;z-index:-10;top:250px;left:500px"></div>
+	<div id="chartContainer2" style="height: 200px; width:470px;position:absolute;z-index:-10;top:450px;left:500px"></div>
+	<div id="chartContainer3" style="height: 200px; width:470px;position:absolute;z-index:-10;top:650px;left:500px"></div>
 </div>
 
 <p>

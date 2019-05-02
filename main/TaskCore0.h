@@ -361,12 +361,10 @@ void Task1(void * parameter) {
 		}
 
 		//Serial.println("resetting task");
-		//esp_task_wdt_reset();
-		//feedLoopWDT();
 		esp_err_t err = esp_task_wdt_reset();
-		if (err != ESP_OK) {
-			log_e("Failed to feed WDT! Error: %d", err);
-		}
+//		if (err != ESP_OK) {
+//			log_e("Failed to feed WDT! Error: %d", err);
+//		}
 		vTaskDelay(5 / portTICK_PERIOD_MS);
 	}
 }

@@ -106,7 +106,6 @@ static int encoderSaverCore = 0;
 int pidTaskCore = 1;
 bool shouldReboot = false;
 
-#define freeheap heap_caps_get_free_size(MALLOC_CAP_8BIT)
 #define NUM_RECORDS 100
 static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
 
@@ -2191,7 +2190,7 @@ void setup() {
 			1,			    // uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
-	esp_task_wdt_add(TaskA);
+	esp_task_wdt_add(TaskCheckIp);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
@@ -2238,11 +2237,11 @@ void myLoop() {			//ArduinoOTA.handle();
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			lcd_out(
-					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
-					mySecond, timeH, xPortGetCoreID(), freeheap,
-					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
-					ws._buffers.length());
+//			lcd_out(
+//					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
+//					mySecond, timeH, xPortGetCoreID(), freeheap,
+//					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+//					ws._buffers.length());
 #else
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
@@ -2352,7 +2351,7 @@ void app_main() {
 	Serial.flush();
 	xTaskCreatePinnedToCore(Loop,							// pvTaskCode
 			"MyLoop",							// pcName
-			25000,							// usStackDepth
+			4000,							// usStackDepth
 			NULL,							// pvParameters
 			16,							// uxPriority
 			&TaskLoop,							// pxCreatedTask
