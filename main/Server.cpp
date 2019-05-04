@@ -20,6 +20,19 @@
  curl -F "image=@build/DoubleLifter.bin" http://192.168.43.165:81/update --progress-bar --verbose
  curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define OLED_RESET 4 // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+
+
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
 #include <WiFi.h>
@@ -53,437 +66,38 @@
 #include "esp_log.h"
 #include "freertos/timers.h"
 
-#include "TaskCore0.h"
-//#include "I2CTask.h"
-
 #include <Preferences.h>
 #include "nvs_flash.h"
 
-/*SPI Includes*/
-#include "driver/spi_master.h"
-#include "iot_lcd.h"
-#include "Adafruit_GFX.h"
-#include "image.h"
-
-#include "FreeSans9pt7b.h"
-//#include "unity.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "lwip/inet.h"
-#include "lwip/ip4_addr.h"
-#include "lwip/dns.h"
-
-#include "debug/lwip_debug.h"
-#include "lwip/debug.h"
-#include "lwip/stats.h"
-
 #include "esp_task_wdt.h"
-#include "Server.h"
 
 #if enableTaskManager == 1
 	#include "Taskmanager.h"
 	static int taskManagerCore = 0;
 #endif
 
-#if enablePwm == 1
-#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
-#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
-#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
-#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
-
-AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
-
-#define enableEncSaver 1
-#include "encoderSaver.h"
-static int encoderSaverCore = 0;
-#else
-#define enableEncSaver 0
-#endif
-
-int pidTaskCore = 1;
-bool shouldReboot = false;
-
-#define NUM_RECORDS 100
-static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
-
-char ptrTaskList[250];
-const char* TAG = "DoubleLifter";
-bool shouldSendJson = false;
-//IRAM_ATTR String getJsonString();
-
-//AsyncUDP udp;
-//int udp_port = 1234;
-
-WiFiUDP ntpClient;
-
-static CEspLcd* lcd_obj = NULL;
-uint32_t lastWsClient = -1;
-float timeH;
-
-// jtag pins: 15, 12 13 14
-
-const char* hostName = "esp32_door";
-int jsonReportIntervalMs = 5000;
-int jsonFastReportIntervalMs = 150;
-int jsonSlowReportIntervalMs = 5000;
-int capSenseIntervalMs = 50;
-int moverIntervalMs = 50;
-int loopIntervalMs = 500;
-int encoderSaverIntervalMs = 500;
-
-bool restartNow = false;
-
-long previousMs = 0;
-long previousJsonSentMs = 0;
-
 String ssid;
 String password;
 Preferences preferences;
 bool reportingJson = false;
 
-String coredumpStr = "";
-
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
 
-#if enableCapSense == 1
-#include "FDC2212.h"
-FDC2212 fdc2212;
-#endif
-
-const char * mysystem_event_names[] = { "WIFI_READY", "SCAN_DONE", "STA_START",
-		"STA_STOP", "STA_CONNECTED", "STA_DISCONNECTED", "STA_AUTHMODE_CHANGE",
-		"STA_GOT_IP", "STA_LOST_IP", "STA_WPS_ER_SUCCESS", "STA_WPS_ER_FAILED",
-		"STA_WPS_ER_TIMEOUT", "STA_WPS_ER_PIN", "AP_START", "AP_STOP",
-		"AP_STACONNECTED", "AP_STADISCONNECTED", "AP_PROBEREQRECVED", "GOT_IP6",
-		"ETH_START", "ETH_STOP", "ETH_CONNECTED", "ETH_DISCONNECTED",
-		"ETH_GOT_IP", "MAX" };
-
-int NO_AP_FOUND_count = 0;
-
-static const int spiClk = 1000000; // 1 MHz
-uint16_t toTransfer;
-//uninitalised pointers to SPI objects
-SPIClass * vspi = NULL;
-
-int shouldStopM1 = 0;
-int shouldStopM2 = 0;
-int shouldPwm_M1_left = 0;
-int shouldPwm_M1_right = 0;
-int shouldPwm_M2_left = 0;
-int shouldPwm_M2_right = 0;
-
-// use 13 bit precission for LEDC timer
-#define LEDC_TIMER_10_BIT  10
-// use 5000 Hz as a LEDC base frequency
-#define LEDC_BASE_FREQ 5000
-// fade LED PIN (replace with LED_BUILTIN constant for built-in LED)
-#define PWM1_PIN GPIO_NUM_12
-#define PWM2_PIN GPIO_NUM_14
-#define PWM3_PIN GPIO_NUM_26
-#define PWM4_PIN GPIO_NUM_27
-#define LED_PIN GPIO_NUM_2
-#define GATEDRIVER_PIN GPIO_NUM_32
-
-#define LEDC_RESOLUTION LEDC_TIMER_10_BIT
-#define pwmDelta     5
-
-#define SS1 33
-#define SS2 25
-
-// @doc https://remotemonitoringsystems.ca/time-zone-abbreviations.php
-// @doc timezone UTC = UTC
-const char* NTP_SERVER0 = "0.si.pool.ntp.org";
-const char* NTP_SERVER1 = "1.si.pool.ntp.org";
-const char* NTP_SERVER2 = "2.si.pool.ntp.org";
-const char* TZ_INFO2 = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";
-time_t now;
-struct tm info;
-
-volatile uint16_t pwmValueMax = 1024;
-
-int16_t pwm1 = 0;       // how bright the LED is
-int16_t pwm2 = 0;       // how bright the LED is
-volatile int fadeAmount = 1;     // how many points to fade the LED by
-
-String status1;
-String status2;
-String gdfVds1;
-String gdfVds2;
-
-int32_t encoder1_value = 0;
-int32_t encoder2_value = 0;
-//Ticker mover;
-//Ticker jsonReporter;
-TaskHandle_t TaskA;
 TaskHandle_t TaskCheckIp;
 TaskHandle_t TaskMan;
-TaskHandle_t TaskEncSaver;
 TaskHandle_t TaskLoop;
-TaskHandle_t reportJsonTask;
-//TaskHandle_t i2cTask;
 
-double output1 = 0;
-double output2 = 0;
-double target1 = 0;
-double target2 = 0;
-double target1_read, target2_read;
-bool pid1Enabled = true;
-bool pid2Enabled = true;
-
-IRAM_ATTR void setJsonString();
-void CheckIpTask(void * parameter);
-
-char txtToSend[1100] = { };
-
-#ifndef arduinoWebserver
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events");
-#endif
-#ifdef arduinoWebserver
-	WebServer server(81);
-	WebSocketsServer ws = WebSocketsServer(82);
-#endif
-
-MiniPID pid1 = MiniPID(0.0, 0.0, 0.0);
-MiniPID pid2 = MiniPID(0.0, 0.0, 0.0);
-
-uint16_t an1, an2;
-float an1_fast, an1_slow;
-float an2_fast, an2_slow;
-uint16_t an1_max, an2_max;
-uint16_t stop2_top, stop2_bottom;
-uint16_t stop1_top, stop1_bottom;
-String status;
-String previousPercent_str_1;
-String previousPercent_str_2;
-long searchTopMilis;
-
-int16_t deltaSearch = 2000;
-
-uint32_t cap_reading = 0;
-
-// PID
-static String initialPidStr =
-		"p=1.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=0.05 maxIout=540.00";
-static String pid_str1;
-static String pid_str2;
-
-//AsyncPing myPing;
-//IPAddress addr;
-
-/*
- uint32_t idf_wmonitor_coredump_size(void)
- {
- const esp_partition_t *p = coredump_partition();
- return idf_wmonitor_coredump_size_from_partition(p);
- }
- */
-
 int lcd_y_pos = 0;
 char cstr[25];
-
-//void dbg_lwip_stats_show(void);
-void testSpi(int which);
-void gdfVdsStatus(int which);
-void clearFault();
-void setPidsFromString(MiniPID* pid, String str1);
-String getToken(String data, char separator, int index);
-void sendPid1ToClient();
-void sendPid2ToClient();
-void lcd_out(const char *format, ...);
-
-void pidRegulatedCallBack1() {
-	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
-	pid1Enabled = false;
-	//xSemaphoreGive(xSemaphore);
-	setJsonString();
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
-	lcd_out("Pid1Enable=false, pwm1=0\n");
-	//events.send("0","pid1Enable",millis());
-	//}
-}
-
-void pidRegulatedCallBack2() {
-	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
-	pid2Enabled = false;
-	//xSemaphoreGive(xSemaphore);
-	setJsonString();
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
-	lcd_out("Pid2Enable=false, pwm2=0\n");
-	//events.send("0","pid2Enable",millis());
-	//}
-}
 
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(const char *input) {
 	String ret("");
-	if (strcmp(input, "status") == 0) {
-		status1 = " ";
-		status2 = " ";
-		testSpi(1);
-		ret.concat("Statuses: ");
-		ret.concat(status1);
-		testSpi(2);
-		ret.concat(status2);
-
-		char buf[20];
-		sprintf(buf, "motor1_pos %i\n", encoder1_value);
-		ret.concat(buf);
-
-		sprintf(buf, "motor2_pos %i\n", encoder2_value);
-		ret.concat(buf);
-
-		sprintf(buf, "status1: %s\n", status1.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "status2: %s\n", status2.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M1_left: %d\n", shouldPwm_M1_left);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M1_right: %d\n", shouldPwm_M1_right);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldstop_M1: %d\n", shouldStopM1);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M2_left: %d\n", shouldPwm_M2_left);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldPwm_M2_right: %d\n", shouldPwm_M2_right);
-		ret.concat(buf);
-
-		sprintf(buf, "shouldstop_M2: %d\n", shouldStopM2);
-		ret.concat(buf);
-	} else if (strcmp(input, "gdfvdsstatus") == 0) {
-		gdfVdsStatus(1);
-		gdfVdsStatus(2);
-
-		char buf[20];
-		sprintf(buf, "gdfvdsstatus1: %s\n", gdfVds1.c_str());
-		ret.concat(buf);
-
-		sprintf(buf, "gdfvdsstatus2: %s\n", gdfVds2.c_str());
-		ret.concat(buf);
-	} else if (strncmp(input, "clrflt", 6) == 0) {
-		clearFault();
-		ret.concat("Clear Fault done.");
-	} else if (strncmp(input, "pid1#", 5) == 0) {
-		String input2 = getToken(input, '#', 1);
-		setPidsFromString(&pid1, input2);
-		if (preferences.begin("settings", false)) {
-			preferences.begin("settings", false);
-			preferences.putString("pid1", input2);
-			preferences.end();
-			ret.concat("saving pid1 done.");
-		}
-	} else if (strncmp(input, "pid2#", 5) == 0) {
-		String input2 = getToken(input, '#', 1);
-		setPidsFromString(&pid2, input2);
-		if (preferences.begin("settings", false)) {
-			preferences.begin("settings", false);
-			preferences.putString("pid2", input2);
-			preferences.end();
-			ret.concat("saving pid2 done.");
-		}
-	} else if (strncmp(input, "target1_", 8) == 0) {
-		Serial.printf("Command: %s\n", input);
-		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
-				(float) target2);
-		String input2 = getToken(input, '#', 1);
-		target1 = input2.toDouble();
-		if (preferences.begin("settings", false)) {
-			preferences.putInt("target1", (int) target1);
-			preferences.end();
-			lcd_out("Saved target1= %d from (%f)\n", (int) target1, target1);
-		}
-		//pid1.reset();
-		pid1Enabled = true;
-		if (ws.hasClient(lastWsClient)) {
-			setJsonString();
-			ws.text(lastWsClient, txtToSend);
-		}
-		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
-				(float) target2);
-	} else if (strncmp(input, "target2_", 8) == 0) {
-		Serial.printf("Command: %s\n", input);
-		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
-				(float) target2);
-		String input2 = getToken(input, '#', 1);
-		target2 = input2.toDouble();
-		if (preferences.begin("settings", false)) {
-			preferences.putInt("target2", (int) target2);
-			preferences.end();
-			lcd_out("Saved target2= %d from (%f)\n", (int) target2, target2);
-		}
-		//pid2.reset();
-		pid2Enabled = true;
-		if (ws.hasClient(lastWsClient)) {
-			setJsonString();
-			ws.text(lastWsClient, txtToSend);
-		}
-		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
-				(float) target2);
-	} else if (strncmp(input, "gCodeCmd", 8) == 0) {
-		Serial.printf("Parsing target1=.. target2=... command:%s\n", input);
-		String input2 = getToken(input, '#', 1);
-		String target1_str = getToken(input2, ' ', 0);
-		String target1_pos = getToken(target1_str, '=', 1);
-		String target2_str = getToken(input2, ' ', 1);
-		String target2_pos = getToken(target2_str, '=', 1);
-
-		target1 = (double) target1_pos.toFloat();
-		target2 = (double) target2_pos.toFloat();
-		ret.concat("target1= ");
-		ret.concat(target1);
-		ret.concat("\n");
-		ret.concat(" target2= ");
-		ret.concat(target2);
-		ret.concat("\n");
-
-		preferences.begin("settings", false);
-		preferences.putInt("target1", (int) target1);
-		preferences.putInt("target2", (int) target2);
-		preferences.end();
-
-		pid1.reset();
-		pid2.reset();
-
-		pid1Enabled = true;
-		pid2Enabled = true;
-	} else if (strncmp(input, "enablePid1", 10) == 0) {
-		pid1Enabled = true;
-	} else if (strncmp(input, "disablePid1", 11) == 0) {
-		pid1Enabled = false;
-	} else if (strncmp(input, "enablePid2", 10) == 0) {
-		pid2Enabled = true;
-	} else if (strncmp(input, "disablePid2", 11) == 0) {
-		pid2Enabled = false;
-	} else if (strncmp(input, "maxPercentOutput1", 17) == 0) {
-		String percent_str = getToken(input, '#', 1);
-		setOutputPercent(percent_str, 1);
-		preferences.begin("settings", false);
-		preferences.putInt("outputMin1", pid1.getMinOutput());
-		preferences.putInt("outputMax1", pid1.getMaxOutput());
-		preferences.end();
-	} else if (strncmp(input, "maxPercentOutput2", 17) == 0) {
-		String percent_str = getToken(input, '#', 1);
-		setOutputPercent(percent_str, 2);
-		preferences.begin("settings", false);
-		preferences.putInt("outputMin2", pid2.getMinOutput());
-		preferences.putInt("outputMax2", pid2.getMaxOutput());
-		preferences.end();
-	} else if (strncmp(input, "wificonnect", 11) == 0) {
+	if (strncmp(input, "wificonnect", 11) == 0) {
 		ssid = getToken(input, ' ', 1);
 		password = getToken(input, ' ', 2);
 
@@ -499,397 +113,32 @@ String processInput(const char *input) {
 		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
 
 		ret.concat("MLIFT restart.");
-#ifdef arduinoWebserver
-	ws.disconnect();
-#endif
-#ifndef arduinoWebserver
-		ws.enable(false);
-#endif
-
 		lcd_out("wificonnect ssid: %s\n", ssid.c_str());
-
 		esp_restart();
-	} else if (strncmp(input, "pwm_m1_left", 11) == 0) {
-		shouldStopM1 = 0;
-		shouldPwm_M1_left = 1;
-		shouldPwm_M1_right = 0;
-	} else if (strncmp(input, "pwm_m1_right", 12) == 0) {
-		shouldStopM1 = 0;
-		shouldPwm_M1_left = 0;
-		shouldPwm_M1_right = 1;
-	} else if (strncmp(input, "stop pwm_m1", 11) == 0) {
-		shouldStopM1 = 1;
-		shouldPwm_M1_left = 0;
-		shouldPwm_M1_right = 0;
-	} else if (strncmp(input, "pwm_m2_left", 11) == 0) {
-		shouldStopM2 = 0;
-		shouldPwm_M2_left = 1;
-		shouldPwm_M2_right = 0;
-	} else if (strncmp(input, "pwm_m2_right", 12) == 0) {
-		shouldStopM2 = 0;
-		shouldPwm_M2_left = 0;
-		shouldPwm_M2_right = 1;
-	} else if (strncmp(input, "stop pwm_m2", 11) == 0) {
-		shouldStopM2 = 1;
-		shouldPwm_M2_left = 0;
-		shouldPwm_M2_right = 0;
-	} else if (strncmp(input, "gotop", 5) == 0) {
-		target1 = stop1_top;
-		target2 = stop1_top;
-		Serial.println();
-		Serial.print(" target1: ");
-		Serial.println(target1);
-		Serial.print(" target2: ");
-		Serial.println(target2);
-		pid1Enabled = true;
-		pid2Enabled = true;
-	} else if (strncmp(input, "gobottom", 8) == 0) {
-		target1 = stop1_bottom;
-		target2 = stop1_bottom;
-		Serial.println();
-		Serial.print(" target1: ");
-		Serial.println(target1);
-		Serial.print(" target2: ");
-		Serial.println(target2);
-		pid1Enabled = true;
-		pid2Enabled = true;
-	} else if (strncmp(input, "searchtop", 9) == 0
-			|| strncmp(input, "searchbottom", 12) == 0) {
-		if (getToken(input, ' ', 1).equals(String("start"))) {
-			pid1Enabled = false;
-			pid2Enabled = false;
-			pwm1 = 0;
-			pwm2 = 0;
-
-			previousPercent_str_1 = String(
-					(int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-			previousPercent_str_2 = String(
-					(int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
-			String percentPower = "70";
-			status = getToken(input, ' ', 0);
-			setOutputPercent(percentPower, 1);
-			setOutputPercent(percentPower, 2);
-
-			if (strcmp(input, "searchtop") == 0) {
-				target1 = encoder1_value + deltaSearch;
-				target2 = target1;
-			} else {
-				target1 = encoder1_value - deltaSearch;
-				target2 = target1;
-			}
-			target2 = target1;
-			Serial.println();
-			Serial.print(" target1: ");
-			Serial.println(target1);
-			Serial.print(" target2: ");
-			Serial.println(target2);
-
-			pid1Enabled = true;
-			pid2Enabled = true;
-			searchTopMilis = millis();
-		} else {
-			status = "";
-			setOutputPercent(previousPercent_str_1, 1);
-			setOutputPercent(previousPercent_str_1, 2);
-		}
 	} else if (strcmp(input, "scan") == 0) {
-//vTaskSuspend(reportJsonTask);
-//delay(10);
+		//vTaskSuspend(reportJsonTask);
+		//delay(10);
 		//xTimerStop(tmrWs, 0);
 		Serial.printf("ScanNetworks...Started.\n");
 		WiFi.scanDelete();
 		WiFi.scanNetworks(true, true, false, 200);
 	}
-
 	return ret;
 }
-
-TimerHandle_t tmrWs;
-void timerCallBack(TimerHandle_t xTimer) {
-#ifdef arduinoWebserver
-	setJsonString();
-	ws.broadcastTXT(txtToSend);
-#endif
-#ifndef arduinoWebserver
-	setJsonString();
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, txtToSend);
-	}
-#endif
-}
-
-#if enableCapSense == 1
-TimerHandle_t tmrCapSense;
-void timerCapSenseCallBack(TimerHandle_t xTimer) {
-	//Serial.printf("getreading \n");
-	fdc2212.getReading();
-}
-#endif
 
 void processWsData(const char *data) {
 	if (strncmp(data, "ok", 2) != 0) {
 		Serial.printf("processWsData: %s\n", data);
 		String reply = processInput(data);
 		if (reply.length() > 0) {
-#ifdef arduinoWebserver
-		ws.broadcastTXT(reply);
-#else
-			if (ws.hasClient(lastWsClient)) {
-				ws.text(lastWsClient, reply.c_str());
-			}
-#endif
+			ws.textAll(reply.c_str());
 		}
 	}
 }
 
-void sendPid1ToClient() {
-	pid_str1 = String("");
-	pid_str1.concat("{");
-	pid_str1.concat("\"pid1\":");
-	pid_str1.concat("\"p=");
-	pid_str1.concat(pid1.getP());
-	pid_str1.concat(" i=");
-	pid_str1.concat(pid1.getI());
-	pid_str1.concat(" d=");
-	pid_str1.concat(pid1.getD());
-	pid_str1.concat(" f=");
-	pid_str1.concat(pid1.getF());
-	pid_str1.concat(" syn=");
-	pid_str1.concat(pid1.getSynchronize() ? "1" : "0");
-	pid_str1.concat(" synErr=");
-	pid_str1.concat(pid1.getSyncDisabledForErrorSmallerThen());
-	pid_str1.concat(" ramp=");
-	pid_str1.concat(pid1.getRampRate());
-	pid_str1.concat(" maxIout=");
-	pid_str1.concat(pid1.getMaxIOutput());
-	pid_str1.concat("\",");
-	pid_str1.concat("\"maxPercentOutput\":");
-	pid_str1.concat((int) (ceil(pid1.getMaxOutput() / pwmValueMax * 100.0)));
-	pid_str1.concat("}");
-
-#ifdef arduinoWebserver
-	ws.broadcastTXT(pid_str1.c_str());
-#endif // arduinoWebserver
-#ifndef arduinoWebserver
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, pid_str1.c_str());
-	}
-#endif
-	Serial.printf("pid1: %s\n", pid_str1.c_str());
-}
-
-void sendPid2ToClient() {
-	pid_str2 = String("");
-	pid_str2.concat("{");
-	pid_str2.concat("\"pid2\":");
-	pid_str2.concat("\"p=");
-	pid_str2.concat(pid2.getP());
-	pid_str2.concat(" i=");
-	pid_str2.concat(pid2.getI());
-	pid_str2.concat(" d=");
-	pid_str2.concat(pid2.getD());
-	pid_str2.concat(" f=");
-	pid_str2.concat(pid2.getF());
-	pid_str2.concat(" syn=");
-	pid_str2.concat(pid2.getSynchronize() ? "1" : "0");
-	pid_str2.concat(" synErr=");
-	pid_str2.concat(pid2.getSyncDisabledForErrorSmallerThen());
-	pid_str2.concat(" ramp=");
-	pid_str2.concat(pid2.getRampRate());
-	pid_str2.concat(" maxIout=");
-	pid_str2.concat(pid2.getMaxIOutput());
-	pid_str2.concat("\",");
-	pid_str2.concat("\"maxPercentOutput\":");
-	pid_str2.concat((int) (ceil(pid2.getMaxOutput() / pwmValueMax * 100.0)));
-	pid_str2.concat("}");
-
-#ifdef arduinoWebserver
-	ws.broadcastTXT(pid_str1.c_str());
-#endif // arduinoWebserver
-#ifndef arduinoWebserver
-	if (ws.hasClient(lastWsClient)) {
-		ws.text(lastWsClient, pid_str2.c_str());
-	}
-#endif
-	Serial.printf("pid2: %s\n", pid_str2.c_str());
-}
-
-TimerHandle_t tmrMover;
-void moverCallBack(TimerHandle_t xTimer) {
-// MOTOR1
-	if (shouldPwm_M1_left == 1 && shouldStopM1 != 1) {
-		if (pwm1 <= (pwmValueMax - pwmDelta)) {
-			pwm1 = pwm1 + pwmDelta;
-		}
-	} else if (shouldPwm_M1_right == 1 && shouldStopM1 != 1) {
-		if (pwm1 >= (-pwmValueMax + pwmDelta)) {
-			pwm1 = pwm1 - pwmDelta;
-		}
-	} else if (shouldStopM1 == 1) {
-		if (pwm1 > 0) {
-			if (pwm1 > pwmDelta)
-				pwm1 = pwm1 - pwmDelta;
-			else
-				pwm1 = 0;
-		} else if (pwm1 < 0) {
-			if (pwm1 < -pwmDelta)
-				pwm1 = pwm1 + pwmDelta;
-			else
-				pwm1 = 0;
-		} else
-			shouldStopM1 = 0;
-	}
-
-// MOTOR2
-	if (shouldPwm_M2_left == 1 && shouldStopM2 != 1) {
-		if (pwm2 <= (pwmValueMax - pwmDelta)) {
-			pwm2 = pwm2 + pwmDelta;
-		}
-	} else if (shouldPwm_M2_right == 1 && shouldStopM2 != 1) {
-		if (pwm2 >= (-pwmValueMax + pwmDelta)) {
-			pwm2 = pwm2 - pwmDelta;
-		}
-	} else if (shouldStopM2 == 1) {
-		if (pwm2 > 0) {
-			if (pwm2 > pwmDelta)
-				pwm2 = pwm2 - pwmDelta;
-			else
-				pwm2 = 0;
-		} else if (pwm2 < 0) {
-			if (pwm2 < -pwmDelta)
-				pwm2 = pwm2 + pwmDelta;
-			else
-				pwm2 = 0;
-		} else
-			shouldStopM2 = 0;
-	}
-}
-
-#ifdef arduinoWebserver
-
-void wsEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
-	switch (type){
-	case WStype_DISCONNECTED:
-		//USE_SERIAL.printf("[%u] Disconnected!\n", num);
-		break;
-	case WStype_CONNECTED: {
-		//IPAddress ip = webSocket.remoteIP(num);
-		//USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-		Serial.print("connected");
-
-		// send message to client
-		ws.broadcastTXT("Connected");
-		sendPid1ToClient();
-	}
-		break;
-	case WStype_TEXT:
-		if(strcmp((char*) payload, "OK") != 0){
-			Serial.printf("Client: [%u] got Text: %s\n", num, payload);
-			ws.broadcastTXT(processInput((char*) payload).c_str());
-		}
-		break;
-	case WStype_BIN:
-		//USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
-
-		// send message to client
-		// webSocket.sendBIN(num, payload, length);
-		break;
-
-	case WStype_ERROR:
-	case WStype_FRAGMENT_TEXT_START:
-	case WStype_FRAGMENT_BIN_START:
-	case WStype_FRAGMENT:
-	case WStype_FRAGMENT_FIN:
-		break;
-	}
-
-}
-
-String getContentTypeGz(String filename){
-	if(server.hasArg("download"))
-		return "application/octet-stream";
-	else if(filename.endsWith(".htm.gz"))
-		return "text/html";
-	else if(filename.endsWith(".html.gz"))
-		return "text/html";
-	else if(filename.endsWith(".css.gz"))
-		return "text/css";
-	else if(filename.endsWith(".js.gz"))
-		return "application/javascript";
-	else if(filename.endsWith(".png.gz"))
-		return "image/png";
-	else if(filename.endsWith(".gif.gz"))
-		return "image/gif";
-	else if(filename.endsWith(".jpg.gz"))
-		return "image/jpeg";
-	else if(filename.endsWith(".ico.gz"))
-		return "image/x-icon";
-	else if(filename.endsWith(".xml.gz"))
-		return "text/xml";
-	else if(filename.endsWith(".pdf.gz"))
-		return "application/x-pdf";
-	else if(filename.endsWith(".zip.gz"))
-		return "application/x-zip";
-	else if(filename.endsWith(".gz"))
-		return "application/x-gzip";
-	return "application/x-gzip";
-}
-
-String getContentType(String filename){ // convert the file extension to the MIME type
-	if(filename.endsWith(".html"))
-		return "text/html";
-	else if(filename.endsWith(".css"))
-		return "text/css";
-	else if(filename.endsWith(".js"))
-		return "application/javascript";
-	else if(filename.endsWith(".ico"))
-		return "image/x-icon";
-	return "text/plain";
-}
-
-bool handleFileRead(String path){ // send the right file to the client (if it exists)
-	Serial.println("handleFileRead: " + path);
-	if(path.endsWith("/"))
-		path += "index.html"; // If a folder is requested, send the index file
-	String contentType = getContentType(path); // Get the MIME type
-	String pathWithGz = path + ".gz";
-	if(SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)){
-		if(SPIFFS.exists(pathWithGz)){
-			path += ".gz";                          // If the file exists
-			contentType = getContentTypeGz(pathWithGz);
-		}
-		File file = SPIFFS.open(path, "r");                 // Open it
-		size_t sent = server.streamFile(file, contentType);                 // And send it to the client
-		Serial.printf("Sent %d byte to client.", sent);
-		file.close();                 // Then close the file again
-		return true;
-	}
-	Serial.println("\tFile Not Found");
-	return false;                     // If the file doesn't exist, return false
-}
-
-void handleNotFound(){
-
-	String message = "File Not Found\n\n";
-	message += "URI: ";
- 	message += server.uri();
-	message += "\nMethod: ";
-	message += (server.method() == HTTP_GET) ? "GET" : "POST";
-	message += "\nArguments: ";
-	message += server.args();
-	message += "\n";
-	for(uint8_t i = 0; i < server.args(); i++){
-		message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-	}
-	server.send(404, "text/plain", message);
-}
-#endif
-#ifndef arduinoWebserver
 void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		AwsEventType type, void * arg, uint8_t *data, size_t len) {
-//Serial.printf("%d\n", type);
 	if (type == WS_EVT_CONNECT) {
-//client connected
 		lcd_out("%lu ws[%s][%u] [%s] connect\n", millis(), server->url(),
 				client->id(), client->remoteIP().toString().c_str());
 
@@ -982,7 +231,6 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		}
 	}
 }
-#endif
 
 void syncTime() {
 //lets check the time
@@ -1038,44 +286,6 @@ void startServer() {
 
 	ws.onEvent(wsEvent);
 
-#ifdef arduinoWebserver
-	server.on("/update", HTTP_POST, [](){
-		server.sendHeader("Connection", "close");
-		server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-		ESP.restart();
-	}, [](){
-		HTTPUpload& upload = server.upload();
-		if (upload.status == UPLOAD_FILE_START){
-			//xTimerStop(tmrWs, 0);
-			Serial.printf("Update: %s\n", upload.filename.c_str());
-			if (!Update.begin()){ //start with max available size
-				Update.printError(Serial);
-			}
-		} else if (upload.status == UPLOAD_FILE_WRITE){
-			if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
-				Update.printError(Serial);
-			}
-		} else if (upload.status == UPLOAD_FILE_END){
-			if (Update.end(true)){ //true to set the size to the current progress
-				lcd_out("Update Success: %u\nRebooting...\n", upload.totalSize);
-			} else{
-				Update.printError(Serial);
-				//xTimerStart(tmrWs, 0);
-			}
-		}
-	});
-
-	server.onNotFound([](){                   // If the client requests any URI
-				if (!handleFileRead(server.uri()))// send it if it exists
-				server.send(404, "text/plain", "404: Not Found");// otherwise, respond with a 404 (Not Found) error
-				lcd_out("404: Not Found: %s\n", server.uri().c_str());
-			});
-	//server.onNotFound(handleNotFound);
-
-	server.on("/", handleRoot);
-	ws.begin();
-	lcd_out("WebsocketServer started\n");
-#else
 // handler for the /update form POST (once file upload finishes)
 	server.onFileUpload(
 			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
@@ -1118,7 +328,6 @@ void startServer() {
 	server.addHandler(&events);
 	DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 	ws.enable(true);
-#endif
 
 	server.serveStatic("/index.html", SPIFFS, "/index.html", "max-age=600");
 	server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico", "max-age=600");
@@ -1199,93 +408,6 @@ void startServer() {
 
 void syncTime();
 
-IRAM_ATTR void setJsonString() {
-
-//@formatter:off
-		sprintf(txtToSend,
-				"{"
-				"\"encoder1_value\":%d,"
-				"\"encoder2_value\":%d,"
-				"\"pwm1\":%d,"
-				"\"pwm2\":%d,"
-				"\"target1\":%.2f,"
-				"\"target2\":%.2f,"
-				"\"output1\":%.2f,"
-				"\"output2\":%.2f,"
-				"\"an1\":%u,"
-				"\"an2\":%u,"
-				"\"actual_diff\":%.2f,"
-
-#if enableCapSense == 1
-		"\"cap_reading\":%zu,"
-		"\"cap_read_time_ms\":%lu,"
-		"\"capfast\":%.2f,"
-		"\"capslow\":%.2f,"
-#endif
-
-				"\"enablepid1\":%d,"
-				"\"enablepid2\":%d,"
-
-				"\"PID1output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
-				"\"PID2output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
-
-				"\"esp32_heap\":%zu,"
-				"\"uptime_h\":%.2f"
-
-				"}",
-
-				encoder1_value,
-				encoder2_value,
-				pwm1,
-				pwm2,
-				target1,
-				target2,
-				output1,
-				output2,
-				an1,
-				an2,
-				(pid1.getActual() - pid2.getActual())
-
-#if enableCapSense == 1
-			,cap_reading,
-			fdc2212.readTimeMs,
-			fdc2212.capFast,
-			fdc2212.capSlow
-#endif
-
-			,(pid1Enabled == true ? 1 : 0)
-			,(pid2Enabled == true ? 1 : 0)
-
-			,pid1.getPoutput()
-			,pid1.getIoutput()
-			,pid1.getDoutput()
-			,pid1.getFoutput()
-			,pid1.getPOSoutput()
-			,pid1.getPOSoutputFiltered()
-			,pid1.getSetpoint()
-			,pid1.getActual()
-			,pid1.getError()
-			,pid1.getErrorSum()
-			,pid1.getMaxIOutput()
-			,pid1.getMaxError()
-
-			,pid2.getPoutput()
-			,pid2.getIoutput()
-			,pid2.getDoutput()
-			,pid2.getFoutput()
-			,pid2.getPOSoutput()
-			,pid2.getPOSoutputFiltered()
-			,pid2.getSetpoint()
-			,pid2.getActual()
-			,pid2.getError()
-			,pid2.getErrorSum()
-			,pid2.getMaxIOutput()
-			,pid2.getMaxError()
-
-				,esp_get_free_heap_size(),
-				timeH);
-//@formatter:on
-}
 
 void lcd_out(const char*format, ...) {
 	char loc_buf[255];
@@ -1819,36 +941,22 @@ void setup() {
 	} else
 		lcd_out("Flash init OK.\n");
 
-	lcd_out("LED INIT\n");
-	if (enableLed)
-		pinMode(LED_PIN, OUTPUT);
 
-	vTaskDelay(3 / portTICK_PERIOD_MS);
-	lcd_out("Blinking.\n");
-	blink(2);
-
-#if enableCapSense == 1
-	lcd_out("Setting up FDC2212...\n");
-	fdc2212 =
-			FDC2212(
-					[](const CapacityResponse& response) {
-						Serial.printf("capacity triggered %s %ul\n", ((response.status == true)?"ON":"OFF"), response.timeMs);
-						return true;
-					});
-	fdc2212.begin();
-	lcd_out("Setting up FDC2212...Done.\n");
-#endif
-
-	pinMode(19, INPUT_PULLUP);
-	pinMode(18, OUTPUT);
-	pinMode(23, OUTPUT);
-	lcd_out("VSPI?\n");
-	if (vspi != NULL) {
-		Serial.println("initialise vspi with default pins 3...");
-		vspi->begin(18, 19, 23, -1);
-		vspi->setDataMode(SPI_MODE1);
-		vspi->setHwCs(false);
+	if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
+	    Serial.println(F("SSD1306 allocation failed"));
+	    for(;;)
+	    {
+	    	delay(1000);// Don't proceed, loop forever
+	    }
 	}
+
+
+
+
+
+
+
+
 
 	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
@@ -2178,7 +1286,7 @@ void setup() {
 			1,			    // uxPriority
 			&TaskA,			// pxCreatedTask
 			pidTaskCore);			// xCoreID
-	esp_task_wdt_add(TaskA);
+	esp_task_wdt_add (TaskA);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
@@ -2304,15 +1412,15 @@ void myLoop() {			//ArduinoOTA.handle();
 				//Serial.println(txtToSend);
 				//setJsonString();
 				//ws.text(lastWsClient, txtToSend);
-				sprintf(cstr,"{\"encoder1_value\":%d}", encoder1_value);
-				events.send(cstr,"myevent",millis());
-				sprintf(cstr,"{\"encoder2_value\":%d}", encoder2_value);
-				events.send(cstr,"myevent",millis());
+				sprintf(cstr, "{\"encoder1_value\":%d}", encoder1_value);
+				events.send(cstr, "myevent", millis());
+				sprintf(cstr, "{\"encoder2_value\":%d}", encoder2_value);
+				events.send(cstr, "myevent", millis());
 			}
-			sprintf(cstr,"{\"esp32_heap\":%zu}", esp_get_free_heap_size());
-			events.send(cstr,"myevent",millis());
-			sprintf(cstr,"{\"uptime_h\":%.2f}", timeH);
-			events.send(cstr,"myevent",millis());
+			sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
+			events.send(cstr, "myevent", millis());
+			sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
+			events.send(cstr, "myevent", millis());
 
 			/*
 			 uint8_t opcode = WS_TEXT;
@@ -2360,7 +1468,7 @@ extern "C" {
 void app_main();
 }
 void app_main() {
-	ESP_ERROR_CHECK(heap_trace_init_standalone ( trace_record , NUM_RECORDS ));
+	ESP_ERROR_CHECK(heap_trace_init_standalone(trace_record, NUM_RECORDS));
 
 	if (enableLcd == true)
 		esp_draw();
