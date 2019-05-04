@@ -30,8 +30,7 @@
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET 4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-
+#define LED_PIN 16
 
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -80,6 +79,7 @@ String ssid;
 String password;
 Preferences preferences;
 bool reportingJson = false;
+bool shouldSendJson = false;
 
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
@@ -88,11 +88,41 @@ TaskHandle_t TaskCheckIp;
 TaskHandle_t TaskMan;
 TaskHandle_t TaskLoop;
 
+WiFiUDP ntpClient;
+bool restartNow = false;
+
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events");
 int lcd_y_pos = 0;
 char cstr[25];
+const char* hostName = "esp32_door";
+int jsonReportIntervalMs = 5000;
+int jsonFastReportIntervalMs = 150;
+int jsonSlowReportIntervalMs = 5000;
+uint32_t lastWsClient = -1;
+
+void lcd_out(const char*format, ...);
+
+String getToken(String data, char separator, int index) {
+	int found = 0;
+	int strIndex[] = { 0, -1 };
+	int maxIndex = data.length() - 1;
+
+	for (int i = 0; i <= maxIndex && found <= index; i++) {
+		if (data.charAt(i) == separator || i == maxIndex) {
+			found++;
+			strIndex[0] = strIndex[1] + 1;
+			strIndex[1] = (i == maxIndex) ? i + 1 : i;
+		}
+	}
+
+	String ret("");
+	if (found > index) {
+		ret = data.substring(strIndex[0], strIndex[1]);
+	}
+	return ret;
+}
 
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 String processInput(const char *input) {
@@ -147,12 +177,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		//client->ping();
 		jsonReportIntervalMs = jsonSlowReportIntervalMs;
 		lastWsClient = client->id();
-		sendPid1ToClient();
-		sendPid2ToClient();
-		setJsonString();
-		if (ws.hasClient(lastWsClient)) {
-			ws.text(lastWsClient, txtToSend);
-		}
+
 	} else if (type == WS_EVT_DISCONNECT) {
 //client disconnected
 		lcd_out("%lu ws[%s][%u] [%s] disconnect\n", millis(), server->url(),
@@ -408,7 +433,6 @@ void startServer() {
 
 void syncTime();
 
-
 void lcd_out(const char*format, ...) {
 	char loc_buf[255];
 	char * temp = loc_buf;
@@ -445,90 +469,6 @@ void lcd_out(const char*format, ...) {
 
 }
 
-String getToken(String data, char separator, int index) {
-	int found = 0;
-	int strIndex[] = { 0, -1 };
-	int maxIndex = data.length() - 1;
-
-	for (int i = 0; i <= maxIndex && found <= index; i++) {
-		if (data.charAt(i) == separator || i == maxIndex) {
-			found++;
-			strIndex[0] = strIndex[1] + 1;
-			strIndex[1] = (i == maxIndex) ? i + 1 : i;
-		}
-	}
-
-	String ret("");
-	if (found > index) {
-		ret = data.substring(strIndex[0], strIndex[1]);
-	}
-	return ret;
-}
-
-// takes pid string in form:
-// p=40.00 i=2.00 d=0.30 f=0.00 syn=1 synErr=0.00 ramp=50.00 maxIout=1000.00
-// p=40.00 i=2.00 d=0.30 f=0.00 syn=0 synErr=0.00 ramp=50.00 maxIout=1000.00
-void setPidsFromString(MiniPID* pid, String input) {
-	Serial.printf("Parsing pid: %s\n", input.c_str());
-	String p_str = getToken(input, ' ', 0);
-	String p_val = getToken(p_str, '=', 1);
-
-	String i_str = getToken(input, ' ', 1);
-	String i_val = getToken(i_str, '=', 1);
-
-	String d_str = getToken(input, ' ', 2);
-	String d_val = getToken(d_str, '=', 1);
-
-	String f_str = getToken(input, ' ', 3);
-	String f_val = getToken(f_str, '=', 1);
-	if (f_val.equals("")) {
-		f_val = "0.0";
-	}
-
-	String syn_str = getToken(input, ' ', 4);
-	String syn_val = getToken(syn_str, '=', 1);
-
-	String synerr_str = getToken(input, ' ', 5);
-	String synerr_val = getToken(synerr_str, '=', 1);
-
-	String ramp_str = getToken(input, ' ', 6);
-	String ramp_val = getToken(ramp_str, '=', 1);
-	if (ramp_val.equals("")) {
-		ramp_val = "1.0";
-	}
-
-	String maxIOut_str = getToken(input, ' ', 7);
-	String maxIOut_val = getToken(maxIOut_str, '=', 1);
-	if (maxIOut_val.equals("")) {
-		maxIOut_val = "1.0";
-	}
-
-	pid->setPID(p_val.toFloat(), i_val.toFloat(), d_val.toFloat(),
-			f_val.toFloat());
-	pid->setOutputRampRate(ramp_val.toFloat());	//pid1.setOutputFilter(0.01);
-//pid2.setOutputFilter(0.01);
-	Serial.print("f_val: ");
-	Serial.println(f_val.toFloat());
-	pid->setMaxIOutput(maxIOut_val.toFloat());
-	pid->setSyncDisabledForErrorSmallerThen(synerr_val.toFloat());
-	if (syn_val.equals("1")) {
-		pid->setSynchronize(true);
-	} else {
-		pid->setSynchronize(false);
-	}
-}
-
-void setOutputPercent(String percent_str, int i) {
-	int outputMin = -(int) (pwmValueMax * percent_str.toFloat() / 100.0);
-	int outputMax = (int) (pwmValueMax * percent_str.toFloat() / 100.0);
-	Serial.printf("outputMin=%d outputMax=%d\n", outputMin, outputMax);
-	if (i == 1) {
-		pid1.setOutputLimits(outputMin, outputMax);
-	} else {
-		pid2.setOutputLimits(outputMin, outputMax);
-	}
-}
-
 void listDir(fs::FS & fs, const char * dirname, uint8_t levels) {
 	Serial.printf("Listing directory: %s\r\n", dirname);
 	File root = fs.open(dirname);
@@ -559,235 +499,6 @@ void listDir(fs::FS & fs, const char * dirname, uint8_t levels) {
 	}
 }
 
-void clearFault() {
-	digitalWrite(SS1, LOW);	  	// SPI WRITE
-	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
-	byte data_read = B00000000;	  	// WRITE OPERATION
-	byte data_address = B00010000;	  	// ADDRES 02x MAIN REGISTER
-	byte data = data_read | data_address;
-
-	uint16_t data_int = data << 8 | B00000001;	  	// B00000001 ... CLR_FLT
-// B00000010 ... IN2/EN
-// B00000100 ... IN1/PH
-// B00111000 ... LOCK
-
-	vspi->transfer16(data_int);
-	vspi->endTransaction();
-	digitalWrite(SS1, HIGH);
-}
-
-String getfault(uint16_t reply) {
-	String status1 = "";
-// fault bytes:
-	uint8_t FAULT_FAULT = B1 << 7;// FAULT R 0b Logic OR of the FAULT status register excluding the OTW bit
-	uint8_t FAULT_WDFLT = B1 << 6;	  	// WDFLT R 0b Watchdog time-out fault
-	uint8_t FAULT_GDF = B1 << 5;// GDF R 0b Indicates gate drive fault condition
-	uint8_t FAULT_OCP = B1 << 4;// OCP R 0b Indicates VDS monitor overcurrent fault condition
-	uint8_t FAULT_VM_UVFL = B1 << 3;// VM_UVFL R 0b Indicates VM undervoltage lockout fault condition
-	uint8_t FAULT_VCP_UVFL = B1 << 2;// VCP_UVFL R 0b Indicates charge-pump undervoltage fault condition
-	uint8_t FAULT_OTSD = B1 << 1;// OTSD R 0b Indicates overtemperature shutdown
-	uint8_t FAULT_OTW = B1 << 0;// OTW R 0b Indicates overtemperature warning
-	if ((reply & FAULT_FAULT) > 0) {
-		status1.concat(
-				"Logic OR of the FAULT status register excluding the OTW bit\n");
-	}
-	if ((reply & FAULT_WDFLT) > 0) {
-		status1.concat("Watchdog time-out fault\n");
-	}
-	if ((reply & FAULT_GDF) > 0) {
-		status1.concat("Gate drive fault\n");
-	}
-	if ((reply & FAULT_OCP) > 0) {
-		status1.concat("VDS monitor overcurrent fault\n");
-	}
-	if ((reply & FAULT_VM_UVFL) > 0) {
-		status1.concat("VM undervoltage lockout fault\n");
-	}
-	if ((reply & FAULT_VCP_UVFL) > 0) {
-		status1.concat("Charge-pump undervoltage fault\n");
-	}
-	if ((reply & FAULT_OTSD) > 0) {
-		status1.concat("Overtemperature shutdown\n");
-	}
-	if ((reply & FAULT_OTW) > 0) {
-		status1.concat("Overtemperature warning\n ");
-	}
-	return status1;
-}
-
-void testSpi(int which) {
-	usleep(1);
-	if (which == 1)
-		digitalWrite(SS1, LOW);
-	else
-		digitalWrite(SS2, LOW);
-// SPI WRITE
-	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
-// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
-// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
-// page 42
-	byte data_read = B10000000;	  // READ OPERATION
-	byte data_address = B00010000;	  // ADDRES 02x MAIN REGISTER
-	byte data = data_read | data_address;
-	byte lowbyte = B0;
-	uint16_t data_int = data << 8 | lowbyte;
-
-	uint16_t reply = vspi->transfer16(data_int);// should return 0x18 B00011000
-	vspi->endTransaction();
-	usleep(1);
-	if (reply == B00011000) {
-		Serial.println("YES it is ON!");
-		if (which == 1)
-			status1.concat("DRV8703Q is ON (Not locked)\n");
-		else
-			status2.concat("DRV8703Q is ON (Not locked)\n");
-
-		Serial.println("----");
-		Serial.println(status1);
-		Serial.println(status2);
-		Serial.println("----");
-
-		usleep(1);
-
-// SPI WRITE
-		vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
-
-		data_read = B10000000;	  // READ OPERATION
-		data_address = B00000000;	  // ADDRES 0x FAULT REGISTER
-		data = data_read | data_address;
-		lowbyte = B0;
-		data_int = data << 8 | lowbyte;
-
-		reply = vspi->transfer16(data_int);	  // should return 0x18
-		vspi->endTransaction();
-		if (which == 1)
-			digitalWrite(SS1, HIGH);
-		else
-			digitalWrite(SS2, HIGH);
-		usleep(1);
-		Serial.print("SPI reply: ");
-		Serial.println(reply, BIN);
-
-		if (which == 1)
-			status1.concat(getfault(reply));
-		else
-			status2.concat(getfault(reply));
-
-		Serial.println("----");
-		Serial.println(status1);
-		Serial.println(status2);
-		Serial.println("----");
-	} else {
-		if (which == 1)
-			status1.concat("DRV8703Q is NOT ON\n");
-		else
-			status2.concat("DRV8703Q is NOT ON\n");
-	}
-
-}
-
-void gdfVdsStatus(int which) {
-	usleep(1);
-	if (which == 1)
-		digitalWrite(SS1, LOW);
-	else
-		digitalWrite(SS2, LOW);
-// SPI WRITE
-	vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE1));
-// http://www.ti.com/product/drv8702-q1?qgpn=drv8702-q1
-// datasheet: http://www.ti.com/lit/gpn/drv8702-q1
-// page 42
-
-	byte data_read = B10000000;	  // READ OPERATION
-	byte data_address = B00001000;// ADDRES 01x VDS and GDF Status Register Name
-	byte data = data_read | data_address;
-	byte lowbyte = B0;
-	uint16_t data_int = data << 8 | lowbyte;
-
-	uint16_t reply = vspi->transfer16(data_int);// should return GDF and VDS statuses
-	vspi->endTransaction();
-	if (which == 1)
-		digitalWrite(SS1, HIGH);
-	else
-		digitalWrite(SS2, HIGH);
-	usleep(1);
-	String ret = "";
-
-// fault bytes:
-	uint8_t H2_GDF = B1 << 7;// Gate drive fault on the high-side FET of half bridge 2
-	uint8_t L2_GDF = B1 << 6;// Gate drive fault on the low-side FET of half bridge 2
-	uint8_t H1_GDF = B1 << 5;// Gate drive fault on the high-side FET of half bridge 1
-	uint8_t L1_GDF = B1 << 4;// Gate drive fault on the low-side FET of half bridge 1
-	uint8_t H2_VDS = B1 << 3;// VDS monitor overcurrent fault on the high-side FET of half bridge 2
-	uint8_t L2_VDS = B1 << 2;// VDS monitor overcurrent fault on the low-side FET of half bridge 2
-	uint8_t H1_VDS = B1 << 1;// VDS monitor overcurrent fault on the high-side FET of half bridge 1
-	uint8_t L1_VDS = B1 << 0;// VDS monitor overcurrent fault on the low-side FET of half bridge 1
-
-	if (which == 1)
-		digitalWrite(SS1, HIGH);
-	else
-		digitalWrite(SS2, HIGH);
-
-	usleep(1);
-	Serial.print("SPI reply: ");
-	Serial.println(reply, BIN);
-	if ((reply & H2_GDF) > 0) {
-		ret.concat(" Gate drive fault on the high-side FET of half bridge 2\n");
-	}
-	if ((reply & L2_GDF) > 0) {
-		ret.concat("Gate drive fault on the low-side FET of half bridge 2\n");
-	}
-	if ((reply & H1_GDF) > 0) {
-		ret.concat("Gate drive fault on the high-side FET of half bridge 1\n");
-	}
-	if ((reply & L1_GDF) > 0) {
-		ret.concat("Gate drive fault on the low-side FET of half bridge 1\n");
-	}
-	if ((reply & H2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 2\n");
-	}
-	if ((reply & L2_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 2\n");
-	}
-	if ((reply & H1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the high-side FET of half bridge 1\n ");
-	}
-	if ((reply & L1_VDS) > 0) {
-		ret.concat(
-				"VDS monitor overcurrent fault on the low-side FET of half bridge 1\n ");
-	}
-
-	if (which == 1)
-		gdfVds1 = ret;
-	else
-		gdfVds2 = ret;
-
-}
-
-bool checkNoApFoundCritical() {
-	if (NO_AP_FOUND_count >= 5) {
-		WiFi.mode(WIFI_AP);
-		if (WiFi.softAP(softAP_ssid, softAP_password)) {
-			Serial.println("Wait 100 ms for AP_START...");
-			delay(100);
-			Serial.println("");
-			IPAddress Ip(192, 168, 1, 1);
-			IPAddress NMask(255, 255, 255, 0);
-			WiFi.softAPConfig(Ip, Ip, NMask);
-			IPAddress myIP = WiFi.softAPIP();
-			Serial.printf("Network %s is running.\n", softAP_ssid);
-			Serial.print("AP IP address: ");
-			Serial.println(myIP);
-			startServer();
-		}
-		return true;
-	}
-	return false;
-}
-
 /*
  void IRAM_ATTR handleIntCapSense(){
  Serial.println ("Capsense interrupt!");
@@ -795,44 +506,14 @@ bool checkNoApFoundCritical() {
  }
  */
 
-void waitForIp() {
-	NO_AP_FOUND_count = 0;
-
-	WiFi.mode(WIFI_STA);
-	WiFi.setTxPower(WIFI_POWER_19_5dBm);
-	WiFi.begin(ssid.c_str(), password.c_str());
-	WiFi.setSleep(false);
-
-	while ((WiFi.status() != WL_CONNECTED) && NO_AP_FOUND_count < 7) {
-		Serial.print("MAC: ");
-		Serial.println(WiFi.macAddress());
-		lcd_out("WaitForIp delay 1s.\n");
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-		Serial.print("SSID: ");
-		Serial.print(ssid);
-		Serial.print(" password: ***");
-		//Serial.print(password);
-		Serial.print(" status: ");
-		Serial.println(WiFi.status());
-
-		Serial.print("no ap count count: ");
-		Serial.println(NO_AP_FOUND_count);
-//if(checkNoApFoundCritical())
-//  break;
-		NO_AP_FOUND_count = NO_AP_FOUND_count + 1;
-	}
-
-}
-
 void blink(int i) {
-	if (enableLed) {
-		for (int j = 0; j < i; j++) {
-			digitalWrite(LED_PIN, HIGH);
-			vTaskDelay(50 / portTICK_PERIOD_MS);
-			digitalWrite(LED_PIN, LOW);
-			vTaskDelay(50 / portTICK_PERIOD_MS);
-		}
+	for (int j = 0; j < i; j++) {
+		digitalWrite(LED_PIN, HIGH);
+		vTaskDelay(50 / portTICK_PERIOD_MS);
+		digitalWrite(LED_PIN, LOW);
+		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
+
 }
 
 extern "C" void esp_draw() {
@@ -941,22 +622,24 @@ void setup() {
 	} else
 		lcd_out("Flash init OK.\n");
 
-
-	if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
-	    Serial.println(F("SSD1306 allocation failed"));
-	    for(;;)
-	    {
-	    	delay(1000);// Don't proceed, loop forever
-	    }
+	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
+		Serial.println(F("SSD1306 allocation failed"));
+		for (;;) {
+			delay(1000); // Don't proceed, loop forever
+		}
 	}
 
+	// Clear the buffer.
+	display.clearDisplay();
 
-
-
-
-
-
-
+	// Display Text
+	display.setTextSize(1);
+	display.setTextColor(WHITE);
+	display.setCursor(0, 28);
+	display.println("Hello world!");
+	display.display();
+	delay(2000);
+	display.clearDisplay();
 
 	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
@@ -973,63 +656,6 @@ void setup() {
 //ssid = "SINTEX";
 	lcd_out(String(" ssid:     " + ssid + "\n").c_str());
 	lcd_out(String(" pass:     " + password + "\n").c_str());
-
-	pid_str1 = preferences.getString("pid1", "null");
-	if (!pid_str1.equals("null")) {
-		Serial.printf("PID1 from flash: %s\n", pid_str1.c_str());
-		setPidsFromString(&pid1, pid_str1);
-	} else {
-		Serial.printf("no PID1 from flash.\n");
-		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
-		setPidsFromString(&pid1, initialPidStr);
-		pid_str1 = initialPidStr;
-	}
-	pid_str2 = preferences.getString("pid2", "null");
-	if (!pid_str2.equals("null")) {
-		Serial.printf("PID2 from flash: %s\n", pid_str2.c_str());
-		setPidsFromString(&pid2, pid_str2);
-	} else {
-		Serial.printf("no PID2 from flash.\n");
-		Serial.printf("using initial string: %s\n", initialPidStr.c_str());
-		setPidsFromString(&pid2, initialPidStr);
-		pid_str2 = initialPidStr;
-	}
-
-	pid1.setCallback(pidRegulatedCallBack1);
-	pid2.setCallback(pidRegulatedCallBack2);
-
-	int32_t outputMin_ = preferences.getInt("outputMin1", -100000);
-	int32_t outputMax_ = preferences.getInt("outputMax1", -100000);
-	if (outputMin_ != -100000 && outputMax_ != -100000) {
-		pid1.setOutputLimits(outputMin_, outputMax_);
-		Serial.println("Load changed outputmin1 & outputmax1 settings.");
-	} else {
-		pid1.setOutputLimits(-pwmValueMax, pwmValueMax);
-		Serial.println("Missing outputmin1 & outputmax1 settings from flash.");
-	}
-
-	outputMin_ = preferences.getInt("outputMin2", -100000);
-	outputMax_ = preferences.getInt("outputMax2", -100000);
-	if (outputMin_ != -100000 && outputMax_ != -100000) {
-		pid2.setOutputLimits(outputMin_, outputMax_);
-		Serial.println("Load changed outputmin1 & outputmax1 settings.");
-	} else {
-		pid2.setOutputLimits(-pwmValueMax, pwmValueMax);
-		Serial.println("Missing outputmin1 & outputmax1 settings from flash.");
-	}
-
-	int32_t stop1_top_ = preferences.getInt("stop1_top", -100000);
-	int32_t stop1_bottom_ = preferences.getInt("stop1_bottom", -100000);
-	if (stop1_top_ != -100000) {
-		stop1_top = stop1_top_;
-		stop2_top = stop1_top;
-	}
-	if (stop1_bottom_ != -100000) {
-		stop1_bottom = stop1_bottom_;
-		stop2_bottom = stop1_bottom;
-	}
-	Serial.println("load saved wifi settings...Done.");
-	preferences.end();
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("Wifi lost connection.\n");

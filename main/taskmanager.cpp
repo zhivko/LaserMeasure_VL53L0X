@@ -20,7 +20,7 @@ void taskmanageTask(void * pvParameters) {
 
 		Serial.printf(
 				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
-				mySecond, timeH, xPortGetCoreID(), freeheap,
+				mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
 				heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
 		sprintf(outputBuffer, "%15s%10s%10s%10s%10s%10s%10s%10s%10s\r\n",
