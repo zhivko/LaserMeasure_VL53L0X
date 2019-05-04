@@ -21,20 +21,33 @@
  curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
 
-#include <SPI.h>
+
+#include <stdint.h>
+#include "Arduino.h"
 #include <Wire.h>
-#include <Adafruit_GFX.h>
+#include <SPI.h>
+#include "lwip/inet.h"
+#include "lwip/ip4_addr.h"
+#include "lwip/dns.h"
 #include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_VL53L0X.h>
+
+#include "debug/lwip_debug.h"
+#include "lwip/debug.h"
+#include "lwip/stats.h"
+
+#include <esp_heap_caps.h>
+#include "esp_heap_trace.h"
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET 4 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define LED_PIN 16
 #define TAG "laser_distance"
+#define NUM_RECORDS 100
+static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
 
-#include <esp_heap_caps.h>
-#include "esp_heap_trace.h"
 #include <WiFi.h>
 #include <FS.h>
 
@@ -76,13 +89,17 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 	static int taskManagerCore = 0;
 #endif
 
-TwoWire     *wire;
+Adafruit_SSD1306 display = Adafruit_SSD1306();
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 String ssid;
 String password;
 Preferences preferences;
 bool reportingJson = false;
 bool shouldSendJson = false;
+float timeH;
+long previousMs;
+long previousJsonSentMs;
 
 const char softAP_ssid[] = "MLIFT";
 const char softAP_password[] = "Doitman1";
@@ -106,6 +123,7 @@ int jsonSlowReportIntervalMs = 5000;
 uint32_t lastWsClient = -1;
 
 void lcd_out(const char*format, ...);
+void CheckIpTask(void * parameter);
 
 String getToken(String data, char separator, int index) {
 	int found = 0;
@@ -453,14 +471,13 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-#if enableLcd == 1
-		lcd_obj->drawString(loc_buf, 3, lcd_y_pos);
-		lcd_y_pos = lcd_y_pos + 10;
-		if (lcd_y_pos > 250) {
-			lcd_y_pos = 0;
-			lcd_obj->fillScreen(COLOR_ESP_BKGD);
-		}
-#endif
+	display.setCursor(0, lcd_y_pos);
+	display.print(loc_buf);
+	lcd_y_pos = lcd_y_pos + 10;
+	if (lcd_y_pos > 64) {
+		lcd_y_pos = 0;
+		display.clearDisplay();
+	}
 //ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
 	Serial.flush();
@@ -519,7 +536,6 @@ void blink(int i) {
 
 }
 
-
 /*
  static void idf_wmonitor_start_task(tcpip_adapter_if_t iface) {
  xTaskCreatePinnedToCore(idf_monitor_server_task, "WMONITOR", 4096,
@@ -545,9 +561,6 @@ void Task1(void * parameter) {
 	esp_task_wdt_add(NULL);
 	log_i("i2cread task in loop on CORE: %d", xPortGetCoreID());
 
-
-
-
 	for (;;) {
 
 	}
@@ -571,33 +584,26 @@ void setup() {
 	} else
 		lcd_out("Flash init OK.\n");
 
+	display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
+	display.display();
+	delay(1000);
 
+	display.setTextSize(1);      // Normal 1:1 pixel scale
+	display.setTextColor(WHITE); // Draw white text
+	display.setCursor(0, 0);     // Start at top-left corner
+	display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-	wire->begin(GPIO_NUM_5, GPIO_NUM_4, frequency);
+	Wire.begin();
 
-
-
-
-
-
-	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
-		Serial.println(F("SSD1306 allocation failed"));
-		for (;;) {
-			delay(1000); // Don't proceed, loop forever
-		}
+	if (!lox.begin()) {
+		Serial.println(F("Failed to boot VL53L0X"));
+		while (1)
+			;
 	}
 
-	// Clear the buffer.
-	display.clearDisplay();
-
-	// Display Text
-	display.setTextSize(1);
+	// text display big!
+	display.setTextSize(4);
 	display.setTextColor(WHITE);
-	display.setCursor(0, 28);
-	display.println("Hello world!");
-	display.display();
-	delay(2000);
-	display.clearDisplay();
 
 	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
@@ -681,7 +687,6 @@ void setup() {
 //
 //	}
 
-
 //	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
 	if (errWdtInit != ESP_OK) {
@@ -718,19 +723,6 @@ void setup() {
 	 Serial.flush();
 	 */
 
-	lcd_out("Starting i2cMeasure task...\n");
-	Serial.flush();
-	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
-			"i2cMeasure",			// pcName
-			6096,			// usStackDepth
-			NULL,			// pvParameters
-			1,			    // uxPriority
-			&TaskA,			// pxCreatedTask
-			pidTaskCore);			// xCoreID
-	esp_task_wdt_add (TaskA);
-	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
-	lcd_out("Starting pidTask...Done.\n");
-
 	WiFi.mode(WIFI_STA);
 	WiFi.setTxPower(WIFI_POWER_19_5dBm);
 	WiFi.begin(ssid.c_str(), password.c_str());
@@ -745,14 +737,10 @@ void setup() {
 			1,			    // uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
-	//esp_task_wdt_add(TaskCheckIp);
-	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
 	blink(5);
 	lcd_out("Setup Done.\n");
-
-//printEncoderInfo();
 }
 
 /*
@@ -841,47 +829,17 @@ void myLoop() {			//ArduinoOTA.handle();
 #if enableTaskManager != 1
 			Serial.printf(
 					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
-					mySecond, timeH, xPortGetCoreID(), freeheap,
+					mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
 					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 #endif
 
-#ifdef arduinoWebserver
-				ws.broadcastTXT(txtToSend);
-#else
-			if (ws.hasClient(lastWsClient)) {
-				ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
-				//Serial.println(txtToSend);
-				//setJsonString();
-				//ws.text(lastWsClient, txtToSend);
-				sprintf(cstr, "{\"encoder1_value\":%d}", encoder1_value);
-				events.send(cstr, "myevent", millis());
-				sprintf(cstr, "{\"encoder2_value\":%d}", encoder2_value);
-				events.send(cstr, "myevent", millis());
-			}
 			sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
 			events.send(cstr, "myevent", millis());
 			sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
 			events.send(cstr, "myevent", millis());
 
-			/*
-			 uint8_t opcode = WS_TEXT;
-			 uint8_t _opcode = opcode & 0x07;
-			 bool mask = false;
-			 size_t len = sizeof(txtToSend)/sizeof(txtToSend[0]);
-			 if(ws.hasClient(lastWsClient)){
-			 Serial.printf("Space: %d\n", ((AsyncClient*) ws.client(lastWsClient))->space());
-			 size_t sent = webSocketSendFrame((AsyncClient*) ws.client(lastWsClient), true, _opcode, mask, (uint8_t*) txtToSend, len);
-			 Serial.printf("Sent len: %d\n", sent);
-			 }
-			 */
-#endif
-//Serial.printf("texted all: %s\n", txtToSend);
 			previousJsonSentMs = millis();
 		}
-#ifdef arduinoWebserver
-			server.handleClient();
-			ws.loop();
-#endif
 		vTaskDelay(30 / portTICK_PERIOD_MS);
 	}
 }
@@ -910,9 +868,6 @@ void app_main();
 }
 void app_main() {
 	ESP_ERROR_CHECK(heap_trace_init_standalone(trace_record, NUM_RECORDS));
-
-	if (enableLcd == true)
-		esp_draw();
 
 	setup();
 
