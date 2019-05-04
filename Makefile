@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := DoubleLifter
+PROJECT_NAME := LaserMeasure
 
 include $(IDF_PATH)/make/project.mk

@@ -9,8 +9,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <Arduino.h>
+#include "Server.h"
 
-#define freeheap heap_caps_get_free_size(MALLOC_CAP_8BIT)
 extern uint64_t mySecond;
 extern float timeH;
 

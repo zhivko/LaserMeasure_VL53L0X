@@ -8,11 +8,14 @@
 #ifndef MAIN_SERVER_H_
 #define MAIN_SERVER_H_
 
+#define freeheap heap_caps_get_free_size(MALLOC_CAP_8BIT)
+
+
 SemaphoreHandle_t xSemaphore = NULL;
 
-#define enablePwm 1
-#define enableTaskManager 1
-bool enableLcd = false;
+#define enablePwm 0
+#define enableLcd 1
+#define enableTaskManager 0
 bool enableMover = false;
 bool enableLed = true;
 

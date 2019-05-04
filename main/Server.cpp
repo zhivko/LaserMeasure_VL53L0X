@@ -242,6 +242,7 @@ char txtToSend[1100] = { };
 #ifndef arduinoWebserver
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncEventSource events("/events");
 #endif
 #ifdef arduinoWebserver
 	WebServer server(81);
@@ -283,6 +284,9 @@ static String pid_str2;
  }
  */
 
+int lcd_y_pos = 0;
+char cstr[25];
+
 //void dbg_lwip_stats_show(void);
 void testSpi(int which);
 void gdfVdsStatus(int which);
@@ -302,6 +306,7 @@ void pidRegulatedCallBack1() {
 		ws.text(lastWsClient, txtToSend);
 	}
 	lcd_out("Pid1Enable=false, pwm1=0\n");
+	//events.send("0","pid1Enable",millis());
 	//}
 }
 
@@ -314,6 +319,7 @@ void pidRegulatedCallBack2() {
 		ws.text(lastWsClient, txtToSend);
 	}
 	lcd_out("Pid2Enable=false, pwm2=0\n");
+	//events.send("0","pid2Enable",millis());
 	//}
 }
 
@@ -1109,6 +1115,8 @@ void startServer() {
 	});
 
 	server.addHandler(&ws);
+	server.addHandler(&events);
+	DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 	ws.enable(true);
 #endif
 
@@ -1296,15 +1304,13 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-#if enableLcd ==1
-		int lcd_y_pos = 0;
+#if enableLcd == 1
 		lcd_obj->drawString(loc_buf, 3, lcd_y_pos);
 		lcd_y_pos = lcd_y_pos + 10;
 		if (lcd_y_pos > 250) {
 			lcd_y_pos = 0;
 			lcd_obj->fillScreen(COLOR_ESP_BKGD);
 		}
-	}
 #endif
 //ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
@@ -2190,7 +2196,7 @@ void setup() {
 			1,			    // uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
-	esp_task_wdt_add(TaskCheckIp);
+	//esp_task_wdt_add(TaskCheckIp);
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
@@ -2283,15 +2289,31 @@ void myLoop() {			//ArduinoOTA.handle();
 		}
 
 		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
-			ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
-			setJsonString();
-			//Serial.println(txtToSend);
+#if enableTaskManager != 1
+			Serial.printf(
+					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
+					mySecond, timeH, xPortGetCoreID(), freeheap,
+					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+#endif
+
 #ifdef arduinoWebserver
 				ws.broadcastTXT(txtToSend);
 #else
 			if (ws.hasClient(lastWsClient)) {
-				ws.text(lastWsClient, txtToSend);
+				ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+				//Serial.println(txtToSend);
+				//setJsonString();
+				//ws.text(lastWsClient, txtToSend);
+				sprintf(cstr,"{\"encoder1_value\":%d}", encoder1_value);
+				events.send(cstr,"myevent",millis());
+				sprintf(cstr,"{\"encoder2_value\":%d}", encoder2_value);
+				events.send(cstr,"myevent",millis());
 			}
+			sprintf(cstr,"{\"esp32_heap\":%zu}", esp_get_free_heap_size());
+			events.send(cstr,"myevent",millis());
+			sprintf(cstr,"{\"uptime_h\":%.2f}", timeH);
+			events.send(cstr,"myevent",millis());
+
 			/*
 			 uint8_t opcode = WS_TEXT;
 			 uint8_t _opcode = opcode & 0x07;
@@ -2304,8 +2326,6 @@ void myLoop() {			//ArduinoOTA.handle();
 			 }
 			 */
 #endif
-			ESP_ERROR_CHECK(heap_trace_stop());
-			heap_trace_dump();
 //Serial.printf("texted all: %s\n", txtToSend);
 			previousJsonSentMs = millis();
 		}
@@ -2375,7 +2395,7 @@ void app_main() {
 }
 
 void CheckIpTask(void * parameter) {
-	delay(5000);
+	delay(6000);
 	if (WiFi.status() != WL_CONNECTED) {
 		lcd_out("Could not connect... Entering in AP mode.\n");
 		WiFi.mode(WIFI_AP);
@@ -2400,6 +2420,7 @@ void CheckIpTask(void * parameter) {
 			buf.concat(str2);
 			buf.concat("\n");
 			lcd_out(buf.c_str());
+
 			startServer();
 		}
 	} else {
