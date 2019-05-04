@@ -31,6 +31,7 @@
 #define OLED_RESET 4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define LED_PIN 16
+#define TAG "laser_distance"
 
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -74,6 +75,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 	#include "Taskmanager.h"
 	static int taskManagerCore = 0;
 #endif
+
+TwoWire     *wire;
 
 String ssid;
 String password;
@@ -516,72 +519,6 @@ void blink(int i) {
 
 }
 
-extern "C" void esp_draw() {
-	/*Initilize ESP32 to scan for Access points*/
-	nvs_flash_init();
-	/*
-	 tcpip_adapter_init();
-	 wifi_event_group = xEventGroupCreate();
-	 ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
-	 wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-	 ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-	 ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-	 ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-	 ESP_ERROR_CHECK( esp_wifi_start() );
-	 */
-	/*Initialize LCD*/
-	lcd_conf_t lcd_pins = { .lcd_model = LCD_MOD_AUTO_DET, .pin_num_miso =
-			GPIO_NUM_25, .pin_num_mosi = GPIO_NUM_23,
-			.pin_num_clk = GPIO_NUM_19, .pin_num_cs = GPIO_NUM_22, .pin_num_dc =
-					GPIO_NUM_21, .pin_num_rst = GPIO_NUM_18, .pin_num_bckl =
-					GPIO_NUM_5, .clk_freq = 26 * 1000 * 1000,
-			.rst_active_level = 0, .bckl_active_level = 0,
-			.spi_host = HSPI_HOST, .init_spi_bus = true, };
-
-	if (lcd_obj == NULL) {
-		lcd_obj = new CEspLcd(&lcd_pins);
-	}
-	printf("lcd id: 0x%08x\n", lcd_obj->id.id);
-
-	lcd_obj->setRotation(2);
-	lcd_obj->fillScreen(COLOR_ESP_BKGD);
-	lcd_obj->setTextSize(1);
-	lcd_obj->drawBitmap(0, 0, esp_logo, 137, 26);
-
-	lcd_obj->setTextColor(COLOR_GREEN, COLOR_ESP_BKGD);
-	lcd_obj->setFont(NULL);
-
-}
-
-//void createReportJsonTask() {
-//	xTaskCreatePinnedToCore(reportJson,  // Task function.
-//			"reportJsonTask",            // String with name of task.
-//			30000,                       // Stack size in words.
-//			NULL,                       // Parameter passed as input of the task
-//			17,            // Priority of the task.
-//			&reportJsonTask,             // Task handle.
-//			0);                          // core number
-//	esp_task_wdt_add(reportJsonTask);
-//}
-
-void printEncoderInfo() {
-	Serial.print("encoder1_value: ");
-	Serial.print(encoder1_value);
-	Serial.print(" ");
-#if enablePwm == 1
-	Serial.print(rotaryEncoder1.readEncoder());
-#endif
-	Serial.print(" target1: ");
-	Serial.println(target1);
-	Serial.print("encoder2_value: ");
-	Serial.print(encoder2_value);
-	Serial.print(" ");
-#if enablePwm == 1
-	Serial.print(rotaryEncoder2.readEncoder());
-#endif
-	Serial.print(" target2: ");
-	Serial.println(target2);
-}
 
 /*
  static void idf_wmonitor_start_task(tcpip_adapter_if_t iface) {
@@ -604,6 +541,18 @@ void printEncoderInfo() {
  }
  */
 
+void Task1(void * parameter) {
+	esp_task_wdt_add(NULL);
+	log_i("i2cread task in loop on CORE: %d", xPortGetCoreID());
+
+
+
+
+	for (;;) {
+
+	}
+}
+
 void setup() {
 	Serial.setDebugOutput(true);
 	esp_log_level_set("*", ESP_LOG_VERBOSE);
@@ -621,6 +570,15 @@ void setup() {
 		nvs_flash_init();
 	} else
 		lcd_out("Flash init OK.\n");
+
+
+
+	wire->begin(sdaPin, sclPin, frequency)
+
+
+
+
+
 
 	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
 		Serial.println(F("SSD1306 allocation failed"));
@@ -659,14 +617,6 @@ void setup() {
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("Wifi lost connection.\n");
-
-		String msg="";
-		msg.concat(info.disconnected.reason);
-		lcd_out(String("Reason: " + msg + "\n").c_str());
-		if(msg.indexOf("201")>=0) {
-			NO_AP_FOUND_count=NO_AP_FOUND_count+1;
-			checkNoApFoundCritical();
-		}
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -731,61 +681,6 @@ void setup() {
 //
 //	}
 
-#if enablePwm == 1
-	rotaryEncoder1.setBoundaries(0, 30000, false);
-	rotaryEncoder2.setBoundaries(0, 30000, false);
-	preferences.begin("settings", true);
-	encoder1_value = preferences.getInt("encoder1_value", -32000);
-	Serial.println("");
-	Serial.print("read encoder1_value: ");
-	Serial.println(encoder1_value);
-	rotaryEncoder1.disable();
-	if (encoder1_value != -32000)
-		rotaryEncoder1.reset(encoder1_value);
-	else {
-		encoder1_value = 15000;
-		Serial.printf("Resetting encoder1 to: %d\n", encoder1_value);
-		rotaryEncoder1.reset(encoder1_value);
-		target1 = encoder1_value;
-		Serial.println("reset encoder1.");
-	}
-	rotaryEncoder1.enable();
-	encoder2_value = preferences.getInt("encoder2_value", -32000);
-	Serial.print("read encoder2_value: ");
-	Serial.println(encoder2_value);
-	rotaryEncoder2.disable();
-	if (encoder2_value != -32000)
-		rotaryEncoder2.reset(encoder2_value);
-	else {
-		encoder2_value = 15000;
-		Serial.printf("Resetting encoder2 to: %d\n", encoder2_value);
-		rotaryEncoder2.reset(encoder2_value);
-		target2 = encoder2_value;
-		Serial.println("reset encoder2.");
-	}
-	rotaryEncoder2.enable();
-	Serial.printf("encoder1: %d\n", rotaryEncoder1.readEncoder());
-	Serial.printf("encoder2: %d\n", rotaryEncoder2.readEncoder());
-	target1_read = (double) preferences.getInt("target1", -15000);
-	target2_read = (double) preferences.getInt("target2", -15000);
-	preferences.end();
-	if (target1_read == -15000) {
-		target1 = rotaryEncoder1.readEncoder();
-	} else {
-		target1 = target1_read;
-	}
-
-	if (target2_read == -15000) {
-		target2 = rotaryEncoder2.readEncoder();
-	} else {
-		target2 = target2_read;
-	}
-
-	printEncoderInfo();
-#else
-	encoder1_value = 15000;
-	encoder2_value = 15000;
-#endif
 
 //	Serial.println("ENA");
 	esp_err_t errWdtInit = esp_task_wdt_init(5, false);
@@ -822,91 +717,11 @@ void setup() {
 	 }
 	 Serial.flush();
 	 */
-#if enableCapSense == 1
-	int id2 = 2;
-	tmrCapSense = xTimerCreate("MyTimerCapSense",
-			pdMS_TO_TICKS(capSenseIntervalMs), pdTRUE, (void *) id2,
-			&timerCapSenseCallBack);
-	if (xTimerStart(tmrCapSense, pdMS_TO_TICKS(100)) != pdPASS) {
-		esp_log_write(ESP_LOG_ERROR, TAG, "Timer capsense start error");
-	} else {
-		esp_log_write(ESP_LOG_INFO, TAG, "Timer capsense start.");
-	}
-#endif
 
-	if (enableMover) {
-		int id3 = 3;
-		tmrMover = xTimerCreate("MyTimerMover", pdMS_TO_TICKS(moverIntervalMs),
-		pdTRUE, (void *) id3, &moverCallBack);
-		if (xTimerStart(tmrMover, pdMS_TO_TICKS(100)) != pdPASS) {
-			esp_log_write(ESP_LOG_ERROR, TAG, "Timer mover start error");
-		} else {
-			esp_log_write(ESP_LOG_INFO, TAG, "Timer mover start.");
-		}
-	}
-
-#if enablePwm == 1
-	lcd_out("Gate driving enable.\n");
-	pinMode(GATEDRIVER_PIN, OUTPUT);
-	digitalWrite(GATEDRIVER_PIN, HIGH);					//enable gate drivers
-
-	pinMode(SS1, OUTPUT);	// Slave select first gate driver
-	pinMode(SS2, OUTPUT);	// Slave select second gate driver
-
-	digitalWrite(SS1, HIGH);	// deselect gate driver 1 - CS to HIGH
-	digitalWrite(SS2, HIGH);	// deselect gate driver 2 - CS to HIGH
-
-	digitalWrite(GATEDRIVER_PIN, LOW);		//disable gate drivers
-
-//initialise vspi with default pins
-	lcd_out("initialise vspi with default pins 1...\n");
-	vspi = new SPIClass(VSPI);
-// VSPI - SCLK = 18, MISO = 19, MOSI = 23, SS = 5
-// begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
-
-	lcd_out("encoders\n");
-	pinMode(ROTARY_ENCODER2_A_PIN, INPUT_PULLUP);
-	lcd_out("encoders 1\n");
-	pinMode(ROTARY_ENCODER2_B_PIN, INPUT_PULLUP);
-	lcd_out("encoders 2\n");
-	pinMode(ROTARY_ENCODER1_A_PIN, INPUT_PULLUP);
-	lcd_out("encoders 3\n");
-	pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
-	lcd_out("encoders 4\n");
-
-	delay(100);
-	Serial.println("initialise PWM ...");
-	ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_2, 20000, LEDC_RESOLUTION);
-	ledcSetup(LEDC_CHANNEL_3, 20000, LEDC_RESOLUTION);
-	ledcAttachPin(PWM1_PIN, LEDC_CHANNEL_0);
-	ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
-	ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
-	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
-	delay(100);
-	Serial.flush();
-#endif
-
-#if enableTaskManager == 1
-	lcd_out("Starting taskmanager...");
-	Serial.flush();
-	xTaskCreatePinnedToCore(taskmanageTask,			// pvTaskCode
-			"TaskManager",			// pcName
-			4096,			// usStackDepth
-			NULL,			// pvParameters
-			22,			// uxPriority
-			&TaskMan,			// pxCreatedTask
-			taskManagerCore);			// xCoreID
-	esp_task_wdt_add(TaskMan);
-	lcd_out("Starting Taskmanager task...Done.\n");
-	Serial.flush();
-#endif
-
-	lcd_out("Starting pidTask...\n");
+	lcd_out("Starting i2cMeasure task...\n");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Task1,			// pvTaskCode
-			"pidTask",			// pcName
+			"i2cMeasure",			// pcName
 			6096,			// usStackDepth
 			NULL,			// pvParameters
 			1,			    // uxPriority

@@ -4,7 +4,9 @@ Starts a esp-idf firmware for Laser VL53L0X sensor - i2c communication running o
 
 
 
-[![ESP32 diymore module](https://www.diymore.cc/products/diymore-wifi-bluetooth-esp32-18650-battery-development-board-module-ap-sta-ap-for-arduino-lua)](ESP32 diymore module)
+
+[diymore cc esp32 batery ssd1306](https://www.diymore.cc/collections/wifi-module/products/diymore-esp32-0-96-inch-oled-display-wifi-bluetooth-18650-battery-shield-development-board-cp2102-module-for-arduino)
+
 18650 charging system integrated.
 Indicated LED inside(Green means full& Red means charging).
 Charging and working could be at the same time.
