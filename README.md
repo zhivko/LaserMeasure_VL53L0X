@@ -15,7 +15,7 @@ Over charge protection; Over discharge protection.
 Full ESP32 pins break out.
 
 
-pinouts
+pinouts<br>
 [![pinouts_diymore_18650_ssd1306_module.jpg](https://github.com/zhivko/LaserMeasure_VL53L0X/blob/master/pinouts_diymore_18650_ssd1306_module.jpg)]
 
 i2c ssd1306 module
