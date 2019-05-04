@@ -18,3 +18,7 @@ Over charge protection; Over discharge protection.
 Full ESP32 pins break out.
 
 
+pinouts
+[![Foo](http://www.google.com.au/images/nav_logo7.png)](http://google.com.au/)
+
+i2c ssd1306 module 
