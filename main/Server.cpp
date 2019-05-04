@@ -573,7 +573,7 @@ void setup() {
 
 
 
-	wire->begin(sdaPin, sclPin, frequency)
+	wire->begin(GPIO_NUM_5, GPIO_NUM_4, frequency);
 
 
 
