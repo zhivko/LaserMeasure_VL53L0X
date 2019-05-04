@@ -4,12 +4,6 @@
 [submodule "components/ESPAsyncWebServer"]
 	path = components/ESPAsyncWebServer
 	url = https://github.com/zhivko/ESPAsyncWebServer.git
-[submodule "components/MiniPID"]
-	path = components/MiniPID
-	url = https://github.com/zhivko/MiniPID.git
-[submodule "components/ai-esp32-rotary-encoder"]
-	path = components/ai-esp32-rotary-encoder
-	url = https://github.com/zhivko/ai-esp32-rotary-encoder.git
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
@@ -19,3 +13,12 @@
 [submodule "components/arduinoWebSockets"]
 	path = components/arduinoWebSockets
 	url = https://github.com/Links2004/arduinoWebSockets.git 
+[submodule "components/Adafruit_SSD1306"]
+	path = components/Adafruit_SSD1306
+	url = https://github.com/adafruit/Adafruit_SSD1306.git 
+[submodule "components/Adafruit-GFX-Library"]
+	path = components/Adafruit-GFX-Library
+	url = https://github.com/adafruit/Adafruit-GFX-Library.git
+	
+	
+	
