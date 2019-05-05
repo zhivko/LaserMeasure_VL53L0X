@@ -22,3 +22,5 @@ pinouts<br>
 
 i2c ssd1306 module
 
+[project_image]https://github.com/zhivko/LaserMeasure_VL53L0X/blob/master/IMG_20190505_170954.jpg
+
