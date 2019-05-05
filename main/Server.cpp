@@ -21,7 +21,6 @@
  curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
  */
 
-
 #include <stdint.h>
 #include "Arduino.h"
 #include <Wire.h>
@@ -29,9 +28,11 @@
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_VL53L0X.h>
+//#include <Adafruit_SSD1306.h>
+#include "SSD1306.h"
+//#include <Adafruit_GFX.h>
+#include "Adafruit_VL53L0X.h"
+#include <vl53l0x_def.h>
 
 #include "debug/lwip_debug.h"
 #include "lwip/debug.h"
@@ -89,8 +90,9 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 	static int taskManagerCore = 0;
 #endif
 
-Adafruit_SSD1306 display = Adafruit_SSD1306();
+//Adafruit_SSD1306 display = Adafruit_SSD1306();
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 
 String ssid;
 String password;
@@ -121,6 +123,8 @@ int jsonReportIntervalMs = 5000;
 int jsonFastReportIntervalMs = 150;
 int jsonSlowReportIntervalMs = 5000;
 uint32_t lastWsClient = -1;
+char tempStr[15];
+uint16_t mm = 0;
 
 void lcd_out(const char*format, ...);
 void CheckIpTask(void * parameter);
@@ -190,8 +194,8 @@ void processWsData(const char *data) {
 void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		AwsEventType type, void * arg, uint8_t *data, size_t len) {
 	if (type == WS_EVT_CONNECT) {
-		lcd_out("%lu ws[%s][%u] [%s] connect\n", millis(), server->url(),
-				client->id(), client->remoteIP().toString().c_str());
+		lcd_out("ws[%s][%u] [%s] connect\n", server->url(), client->id(),
+				client->remoteIP().toString().c_str());
 
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
@@ -471,13 +475,30 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-	display.setCursor(0, lcd_y_pos);
-	display.print(loc_buf);
-	lcd_y_pos = lcd_y_pos + 10;
-	if (lcd_y_pos > 64) {
-		lcd_y_pos = 0;
-		display.clearDisplay();
+
+
+
+	if (len != 0) {
+		if (lcd_y_pos > (64 - 8)) {
+			lcd_y_pos = 0;
+			display.clear();
+		}
+
+		display.setFont(ArialMT_Plain_10);
+		display.drawString(0, lcd_y_pos, temp);
+		lcd_y_pos = lcd_y_pos + 8;
 	}
+
+	sprintf(tempStr, "%03d", mm);
+	display.setFont(ArialMT_Plain_16);
+	display.setColor(OLEDDISPLAY_COLOR::WHITE);
+	display.drawRect(90, 15, 30, 16);
+	display.setColor(OLEDDISPLAY_COLOR::BLACK);
+	display.fillRect(90+1, 15+1, 30-2, 16-2);
+	display.setColor(OLEDDISPLAY_COLOR::WHITE);
+	display.drawString(90, 15, tempStr);
+	display.display();
+
 //ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
 	Serial.flush();
@@ -571,9 +592,57 @@ void setup() {
 	esp_log_level_set("*", ESP_LOG_VERBOSE);
 	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
 	esp_log_level_set(TAG, ESP_LOG_VERBOSE);//esp_log_level_set("phy_init", ESP_LOG_INFO);
-	lcd_out("DoubeLifter START %d", 1);
-	Serial.println("Baud rate: 115200");
+
 	Serial.begin(115200);
+
+	byte error, address;
+	int nDevices;
+
+	Wire.begin(5, 4, 400000);
+
+	Serial.println("Scanning...");
+
+	nDevices = 0;
+	for (address = 1; address < 127; address++) {
+		// The i2c_scanner uses the return value of
+		// the Write.endTransmisstion to see if
+		// a device did acknowledge to the address.
+		Wire.beginTransmission(address);
+		error = Wire.endTransmission();
+
+		if (error == 0) {
+			Serial.print("I2C device found at address 0x");
+			if (address < 16)
+				Serial.print("0");
+			Serial.print(address, HEX);
+			Serial.println("  !");
+
+			nDevices++;
+		} else if (error == 4) {
+			Serial.print("Unknown error at address 0x");
+			if (address < 16)
+				Serial.print("0");
+			Serial.println(address, HEX);
+		}
+	}
+	if (nDevices == 0)
+		Serial.println("No I2C devices found\n");
+	else
+		Serial.println("done\n");
+
+	display.init(); // initialize with the I2C addr 0x3C (for the 128x64)
+
+	display.flipScreenVertically();
+	display.setFont(ArialMT_Plain_10);
+	display.setColor(OLEDDISPLAY_COLOR::WHITE);
+	display.setTextAlignment(TEXT_ALIGN_LEFT);
+	display.display();
+
+	delay(300);
+	Serial.println("Booted display...");
+	lcd_out("DoubeLifter START");
+	Serial.println("Baud rate: 115200");
+
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
 	lcd_out("Flash INIT\n");
@@ -584,26 +653,14 @@ void setup() {
 	} else
 		lcd_out("Flash init OK.\n");
 
-	display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
-	display.display();
-	delay(1000);
-
-	display.setTextSize(1);      // Normal 1:1 pixel scale
-	display.setTextColor(WHITE); // Draw white text
-	display.setCursor(0, 0);     // Start at top-left corner
-	display.cp437(true);         // Use full 256 char 'Code Page 437' font
-
 	Wire.begin();
 
-	if (!lox.begin()) {
-		Serial.println(F("Failed to boot VL53L0X"));
-		while (1)
-			;
+	if (lox.begin()) {
+		lcd_out("VL53L0X not present");
+		//while (1)
+	} else {
+		lcd_out("VL53L0X present");
 	}
-
-	// text display big!
-	display.setTextSize(4);
-	display.setTextColor(WHITE);
 
 	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
@@ -737,7 +794,7 @@ void setup() {
 			1,			    // uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
-	lcd_out("Starting pidTask...Done.\n");
+	lcd_out("Starting checkIP...Done.\n");
 
 	blink(5);
 	lcd_out("Setup Done.\n");
@@ -773,8 +830,20 @@ long delta;
 long start;
 void myLoop() {			//ArduinoOTA.handle();
 
+	VL53L0X_RangingMeasurementData_t measureData;
+	uint16_t previousMm = 0;
+
 //printEncoderInfo();
 	for (;;) {
+
+		lox.getSingleRangingMeasurement(&measureData, false);
+		mm = measureData.RangeMilliMeter;
+		if (mm != previousMm) {
+			Serial.printf("dist [mm]: %04d\n", mm);
+			lcd_out("");
+			previousMm = mm;
+		}
+
 		mySecond = esp_timer_get_time() / 1000000.0;
 		if (((mySecond % 5 == 0) && (previousSecond != mySecond))
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
@@ -821,7 +890,7 @@ void myLoop() {			//ArduinoOTA.handle();
 		}
 
 		if (restartNow) {
-			lcd_out("Restarting...\n");
+			//lcd_out("Restarting...\n");
 			ESP.restart();
 		}
 
