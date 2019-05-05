@@ -120,14 +120,16 @@ int lcd_y_pos = 0;
 char cstr[25];
 const char* hostName = "esp32_door";
 int jsonReportIntervalMs = 5000;
-int jsonFastReportIntervalMs = 150;
+int jsonFastReportIntervalMs = 500;
 int jsonSlowReportIntervalMs = 5000;
 uint32_t lastWsClient = -1;
 char tempStr[15];
-uint16_t mm = 0;
+float mm = 0;
 
 void lcd_out(const char*format, ...);
 void CheckIpTask(void * parameter);
+float WAF_WEIGHT = 0.1;
+float weightedAverageFilter(float incomingValue, float previousValue);
 
 String getToken(String data, char separator, int index) {
 	int found = 0;
@@ -200,7 +202,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
 		//client->ping();
-		jsonReportIntervalMs = jsonSlowReportIntervalMs;
+		jsonReportIntervalMs = jsonFastReportIntervalMs;
 		lastWsClient = client->id();
 
 	} else if (type == WS_EVT_DISCONNECT) {
@@ -475,9 +477,6 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-
-
-
 	if (len != 0) {
 		if (lcd_y_pos > (64 - 8)) {
 			lcd_y_pos = 0;
@@ -489,14 +488,14 @@ void lcd_out(const char*format, ...) {
 		lcd_y_pos = lcd_y_pos + 8;
 	}
 
-	sprintf(tempStr, "%03d", mm);
+	sprintf(tempStr, "%6.2f", mm);
 	display.setFont(ArialMT_Plain_16);
 	display.setColor(OLEDDISPLAY_COLOR::WHITE);
-	display.drawRect(90, 15, 30, 16);
+	display.drawRect(75, 15, 50, 16);
 	display.setColor(OLEDDISPLAY_COLOR::BLACK);
-	display.fillRect(90+1, 15+1, 30-2, 16-2);
+	display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
 	display.setColor(OLEDDISPLAY_COLOR::WHITE);
-	display.drawString(90, 15, tempStr);
+	display.drawString(75, 15, tempStr);
 	display.display();
 
 //ESP_LOGI(TAG, "%s", temp);
@@ -831,15 +830,15 @@ long start;
 void myLoop() {			//ArduinoOTA.handle();
 
 	VL53L0X_RangingMeasurementData_t measureData;
-	uint16_t previousMm = 0;
+	float previousMm = 0;
 
 //printEncoderInfo();
 	for (;;) {
 
 		lox.getSingleRangingMeasurement(&measureData, false);
-		mm = measureData.RangeMilliMeter;
-		if (mm != previousMm) {
-			Serial.printf("dist [mm]: %04d\n", mm);
+		if (measureData.RangeStatus == 0) {
+			mm = weightedAverageFilter((float) measureData.RangeMilliMeter,
+					previousMm);
 			lcd_out("");
 			previousMm = mm;
 		}
@@ -849,6 +848,7 @@ void myLoop() {			//ArduinoOTA.handle();
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+			Serial.printf("dist [mm]: %6.2f\n", mm);
 //			lcd_out(
 //					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
 //					mySecond, timeH, xPortGetCoreID(), freeheap,
@@ -865,7 +865,8 @@ void myLoop() {			//ArduinoOTA.handle();
 			previousSecond = mySecond;
 			previousMs = millis();
 		}
-		heap_caps_check_integrity_all(true);
+
+		//heap_caps_check_integrity_all(true);
 
 		esp_err_t resetOK = esp_task_wdt_reset();
 		if (resetOK != ESP_OK) {
@@ -905,6 +906,8 @@ void myLoop() {			//ArduinoOTA.handle();
 			sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
 			events.send(cstr, "myevent", millis());
 			sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
+			events.send(cstr, "myevent", millis());
+			sprintf(cstr, "{\"mm\":%.2f}", mm);
 			events.send(cstr, "myevent", millis());
 
 			previousJsonSentMs = millis();
@@ -1009,4 +1012,12 @@ void CheckIpTask(void * parameter) {
 	}
 
 	vTaskDelete(NULL);
+}
+
+float weightedAverageFilter(float incomingValue, float previousValue) { // See https://www.tigoe.com/pcomp/code/arduinowiring/37/
+
+	float filteredReading = WAF_WEIGHT * incomingValue
+			+ (1.0 - WAF_WEIGHT) * previousValue;
+	return filteredReading;
+
 }
