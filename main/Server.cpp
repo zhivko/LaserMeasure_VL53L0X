@@ -31,8 +31,9 @@
 //#include <Adafruit_SSD1306.h>
 #include "SSD1306.h"
 //#include <Adafruit_GFX.h>
-#include "Adafruit_VL53L0X.h"
-#include <vl53l0x_def.h>
+//#include "Adafruit_VL53L0X.h"
+
+#include <VL53L0X.h>
 
 #include "debug/lwip_debug.h"
 #include "lwip/debug.h"
@@ -91,7 +92,8 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 #endif
 
 //Adafruit_SSD1306 display = Adafruit_SSD1306();
-Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+VL53L0X lox;
+
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 
 String ssid;
@@ -654,11 +656,12 @@ void setup() {
 
 	Wire.begin();
 
-	if (lox.begin()) {
+	if (lox.init()) {
 		lcd_out("VL53L0X not present");
 		//while (1)
 	} else {
 		lcd_out("VL53L0X present");
+		lox.setTimeout(500);
 	}
 
 	lcd_out("Loading WIFI setting\n");
@@ -829,26 +832,22 @@ long delta;
 long start;
 void myLoop() {			//ArduinoOTA.handle();
 
-	VL53L0X_RangingMeasurementData_t measureData;
 	float previousMm = 0;
 
 //printEncoderInfo();
 	for (;;) {
+		mm = weightedAverageFilter((float) lox.readRangeContinuousMillimeters(),
+				previousMm);
+		lcd_out("");
+		previousMm = mm;
+	}
 
-		lox.getSingleRangingMeasurement(&measureData, false);
-		if (measureData.RangeStatus == 0) {
-			mm = weightedAverageFilter((float) measureData.RangeMilliMeter,
-					previousMm);
-			lcd_out("");
-			previousMm = mm;
-		}
-
-		mySecond = esp_timer_get_time() / 1000000.0;
-		if (((mySecond % 5 == 0) && (previousSecond != mySecond))
-				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+	mySecond = esp_timer_get_time() / 1000000.0;
+	if (((mySecond % 5 == 0) && (previousSecond != mySecond))
+			|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
-			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			Serial.printf("dist [mm]: %6.2f\n", mm);
+		timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+		Serial.printf("dist [mm]: %6.2f\n", mm);
 //			lcd_out(
 //					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
 //					mySecond, timeH, xPortGetCoreID(), freeheap,
@@ -858,62 +857,61 @@ void myLoop() {			//ArduinoOTA.handle();
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 #endif
-			//dbg_lwip_stats_show();
-			heap_caps_check_integrity_all(true);
-			if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
-				previousHeap = ESP.getFreeHeap();
-			previousSecond = mySecond;
-			previousMs = millis();
-		}
+		//dbg_lwip_stats_show();
+		heap_caps_check_integrity_all(true);
+		if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
+			previousHeap = ESP.getFreeHeap();
+		previousSecond = mySecond;
+		previousMs = millis();
+	}
 
-		//heap_caps_check_integrity_all(true);
+	//heap_caps_check_integrity_all(true);
 
-		esp_err_t resetOK = esp_task_wdt_reset();
-		if (resetOK != ESP_OK) {
-			//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
-		}
+	esp_err_t resetOK = esp_task_wdt_reset();
+	if (resetOK != ESP_OK) {
+		//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
+	}
 
-		if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
-			/*
-			 Serial.print("Setting setpoint ");
-			 if (target1 <= 15000) {
-			 target1 = 15300;
-			 target2 = 15300;
-			 } else {
-			 target1 = 15000;
-			 target2 = 15000;
-			 Serial.printf("%f\n", pid1.getSetpoint());
-			 }
-			 Serial.printf("%f\n", target1);
-			 */
-			//heap_caps_print_heap_info(MALLOC_CAP_8BIT);
-			//previousSecondSetter = mySecond;
-		}
+	if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
+		/*
+		 Serial.print("Setting setpoint ");
+		 if (target1 <= 15000) {
+		 target1 = 15300;
+		 target2 = 15300;
+		 } else {
+		 target1 = 15000;
+		 target2 = 15000;
+		 Serial.printf("%f\n", pid1.getSetpoint());
+		 }
+		 Serial.printf("%f\n", target1);
+		 */
+		//heap_caps_print_heap_info(MALLOC_CAP_8BIT);
+		//previousSecondSetter = mySecond;
+	}
 
-		if (restartNow) {
-			//lcd_out("Restarting...\n");
-			ESP.restart();
-		}
+	if (restartNow) {
+		//lcd_out("Restarting...\n");
+		ESP.restart();
+	}
 
-		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
+	if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
 #if enableTaskManager != 1
-			Serial.printf(
-					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
-					mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
-					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+		Serial.printf(
+				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
+				mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
+				heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 #endif
 
-			sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
-			events.send(cstr, "myevent", millis());
-			sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
-			events.send(cstr, "myevent", millis());
-			sprintf(cstr, "{\"mm\":%.2f}", mm);
-			events.send(cstr, "myevent", millis());
+		sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
+		events.send(cstr, "myevent", millis());
+		sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
+		events.send(cstr, "myevent", millis());
+		sprintf(cstr, "{\"mm\":%.2f}", mm);
+		events.send(cstr, "myevent", millis());
 
-			previousJsonSentMs = millis();
-		}
-		vTaskDelay(30 / portTICK_PERIOD_MS);
+		previousJsonSentMs = millis();
 	}
+	vTaskDelay(30 / portTICK_PERIOD_MS);
 }
 
 void loop() {
