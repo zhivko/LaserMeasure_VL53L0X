@@ -19,4 +19,9 @@
 [submodule "components/vl53l0x-arduino"]
 	path = components/vl53l0x-arduino
 	url = https://github.com/pololu/vl53l0x-arduino.git
-	
+[submodule "components/Adafruit_VL53L0X"]
+        path = components/Adafruit_VL53L0X.git
+        url = https://github.com/pololu/Adafruit_VL53L0X.git
+[submodule "components/esp8266-oled-ssd1306"]
+        path = components/esp8266-oled-ssd1306
+        url = https://github.com/ThingPulse/esp8266-oled-ssd1306.git
