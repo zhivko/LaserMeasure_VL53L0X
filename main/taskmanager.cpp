@@ -98,6 +98,6 @@ void taskmanageTask(void * pvParameters) {
 		if (err != ESP_OK) {
 			log_e("Failed to feed WDT! Error: %d", err);
 		}
-		delay(4000);
+		delay(25000);
 	}
 }

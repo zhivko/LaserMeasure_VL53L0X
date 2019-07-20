@@ -7,21 +7,10 @@
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
-[submodule "components/esp32-I2Cbus"]
-	path = components/esp32-I2Cbus
-	url = https://github.com/natanaeljr/esp32-I2Cbus.git 
-[submodule "components/arduinoWebSockets"]
-	path = components/arduinoWebSockets
-	url = https://github.com/Links2004/arduinoWebSockets.git 
 [submodule "components/esp8266-oled-ssd1306s"]
 	path = components/esp8266-oled-ssd1306
 	url = https://github.com/ThingPulse/esp8266-oled-ssd1306.git
-[submodule "components/vl53l0x-arduino"]
-	path = components/vl53l0x-arduino
-	url = https://github.com/pololu/vl53l0x-arduino.git
-[submodule "components/Adafruit_VL53L0X"]
-        path = components/Adafruit_VL53L0X.git
-        url = https://github.com/pololu/Adafruit_VL53L0X.git
-[submodule "components/esp8266-oled-ssd1306"]
-        path = components/esp8266-oled-ssd1306
-        url = https://github.com/ThingPulse/esp8266-oled-ssd1306.git
+[submodule "components/vl53l1x-arduino"]
+	path = components/vl53l1x-arduino
+	url = https://github.com/pololu/vl53l1x-arduino.git
+

@@ -1,6 +1,6 @@
 # Laser distance sensor VL53L0 with diycc esp32 batery 18650 module 
 
-Starts a esp-idf firmware for Laser VL53L0X sensor - i2c communication running on WiFi Bluetooth ESP32 18650 Battery Development Board Module 
+Starts a esp-idf firmware for Laser VL53L1X sensor - i2c communication running on WiFi Bluetooth ESP32 18650 Battery Development Board Module 
 
 
 
@@ -21,6 +21,10 @@ pinouts<br>
 [![pinouts_diymore_18650_ssd1306_module.jpg](https://github.com/zhivko/LaserMeasure_VL53L0X/blob/master/pinouts_diymore_18650_ssd1306_module.jpg)]
 
 i2c ssd1306 module
-
 ![project in action](https://github.com/zhivko/LaserMeasure_VL53L0X/blob/master/IMG_20190505_170954.jpg)
+
+Aftern cloning repository issue:
+```
+git submodule update --init
+```
 

@@ -31,8 +31,10 @@
 //#include <Adafruit_SSD1306.h>
 #include "SSD1306.h"
 //#include <Adafruit_GFX.h>
-#include "Adafruit_VL53L0X.h"
-#include <vl53l0x_def.h>
+//#include "Adafruit_VL53L0X.h"
+#include "VL53L1X.h"
+//#include <vl53l0x_def.h>
+//#include "VL53L0X.h"
 
 #include "debug/lwip_debug.h"
 #include "lwip/debug.h"
@@ -91,7 +93,8 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 #endif
 
 //Adafruit_SSD1306 display = Adafruit_SSD1306();
-Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+//Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 
 String ssid;
@@ -128,7 +131,7 @@ float mm = 0;
 
 void lcd_out(const char*format, ...);
 void CheckIpTask(void * parameter);
-float WAF_WEIGHT = 0.1;
+float WAF_WEIGHT = 0.25;
 float weightedAverageFilter(float incomingValue, float previousValue);
 
 String getToken(String data, char separator, int index) {
@@ -461,6 +464,8 @@ void startServer() {
 void syncTime();
 
 void lcd_out(const char*format, ...) {
+	bool lcdDisplay = true;
+
 	char loc_buf[255];
 	char * temp = loc_buf;
 	va_list arg;
@@ -477,26 +482,30 @@ void lcd_out(const char*format, ...) {
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
 
-	if (len != 0) {
-		if (lcd_y_pos > (64 - 8)) {
-			lcd_y_pos = 0;
-			display.clear();
-		}
+	if (lcdDisplay) {
+		if (len != 0) {
+			if (lcd_y_pos > (64 - 8)) {
+				lcd_y_pos = 0;
+				display.clear();
+			}
 
-		display.setFont(ArialMT_Plain_10);
-		display.drawString(0, lcd_y_pos, temp);
-		lcd_y_pos = lcd_y_pos + 8;
+			display.setFont(ArialMT_Plain_10);
+			display.drawStringMaxWidth(0, lcd_y_pos, 128, temp);
+			lcd_y_pos = lcd_y_pos + 8;
+		}
+		display.setFont(ArialMT_Plain_16);
+		display.setColor(OLEDDISPLAY_COLOR::WHITE);
+		display.drawRect(75, 15, 50, 16);
+		display.setColor(OLEDDISPLAY_COLOR::BLACK);
+		display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
+		display.setColor(OLEDDISPLAY_COLOR::WHITE);
+		char buff[6];
+		sprintf(buff, "%6.2f", mm);
+		display.drawStringMaxWidth(75, 15, 128, buff);
+		display.display();
 	}
 
 	sprintf(tempStr, "%6.2f", mm);
-	display.setFont(ArialMT_Plain_16);
-	display.setColor(OLEDDISPLAY_COLOR::WHITE);
-	display.drawRect(75, 15, 50, 16);
-	display.setColor(OLEDDISPLAY_COLOR::BLACK);
-	display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
-	display.setColor(OLEDDISPLAY_COLOR::WHITE);
-	display.drawString(75, 15, tempStr);
-	display.display();
 
 //ESP_LOGI(TAG, "%s", temp);
 	Serial.printf("%s", temp);
@@ -588,9 +597,10 @@ void Task1(void * parameter) {
 
 void setup() {
 	Serial.setDebugOutput(true);
-	esp_log_level_set("*", ESP_LOG_VERBOSE);
-	esp_log_level_set("I2Cbus", ESP_LOG_WARN);
-	esp_log_level_set(TAG, ESP_LOG_VERBOSE);//esp_log_level_set("phy_init", ESP_LOG_INFO);
+
+	esp_log_level_set("*", ESP_LOG_DEBUG);
+	//esp_log_level_set("I2Cbus", ESP_LOG_DEBUG);
+	//esp_log_level_set(TAG, ESP_LOG_VERBOSE);//esp_log_level_set("phy_init", ESP_LOG_INFO);
 
 	Serial.begin(115200);
 
@@ -653,13 +663,20 @@ void setup() {
 		lcd_out("Flash init OK.\n");
 
 	Wire.begin();
+	Wire.setClock(400000);
 
-	if (lox.begin()) {
-		lcd_out("VL53L0X not present");
-		//while (1)
+	sensor.setTimeout(500);
+	if (!sensor.init()) {
+		while (1) {
+			lcd_out("VL53L1X NOT present\n");
+			delay(1000);
+		}
 	} else {
-		lcd_out("VL53L0X present");
+		lcd_out("VL53L1X present\n");
 	}
+	sensor.setDistanceMode(VL53L1X::Short);
+	sensor.setMeasurementTimingBudget(50000);
+	sensor.startContinuous(50);
 
 	lcd_out("Loading WIFI setting\n");
 	preferences.begin("settings", false);
@@ -752,17 +769,17 @@ void setup() {
 	disableCore1WDT();
 
 #if enableEncSaver == 1
-	lcd_out("Starting encoder saver...");
-	Serial.flush();
-	xTaskCreatePinnedToCore(encoderSaverTask,			// pvTaskCode
-			"EncoderSaver",			// pcName
-			4096,			// usStackDepth
-			NULL,			// pvParameters
-			22,			// uxPriority
-			&TaskEncSaver,			// pxCreatedTask
-			encoderSaverCore);			// xCoreID
-	lcd_out("Starting encoder saver task...Done.\n");
-	Serial.flush();
+		lcd_out("Starting encoder saver...");
+		Serial.flush();
+		xTaskCreatePinnedToCore(encoderSaverTask,			// pvTaskCode
+				"EncoderSaver",// pcName
+				4096,// usStackDepth
+				NULL,// pvParameters
+				22,// uxPriority
+				&TaskEncSaver,// pxCreatedTask
+				encoderSaverCore);// xCoreID
+		lcd_out("Starting encoder saver task...Done.\n");
+		Serial.flush();
 #endif
 
 //mover.attach_ms(10, move);
@@ -787,10 +804,10 @@ void setup() {
 	lcd_out("Starting checkIP task...\n");
 	Serial.flush();
 	xTaskCreatePinnedToCore(CheckIpTask,			// pvTaskCode
-			"checkIpTask",	// pcName
+			"checkIpTask",			// pcName
 			6096,			// usStackDepth
 			NULL,			// pvParameters
-			1,			    // uxPriority
+			1,			// uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
 	lcd_out("Starting checkIP...Done.\n");
@@ -829,34 +846,36 @@ long delta;
 long start;
 void myLoop() {			//ArduinoOTA.handle();
 
-	VL53L0X_RangingMeasurementData_t measureData;
 	float previousMm = 0;
 
 //printEncoderInfo();
 	for (;;) {
-
-		lox.getSingleRangingMeasurement(&measureData, false);
-		if (measureData.RangeStatus != 4) {
-			mm = weightedAverageFilter((float) measureData.RangeMilliMeter,
+		sensor.read();
+		if (!sensor.timeoutOccurred()) {
+			mm = weightedAverageFilter(sensor.ranging_data.range_mm,
 					previousMm);
-			lcd_out("");
 			previousMm = mm;
+			Serial.printf("dist [mm]: %6.2f\n", mm);
+		} else {
+			Serial.printf("Status: %s\n",
+					sensor.rangeStatusToString(
+							sensor.ranging_data.range_status));
 		}
 
 		mySecond = esp_timer_get_time() / 1000000.0;
-		if (((mySecond % 5 == 0) && (previousSecond != mySecond))
+		if (((mySecond % 3 == 0) && (previousSecond != mySecond))
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
+			lcd_out("");
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			Serial.printf("dist [mm]: %6.2f\n", mm);
 //			lcd_out(
 //					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
 //					mySecond, timeH, xPortGetCoreID(), freeheap,
 //					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
 //					ws._buffers.length());
 #else
-			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
-			lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
+				timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
+				lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 #endif
 			//dbg_lwip_stats_show();
 			heap_caps_check_integrity_all(true);
@@ -943,7 +962,7 @@ void app_main() {
 
 	setup();
 
-	lcd_out("Starting LoopTask...");
+	lcd_out("Starting LoopTask...\n");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Loop,							// pvTaskCode
 			"MyLoop",							// pcName
