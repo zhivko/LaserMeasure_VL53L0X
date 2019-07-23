@@ -1,4 +1,4 @@
-# Laser distance sensor VL53L0 with diycc esp32 batery 18650 module 
+# Laser distance sensor VL53L1X with diycc esp32 batery 18650 module 
 
 Starts a esp-idf firmware for Laser VL53L1X sensor - i2c communication running on WiFi Bluetooth ESP32 18650 Battery Development Board Module 
 

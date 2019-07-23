@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 #include "Arduino.h"
+#include <vector>
 #include <Wire.h>
 #include <SPI.h>
 #include "lwip/inet.h"
@@ -96,6 +97,9 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 //Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
+char buff[255];
+char* buff0;
+bool lcdInUse =false;
 
 String ssid;
 String password;
@@ -130,6 +134,9 @@ char tempStr[15];
 float mm = 0;
 
 void lcd_out(const char*format, ...);
+std::vector<String> disp;
+
+
 void CheckIpTask(void * parameter);
 float WAF_WEIGHT = 0.25;
 float weightedAverageFilter(float incomingValue, float previousValue);
@@ -173,7 +180,7 @@ String processInput(const char *input) {
 		printf("wificonnect ssid: %s, password: ***\n", ssid.c_str());
 
 		ret.concat("MLIFT restart.");
-		lcd_out("wificonnect ssid: %s\n", ssid.c_str());
+		lcd_out("wificonnect ssid: %s", ssid.c_str());
 		esp_restart();
 	} else if (strcmp(input, "scan") == 0) {
 		//vTaskSuspend(reportJsonTask);
@@ -199,7 +206,7 @@ void processWsData(const char *data) {
 void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 		AwsEventType type, void * arg, uint8_t *data, size_t len) {
 	if (type == WS_EVT_CONNECT) {
-		lcd_out("ws[%s][%u] [%s] connect\n", server->url(), client->id(),
+		lcd_out("ws[%s][%u] [%s] connect", server->url(), client->id(),
 				client->remoteIP().toString().c_str());
 
 		//client->printf("Hello Client %u :)", client->id());
@@ -210,15 +217,15 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 
 	} else if (type == WS_EVT_DISCONNECT) {
 //client disconnected
-		lcd_out("%lu ws[%s][%u] [%s] disconnect\n", millis(), server->url(),
+		lcd_out("%lu ws[%s][%u] [%s] disconnect", millis(), server->url(),
 				client->id(), client->remoteIP().toString().c_str());
 	} else if (type == WS_EVT_ERROR) {
 //error was received from the other end
-		lcd_out("%lu ws[%s][%u] error(%u): %s\n", millis(), server->url(),
+		lcd_out("%lu ws[%s][%u] error(%u): %s", millis(), server->url(),
 				client->id(), *((uint16_t*) arg), (char*) data);
 	} else if (type == WS_EVT_PONG) {
 //pong message was received (in response to a ping request maybe)
-		lcd_out("%lu ws[%s][%u] pong[%u]: %s\n", millis(), server->url(),
+		lcd_out("%lu ws[%s][%u] pong[%u]: %s", millis(), server->url(),
 				client->id(), len, (len) ? (char*) data : "");
 	} else if (type == WS_EVT_DATA) {
 //data packet
@@ -360,7 +367,7 @@ void startServer() {
 					Serial.printf("Write: %d bytes\n", len);
 				}
 				if(final) {
-					lcd_out("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+					lcd_out("UploadEnd: %s (%u)", filename.c_str(), index+len);
 					if (Update.end(true)) {
 						lcd_out("Update succesful!");
 						restartNow = true;
@@ -456,7 +463,7 @@ void startServer() {
 	});
 
 	server.begin();
-	lcd_out("WebServer started.\n");
+	lcd_out("WebServer started.");
 
 	MDNS.addService("http", "tcp", 80);
 }
@@ -464,8 +471,11 @@ void startServer() {
 void syncTime();
 
 void lcd_out(const char*format, ...) {
+	if(lcdInUse)
+		return;
 	bool lcdDisplay = true;
 
+	lcdInUse = true;
 	char loc_buf[255];
 	char * temp = loc_buf;
 	va_list arg;
@@ -477,45 +487,51 @@ void lcd_out(const char*format, ...) {
 	if (len >= sizeof(loc_buf)) {
 		temp = new char[len + 1];
 		if (temp == NULL) {
+			lcdInUse = false;
 			return;
 		}
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
-
-	if (lcdDisplay) {
-		if (len != 0) {
-			if (lcd_y_pos > (64 - 8)) {
-				lcd_y_pos = 0;
-				display.clear();
-			}
-
-			display.setFont(ArialMT_Plain_10);
-			display.drawStringMaxWidth(0, lcd_y_pos, 128, temp);
-			lcd_y_pos = lcd_y_pos + 8;
+	if(len>1)
+	{
+		disp.insert (disp.begin(), String(temp));
+		if(disp.size()>5)
+		{
+			//char* latest = disp.at(disp.size()-1);
+			//delete latest;
+			disp.pop_back();
+			//char* value = disp.at(disp.size());
+			//delete value;
 		}
-		display.setFont(ArialMT_Plain_16);
-		display.setColor(OLEDDISPLAY_COLOR::WHITE);
-		display.drawRect(75, 15, 50, 16);
-		display.setColor(OLEDDISPLAY_COLOR::BLACK);
-		display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
-		display.setColor(OLEDDISPLAY_COLOR::WHITE);
-		char buff[6];
-		sprintf(buff, "%6.2f", mm);
-		display.drawStringMaxWidth(75, 15, 128, buff);
-		display.display();
 	}
 
-	sprintf(tempStr, "%6.2f", mm);
+	if (lcdDisplay) {
+		sprintf(buff, "dis: %6.2fmm up: %5.1fh", mm, timeH);
+		display.clear();
+		//display.setFont(ArialMT_Plain_10);
+		delayMicroseconds(500);
+		//Serial.printf("disp size: %d", disp.size());
+		for(int i=0; i<disp.size(); i++)
+		{
+			display.drawString(0, i*8, disp.at(i));
+		}
 
-//ESP_LOGI(TAG, "%s", temp);
-	Serial.printf("%s", temp);
-	Serial.flush();
-
+		//display.setFont(ArialMT_Plain_16);
+		//display.setColor(OLEDDISPLAY_COLOR::WHITE);
+		//display.drawRect(75, 15, 50, 16);
+		//display.setColor(OLEDDISPLAY_COLOR::BLACK);
+		//display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
+		//display.setColor(OLEDDISPLAY_COLOR::WHITE);
+		display.drawStringMaxWidth(0, 50, 160, buff);
+		display.display();
+		delayMicroseconds(500);
+	}
 	va_end(arg);
+	//Serial.printf("%s %d %s\n", temp, len, buff);
 	if (len >= sizeof(loc_buf)) {
 		delete[] temp;
 	}
-
+	lcdInUse= false;
 }
 
 void listDir(fs::FS & fs, const char * dirname, uint8_t levels) {
@@ -654,13 +670,13 @@ void setup() {
 
 	Serial.print("ESP ChipSize:");
 	Serial.println(ESP.getFlashChipSize());
-	lcd_out("Flash INIT\n");
+	lcd_out("Flash INIT");
 	if (nvs_flash_init() != ESP_OK) {
-		lcd_out("Flash init FAILED!\n");
+		lcd_out("Flash init FAILED!");
 		nvs_flash_init_partition("nvs");
 		nvs_flash_init();
 	} else
-		lcd_out("Flash init OK.\n");
+		lcd_out("Flash init OK.");
 
 	Wire.begin();
 	Wire.setClock(400000);
@@ -668,17 +684,17 @@ void setup() {
 	sensor.setTimeout(500);
 	if (!sensor.init()) {
 		while (1) {
-			lcd_out("VL53L1X NOT present\n");
+			lcd_out("VL53L1X NOT present");
 			delay(1000);
 		}
 	} else {
-		lcd_out("VL53L1X present\n");
+		lcd_out("VL53L1X present");
 	}
 	sensor.setDistanceMode(VL53L1X::Short);
-	sensor.setMeasurementTimingBudget(50000);
-	sensor.startContinuous(50);
+	sensor.setMeasurementTimingBudget(90000);
+	sensor.startContinuous(100);
 
-	lcd_out("Loading WIFI setting\n");
+	lcd_out("Loading WIFI setting");
 	preferences.begin("settings", false);
 	ssid = preferences.getString("wifi_ssid", "null");
 //ssid = "null";
@@ -691,11 +707,11 @@ void setup() {
 	}
 //password = "klemenklemen";
 //ssid = "SINTEX";
-	lcd_out(String(" ssid:     " + ssid + "\n").c_str());
-	lcd_out(String(" pass:     " + password + "\n").c_str());
+	lcd_out(String(" ssid:     " + ssid + "").c_str());
+	lcd_out(String(" pass:     " + password + "").c_str());
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		lcd_out("Wifi lost connection.\n");
+		lcd_out("Wifi lost connection.");
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -716,7 +732,7 @@ void setup() {
 						"OPEN" : "PASS");
 				ret.concat(wifiData);
 				ret.concat("\n");
-				lcd_out(String(wifiData + "\n").c_str());
+				//lcd_out(String(wifiData + "\n").c_str());
 			}
 
 #ifdef arduinoWebserver
@@ -747,7 +763,7 @@ void setup() {
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
+		lcd_out("SYSTEM_EVENT_GOT_IP6");
 		//sstartServer();
 		}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -778,7 +794,7 @@ void setup() {
 				22,// uxPriority
 				&TaskEncSaver,// pxCreatedTask
 				encoderSaverCore);// xCoreID
-		lcd_out("Starting encoder saver task...Done.\n");
+		lcd_out("Starting encoder saver task...Done.");
 		Serial.flush();
 #endif
 
@@ -801,7 +817,7 @@ void setup() {
 	WiFi.begin(ssid.c_str(), password.c_str());
 	WiFi.setSleep(false);
 
-	lcd_out("Starting checkIP task...\n");
+	lcd_out("Starting checkIP task...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(CheckIpTask,			// pvTaskCode
 			"checkIpTask",			// pcName
@@ -810,10 +826,10 @@ void setup() {
 			1,			// uxPriority
 			&TaskCheckIp,			// pxCreatedTask
 			0);			// xCoreID
-	lcd_out("Starting checkIP...Done.\n");
+	lcd_out("Starting checkIP...Done.");
 
 	blink(5);
-	lcd_out("Setup Done.\n");
+	lcd_out("Setup Done.");
 }
 
 /*
@@ -850,12 +866,13 @@ void myLoop() {			//ArduinoOTA.handle();
 
 //printEncoderInfo();
 	for (;;) {
-		sensor.read();
+		sensor.read(true);
 		if (!sensor.timeoutOccurred()) {
 			mm = weightedAverageFilter(sensor.ranging_data.range_mm,
 					previousMm);
 			previousMm = mm;
-			Serial.printf("dist [mm]: %6.2f\n", mm);
+			//Serial.printf("dist [mm]: %6.2f\n", mm);
+			lcd_out("");
 		} else {
 			Serial.printf("Status: %s\n",
 					sensor.rangeStatusToString(
@@ -866,7 +883,6 @@ void myLoop() {			//ArduinoOTA.handle();
 		if (((mySecond % 3 == 0) && (previousSecond != mySecond))
 				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
-			lcd_out("");
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 //			lcd_out(
 //					"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u wsLength: %d\n",
@@ -962,7 +978,7 @@ void app_main() {
 
 	setup();
 
-	lcd_out("Starting LoopTask...\n");
+	lcd_out("Starting LoopTask...");
 	Serial.flush();
 	xTaskCreatePinnedToCore(Loop,							// pvTaskCode
 			"MyLoop",							// pcName
@@ -972,7 +988,7 @@ void app_main() {
 			&TaskLoop,							// pxCreatedTask
 			0);							// xCoreID
 	esp_task_wdt_add(TaskLoop);
-	lcd_out("Starting LoopTask...Done.\n");
+	lcd_out("Starting LoopTask...Done.");
 	Serial.flush();
 
 	/*
@@ -1024,9 +1040,8 @@ void CheckIpTask(void * parameter) {
 		ESP_ERROR_CHECK(
 				tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 		str2 = inet_ntoa(ip_info);
-		String buf("WiFi STA IP: ");
+		String buf("IP: ");
 		buf.concat(str2);
-		buf.concat("\n");
 		lcd_out(buf.c_str());
 	}
 
