@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head>
-    <title>ESP32 & VL53L0 laser measurement</title>
+    <title>ESP32 & VL53L1X laser measurement</title>
 	<meta charset="UTF-8">
 	<script type="text/javascript" src="script.js"></script>
 	
@@ -16,7 +16,7 @@
   </head>
   <body>
 
-  <h1>ESP32 & VL53L0 laser measurement</h1>
+  <h1>ESP32 & VL53L1X laser measurement</h1>
 	
 <p>
 Distance [mm]:        <a id="mm"></a><br>
@@ -24,7 +24,7 @@ FreeHeap [bytes]:<a id="esp32_heap"></a><br>
 Uptime [hour]:   <a id="uptime_h"></a><br>
 
 <p>
-<button onMouseDown="doSendCommand('scan')" type="button">Scan</button>
+<button onMouseDown="doSendCommand('scan')" type="button">WiFi Scan for WiFi Access points</button>
 
 <div id="output"></div>
 

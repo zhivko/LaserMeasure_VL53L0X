@@ -1,20 +1,17 @@
 # Laser distance sensor VL53L1X with diycc esp32 batery 18650 module 
 
-Starts a esp-idf firmware for Laser VL53L1X sensor - i2c communication running on WiFi Bluetooth ESP32 18650 Battery Development Board Module 
-
-
-
+An esp32 - esp-idf firmware for Laser VL53L1X sensor - i2c communication running on WiFi Bluetooth ESP32 18650 Battery Development Board Module 
 
 [diymore cc esp32 batery ssd1306](https://www.diymore.cc/collections/wifi-module/products/diymore-esp32-0-96-inch-oled-display-wifi-bluetooth-18650-battery-shield-development-board-cp2102-module-for-arduino)
 
-18650 charging system integrated.
-Indicated LED inside(Green means full& Red means charging).
-Charging and working could be at the same time.
-1 Switch could control the power.
-1 extra LED could be programmed(Connected with GPIO16[D0]).
-0.5A charging current; 1A output.
-Over charge protection; Over discharge protection.
-Full ESP32 pins break out.
+	18650 charging system integrated.
+	Indicated LED inside(Green means full& Red means charging).
+	Charging and working could be at the same time.
+	1 Switch could control the power.
+	1 extra LED could be programmed(Connected with GPIO16[D0]).
+	0.5A charging current; 1A output.
+	Over charge protection; Over discharge protection.
+	Full ESP32 pins break out.
 
 
 pinouts<br>
@@ -27,4 +24,10 @@ Aftern cloning repository issue:
 ```
 git submodule update --init
 ```
+
+Example of device in operation:
+![project in action](https://photos.app.goo.gl/GHPAdg8sywpEcgj76)
+
+
+
 
