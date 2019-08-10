@@ -183,18 +183,14 @@ function onMessage(evt)
 			}
 			else
 			{
-				writeToScreen('<span style="color: blue;">'+allData[i]+'</span>');
+				var res = allData[i].split(' ');
+				if (res.length==3 && res[0] == 'distance:')
+				{
+					document.getElementById("mm").textContent = res[1];
+				}				
 			}
 		}
-		var res = evt.data.split(' ');
-		if (res.length==2 && res[0] == 'motor1_pos')
-		{
-			document.getElementById("motor1_pos").textContent = res[1];
-		}
-		if (res.length==2 && res[0] == 'motor2_pos')
-		{		
-			document.getElementById("motor2_pos").textContent = res[1];
-		}
+
 	}
 	websocket.send('ok');
 }

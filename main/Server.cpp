@@ -98,6 +98,8 @@ static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in 
 VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 char buff[255];
+char wsBuf[30];
+
 char* buff0;
 bool lcdInUse = false;
 
@@ -137,7 +139,7 @@ void lcd_out(const char*format, ...);
 std::vector<String> disp;
 
 void CheckIpTask(void * parameter);
-float WAF_WEIGHT = 0.25;
+float WAF_WEIGHT = 0.4;
 float weightedAverageFilter(float incomingValue, float previousValue);
 
 String getToken(String data, char separator, int index) {
@@ -207,7 +209,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 	if (type == WS_EVT_CONNECT) {
 		lcd_out("ws[%s][%u] [%s] connect", server->url(), client->id(),
 				client->remoteIP().toString().c_str());
-
+		Serial.printf("Client %s connected.\n", client->remoteIP().toString().c_str());
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
 		//client->ping();
@@ -686,8 +688,8 @@ void setup() {
 	} else {
 		lcd_out("VL53L1X present");
 	}
-	sensor.setDistanceMode(VL53L1X::Short);
 	sensor.setMeasurementTimingBudget(90000);
+	sensor.setDistanceMode(VL53L1X::Short);
 	sensor.startContinuous(100);
 
 	lcd_out("Loading WIFI setting");
@@ -756,7 +758,7 @@ void setup() {
 //		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 //	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-	    lcd_out("IP: %s",WiFi.localIP().toString().c_str());
+		lcd_out("IP: %s",WiFi.localIP().toString().c_str());
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -860,17 +862,30 @@ long start;
 void myLoop() {			//ArduinoOTA.handle();
 
 	float previousMm = 0;
+	int previousRoundMm = 0;
 
 //printEncoderInfo();
 	for (;;) {
 		if (!lcdInUse) {
 			sensor.read(true);
-			if (!sensor.timeoutOccurred()) {
+			if (!sensor.timeoutOccurred() && sensor.ranging_data.range_status == 0) {
 				mm = weightedAverageFilter(sensor.ranging_data.range_mm,
 						previousMm);
 				previousMm = mm;
 				//Serial.printf("dist [mm]: %6.2f\n", mm);
 				lcd_out("");
+
+				if (ws.count() > 0) {
+					//float roundMm = static_cast<float>(static_cast<int>(mm * 10.)) / 10.;
+					int roundMm = round(mm);
+					if (previousRoundMm != roundMm)
+					{
+						sprintf(wsBuf, "distance: %d mm", roundMm);
+						ws.textAll(wsBuf);
+						previousRoundMm = roundMm;
+					}
+				}
+
 			} else {
 				Serial.printf("Status: %s\n",
 						sensor.rangeStatusToString(
@@ -937,12 +952,6 @@ void myLoop() {			//ArduinoOTA.handle();
 					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 #endif
 
-			sprintf(cstr, "{\"esp32_heap\":%zu}", esp_get_free_heap_size());
-			events.send(cstr, "myevent", millis());
-			sprintf(cstr, "{\"uptime_h\":%.2f}", timeH);
-			events.send(cstr, "myevent", millis());
-			sprintf(cstr, "{\"mm\":%.2f}", mm);
-			events.send(cstr, "myevent", millis());
 
 			previousJsonSentMs = millis();
 		}
