@@ -99,7 +99,7 @@ VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 char buff[255];
 char* buff0;
-bool lcdInUse =false;
+bool lcdInUse = false;
 
 String ssid;
 String password;
@@ -110,7 +110,7 @@ float timeH;
 long previousMs;
 long previousJsonSentMs;
 
-const char softAP_ssid[] = "MLIFT";
+const char softAP_ssid[] = "LASER_DIST";
 const char softAP_password[] = "Doitman1";
 
 TaskHandle_t TaskCheckIp;
@@ -135,7 +135,6 @@ float mm = 0;
 
 void lcd_out(const char*format, ...);
 std::vector<String> disp;
-
 
 void CheckIpTask(void * parameter);
 float WAF_WEIGHT = 0.25;
@@ -471,7 +470,7 @@ void startServer() {
 void syncTime();
 
 void lcd_out(const char*format, ...) {
-	if(lcdInUse)
+	if (lcdInUse)
 		return;
 	bool lcdDisplay = true;
 
@@ -492,11 +491,9 @@ void lcd_out(const char*format, ...) {
 		}
 	}
 	len = vsnprintf(temp, len + 1, format, arg);
-	if(len>1)
-	{
-		disp.insert (disp.begin(), String(temp));
-		if(disp.size()>5)
-		{
+	if (len > 1) {
+		disp.insert(disp.begin(), String(temp));
+		if (disp.size() > 5) {
 			//char* latest = disp.at(disp.size()-1);
 			//delete latest;
 			disp.pop_back();
@@ -511,9 +508,8 @@ void lcd_out(const char*format, ...) {
 		//display.setFont(ArialMT_Plain_10);
 		delayMicroseconds(500);
 		//Serial.printf("disp size: %d", disp.size());
-		for(int i=0; i<disp.size(); i++)
-		{
-			display.drawString(0, i*8, disp.at(i));
+		for (int i = 0; i < disp.size(); i++) {
+			display.drawString(0, i * 8, disp.at(i));
 		}
 
 		//display.setFont(ArialMT_Plain_16);
@@ -531,7 +527,7 @@ void lcd_out(const char*format, ...) {
 	if (len >= sizeof(loc_buf)) {
 		delete[] temp;
 	}
-	lcdInUse= false;
+	lcdInUse = false;
 }
 
 void listDir(fs::FS & fs, const char * dirname, uint8_t levels) {
@@ -733,7 +729,7 @@ void setup() {
 				ret.concat(wifiData);
 				ret.concat("\n");
 				//lcd_out(String(wifiData + "\n").c_str());
-			}
+		}
 
 #ifdef arduinoWebserver
 			ws.broadcastTXT(ret);
@@ -760,6 +756,7 @@ void setup() {
 //		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 //	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+	    lcd_out("IP: %s",WiFi.localIP().toString().c_str());
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -866,17 +863,19 @@ void myLoop() {			//ArduinoOTA.handle();
 
 //printEncoderInfo();
 	for (;;) {
-		sensor.read(true);
-		if (!sensor.timeoutOccurred()) {
-			mm = weightedAverageFilter(sensor.ranging_data.range_mm,
-					previousMm);
-			previousMm = mm;
-			//Serial.printf("dist [mm]: %6.2f\n", mm);
-			lcd_out("");
-		} else {
-			Serial.printf("Status: %s\n",
-					sensor.rangeStatusToString(
-							sensor.ranging_data.range_status));
+		if (!lcdInUse) {
+			sensor.read(true);
+			if (!sensor.timeoutOccurred()) {
+				mm = weightedAverageFilter(sensor.ranging_data.range_mm,
+						previousMm);
+				previousMm = mm;
+				//Serial.printf("dist [mm]: %6.2f\n", mm);
+				lcd_out("");
+			} else {
+				Serial.printf("Status: %s\n",
+						sensor.rangeStatusToString(
+								sensor.ranging_data.range_status));
+			}
 		}
 
 		mySecond = esp_timer_get_time() / 1000000.0;
