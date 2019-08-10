@@ -26,7 +26,7 @@ git submodule update --init
 ```
 
 Example of device in operation:
-![project in action](https://photos.app.goo.gl/GHPAdg8sywpEcgj76)
+[device in action](https://photos.app.goo.gl/GHPAdg8sywpEcgj76)
 
 
 
