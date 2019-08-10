@@ -99,6 +99,7 @@ VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 char buff[255];
 char wsBuf[30];
+char txtToSend[50] = { };
 
 char* buff0;
 bool lcdInUse = false;
@@ -136,6 +137,7 @@ char tempStr[15];
 float mm = 0;
 
 void lcd_out(const char*format, ...);
+IRAM_ATTR void setJsonString();
 std::vector<String> disp;
 
 void CheckIpTask(void * parameter);
@@ -209,7 +211,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 	if (type == WS_EVT_CONNECT) {
 		lcd_out("ws[%s][%u] [%s] connect", server->url(), client->id(),
 				client->remoteIP().toString().c_str());
-		Serial.printf("Client %s connected.\n", client->remoteIP().toString().c_str());
+		Serial.printf("Client %s connected.\n",
+				client->remoteIP().toString().c_str());
 		//client->printf("Hello Client %u :)", client->id());
 		delay(100);
 		//client->ping();
@@ -868,7 +871,8 @@ void myLoop() {			//ArduinoOTA.handle();
 	for (;;) {
 		if (!lcdInUse) {
 			sensor.read(true);
-			if (!sensor.timeoutOccurred() && sensor.ranging_data.range_status == 0) {
+			if (!sensor.timeoutOccurred()
+					&& sensor.ranging_data.range_status == 0) {
 				mm = weightedAverageFilter(sensor.ranging_data.range_mm,
 						previousMm);
 				previousMm = mm;
@@ -878,8 +882,7 @@ void myLoop() {			//ArduinoOTA.handle();
 				if (ws.count() > 0) {
 					//float roundMm = static_cast<float>(static_cast<int>(mm * 10.)) / 10.;
 					int roundMm = round(mm);
-					if (previousRoundMm != roundMm)
-					{
+					if (previousRoundMm != roundMm) {
 						sprintf(wsBuf, "distance: %d mm", roundMm);
 						ws.textAll(wsBuf);
 						previousRoundMm = roundMm;
@@ -908,10 +911,18 @@ void myLoop() {			//ArduinoOTA.handle();
 				lcd_out("time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u", mySecond, timeH, xPortGetCoreID(), freeheap);
 #endif
 			//dbg_lwip_stats_show();
+			if (ws.count() > 0) {
+				setJsonString();
+				ws.textAll(txtToSend);
+			}
+
 			heap_caps_check_integrity_all(true);
 			if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
 				previousHeap = ESP.getFreeHeap();
-			previousSecond = mySecond;
+
+			if (previousSecond != mySecond)
+				previousSecond = mySecond;
+
 			previousMs = millis();
 		}
 
@@ -920,23 +931,6 @@ void myLoop() {			//ArduinoOTA.handle();
 		esp_err_t resetOK = esp_task_wdt_reset();
 		if (resetOK != ESP_OK) {
 			//lcd_out("Failed reset wdt: err %#03x\n", resetOK);
-		}
-
-		if ((mySecond % 20 == 0) && (previousSecondSetter != mySecond)) {
-			/*
-			 Serial.print("Setting setpoint ");
-			 if (target1 <= 15000) {
-			 target1 = 15300;
-			 target2 = 15300;
-			 } else {
-			 target1 = 15000;
-			 target2 = 15000;
-			 Serial.printf("%f\n", pid1.getSetpoint());
-			 }
-			 Serial.printf("%f\n", target1);
-			 */
-			//heap_caps_print_heap_info(MALLOC_CAP_8BIT);
-			//previousSecondSetter = mySecond;
 		}
 
 		if (restartNow) {
@@ -951,7 +945,6 @@ void myLoop() {			//ArduinoOTA.handle();
 					mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
 					heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 #endif
-
 
 			previousJsonSentMs = millis();
 		}
@@ -1062,4 +1055,22 @@ float weightedAverageFilter(float incomingValue, float previousValue) { // See h
 			+ (1.0 - WAF_WEIGHT) * previousValue;
 	return filteredReading;
 
+}
+
+IRAM_ATTR void setJsonString() {
+
+//@formatter:off
+		sprintf(txtToSend,
+				"{"
+
+				"\"esp32_heap\":%zu,"
+				"\"esp32_largest_free_block\":%zu,"
+				"\"uptime_h\":%.2f"
+
+				"}"
+
+				,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
+				,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)
+				,timeH);
+//@formatter:on
 }
