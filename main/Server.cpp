@@ -141,7 +141,7 @@ IRAM_ATTR void setJsonString();
 std::vector<String> disp;
 
 void CheckIpTask(void * parameter);
-float WAF_WEIGHT = 0.4;
+float WAF_WEIGHT = 0.8;
 float weightedAverageFilter(float incomingValue, float previousValue);
 
 String getToken(String data, char separator, int index) {
@@ -508,7 +508,7 @@ void lcd_out(const char*format, ...) {
 	}
 
 	if (lcdDisplay) {
-		sprintf(buff, "dis: %6.2fmm up: %5.1fh", mm, timeH);
+		sprintf(buff, "dis: %6.1fmm  up: %5.1fh", mm, timeH);
 		display.clear();
 		//display.setFont(ArialMT_Plain_10);
 		delayMicroseconds(500);
@@ -865,7 +865,7 @@ long start;
 void myLoop() {			//ArduinoOTA.handle();
 
 	float previousMm = 0;
-	int previousRoundMm = 0;
+	float previousRoundMm = 0;
 
 //printEncoderInfo();
 	for (;;) {
@@ -880,10 +880,10 @@ void myLoop() {			//ArduinoOTA.handle();
 				lcd_out("");
 
 				if (ws.count() > 0) {
-					//float roundMm = static_cast<float>(static_cast<int>(mm * 10.)) / 10.;
-					int roundMm = round(mm);
+					float roundMm = static_cast<float>(static_cast<int>(mm * 10.)) / 10.;
+					//int roundMm = round(mm);
 					if (previousRoundMm != roundMm) {
-						sprintf(wsBuf, "distance: %d mm", roundMm);
+						sprintf(wsBuf, "distance: %5.1f mm", roundMm);
 						ws.textAll(wsBuf);
 						previousRoundMm = roundMm;
 					}
