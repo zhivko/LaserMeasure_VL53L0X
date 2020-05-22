@@ -99,7 +99,7 @@ VL53L1X sensor;
 SSD1306Wire display(0x3c, 5, 4, OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64);
 char buff[255];
 char wsBuf[30];
-char txtToSend[50] = { };
+char txtToSend[52] = { };
 
 char* buff0;
 bool lcdInUse = false;
@@ -248,11 +248,11 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 			} else {
 				char buff[3];
 				for (size_t i = 0; i < info->len; i++) {
-					sprintf(buff, "%02x ", (uint8_t) data[i]);
+					snprintf(buff, 4, "%02x ", (uint8_t) data[i]);
 					msg += buff;
 				}
 			}
-			//Serial.printf("%s\n", msg.c_str());
+			Serial.printf("%s\n", msg.c_str());
 			heap_caps_check_integrity_all(true);
 			processWsData(msg.c_str());
 			heap_caps_check_integrity_all(true);
@@ -517,12 +517,6 @@ void lcd_out(const char*format, ...) {
 			display.drawString(0, i * 8, disp.at(i));
 		}
 
-		//display.setFont(ArialMT_Plain_16);
-		//display.setColor(OLEDDISPLAY_COLOR::WHITE);
-		//display.drawRect(75, 15, 50, 16);
-		//display.setColor(OLEDDISPLAY_COLOR::BLACK);
-		//display.fillRect(75 + 1, 15 + 1, 50 - 2, 16 - 2);
-		//display.setColor(OLEDDISPLAY_COLOR::WHITE);
 		display.drawStringMaxWidth(0, 50, 160, buff);
 		display.display();
 		delayMicroseconds(500);
@@ -713,7 +707,7 @@ void setup() {
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("Wifi lost connection.");
-	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+	}, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_SCAN_DONE");
@@ -754,7 +748,7 @@ void setup() {
 			//vTaskResume(reportJsonTask);
 		}
 
-	}, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
+	}, WiFiEvent_t::ARDUINO_EVENT_WIFI_SCAN_DONE);
 //	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
 //		lcd_out("SYSTEM_EVENT_STA_GOT_IP\n");
 //		lcd_out(String(WiFi.localIPv6().toString()+ "\n").c_str());
@@ -763,14 +757,14 @@ void setup() {
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("IP: %s",WiFi.localIP().toString().c_str());
 		startServer();
-	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+	}, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_GOT_IP6");
 		//sstartServer();
-		}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
+		}, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP6);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		WiFi.begin();
-	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+	}, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_LOST_IP);
 
 //waitForIp();			//	wifi_mode_t mode = WiFi.getMode();
 //	if (mode == WIFI_MODE_AP) {
@@ -868,6 +862,12 @@ void myLoop() {			//ArduinoOTA.handle();
 	float previousRoundMm = 0;
 
 //printEncoderInfo();
+
+	Serial.printf(
+			"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
+			mySecond, timeH, xPortGetCoreID(), esp_get_free_heap_size(),
+			heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
 	for (;;) {
 		if (!lcdInUse) {
 			sensor.read(true);
@@ -880,7 +880,9 @@ void myLoop() {			//ArduinoOTA.handle();
 				lcd_out("");
 
 				if (ws.count() > 0) {
-					float roundMm = static_cast<float>(static_cast<int>(mm * 10.)) / 10.;
+					float roundMm =
+							static_cast<float>(static_cast<int>(mm * 10.))
+									/ 10.;
 					//int roundMm = round(mm);
 					if (previousRoundMm != roundMm) {
 						sprintf(wsBuf, "distance: %5.1f mm", roundMm);
@@ -898,7 +900,7 @@ void myLoop() {			//ArduinoOTA.handle();
 
 		mySecond = esp_timer_get_time() / 1000000.0;
 		if (((mySecond % 3 == 0) && (previousSecond != mySecond))
-				|| (abs(ESP.getFreeHeap() - previousHeap) > 10000)) {
+				|| (labs(ESP.getFreeHeap() - previousHeap) > 10000)) {
 #ifndef arduinoWebserver
 			timeH = (float) (esp_timer_get_time() / (1000000.0 * 60.0 * 60.0));
 //			lcd_out(
@@ -917,7 +919,7 @@ void myLoop() {			//ArduinoOTA.handle();
 			}
 
 			heap_caps_check_integrity_all(true);
-			if (abs(ESP.getFreeHeap() - previousHeap) > 10000)
+			if (labs(ESP.getFreeHeap() - previousHeap) > 10000)
 				previousHeap = ESP.getFreeHeap();
 
 			if (previousSecond != mySecond)
@@ -1058,19 +1060,23 @@ float weightedAverageFilter(float incomingValue, float previousValue) { // See h
 }
 
 IRAM_ATTR void setJsonString() {
+	char str[15];
 
+	dtostrf(timeH, 3, 4, str);
 //@formatter:off
-		sprintf(txtToSend,
-				"{"
+	/*
+		snprintf(txtToSend, sizeof(txtToSend),"{\"esp32_heap\":%04lu,\"esp32_largest_free_block\":%04lu,\"uptime_h\":%s}"
+				,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)%10000lu
+				,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)%10000lu
+				,str);
+				*/
 
-				"\"esp32_heap\":%zu,"
-				"\"esp32_largest_free_block\":%zu,"
-				"\"uptime_h\":%.2f"
+	snprintf(txtToSend, sizeof(txtToSend),"{\"esp32_heap\":%04lu,\"esp32_largest_free_block\":%04lu}"
+			,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)%10000lu
+			,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)%10000lu
+			);
 
-				"}"
 
-				,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
-				,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)
-				,timeH);
-//@formatter:on
+
+	//@formatter:on
 }

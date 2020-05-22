@@ -28,3 +28,6 @@ set(COMPONENT_REQUIRES driver)
 set(COMPONENT_PRIV_REQUIRES freertos)
 
 register_component()
+
+string(REPLACE "-Werror=all" "-Wno-error=format-overflow" "${CXX_COMPILE_OPTIONS}" )
+idf_build_set_property(CXX_COMPILE_OPTIONS "${CXX_OPTIONS}" REPLACE)

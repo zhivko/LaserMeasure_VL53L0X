@@ -7,6 +7,7 @@
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
+	branch = idf-release/v4.0
 [submodule "components/esp8266-oled-ssd1306s"]
 	path = components/esp8266-oled-ssd1306
 	url = https://github.com/ThingPulse/esp8266-oled-ssd1306.git
